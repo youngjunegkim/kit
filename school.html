@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>키트 중학교 미니게임 지도</title>
+  <link rel="stylesheet" href="clock.css">
+  <style>
+    :root {
+      --bg: #101826;
+      --panel: rgba(255, 255, 255, 0.94);
+      --panel-strong: #ffffff;
+      --ink: #18202b;
+      --muted: #657181;
+      --line: rgba(255, 255, 255, 0.18);
+      --red: #f3342f;
+      --red-soft: rgba(243, 52, 47, 0.14);
+      --blue: #2f6eea;
+      --green: #148a5b;
+      --gold: #b06f14;
+      --violet: #7652d6;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% 10%, rgba(64, 104, 170, 0.28), transparent 30%),
+        linear-gradient(135deg, #0d1522 0%, #172235 52%, #202436 100%);
+      color: var(--ink);
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button {
+      border: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 292px;
+      gap: 22px;
+      align-items: start;
+      padding: 22px;
+    }
+
+    .map-panel {
+      min-width: 0;
+    }
+
+    .map-title {
+      display: none;
+      width: min(100%, 1360px);
+      margin: 0 auto 14px;
+      color: #fff;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .map-title h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .map-title p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.72);
+      font-weight: 700;
+    }
+
+    .map-frame {
+      position: relative;
+      width: min(100%, 1360px);
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      background: #0f1724;
+    }
+
+    .school-map {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .school-name-overlay {
+      position: absolute;
+      z-index: 2;
+      pointer-events: none;
+      color: #f5f7fb;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.72),
+        0 0 10px rgba(0, 0, 0, 0.62);
+      white-space: nowrap;
+    }
+
+    .school-name-overlay--title {
+      left: 1.18%;
+      top: 2.08%;
+      padding: 3px 10px 5px 0;
+      background: rgba(14, 25, 39, 0.86);
+      font-size: clamp(1.05rem, 2.25vw, 2rem);
+      line-height: 1.1;
+    }
+
+    .school-name-overlay--sign {
+      left: 81.92%;
+      top: 12.75%;
+      min-width: 11.4%;
+      padding: 5px 8px 6px;
+      border-radius: 3px;
+      background: rgba(10, 21, 33, 0.91);
+      font-size: clamp(0.62rem, 1.22vw, 1.08rem);
+      line-height: 1;
+      text-align: center;
+    }
+
+    .hotspot {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      border: 3px solid rgba(243, 52, 47, 0.9);
+      border-radius: 4px;
+      background: rgba(243, 52, 47, 0.03);
+      box-shadow:
+        0 0 0 1px rgba(255, 226, 224, 0.55) inset,
+        0 0 16px rgba(243, 52, 47, 0.28);
+      transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .hotspot:hover,
+    .hotspot:focus-visible {
+      background: var(--red-soft);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.74) inset,
+        0 0 24px rgba(243, 52, 47, 0.58);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .score-board {
+      position: sticky;
+      top: 22px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .score-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .score-head h2 {
+      margin: 0;
+      font-size: 1.12rem;
+      line-height: 1.2;
+    }
+
+    .reset-btn {
+      min-height: 34px;
+      border-radius: 6px;
+      padding: 7px 10px;
+      background: #eef1f5;
+      color: #3a4553;
+      font-weight: 800;
+    }
+
+    .reset-btn:hover,
+    .reset-btn:focus-visible {
+      background: #dfe5ed;
+      outline: none;
+    }
+
+    .team-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .team-row {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 10px;
+      align-items: center;
+      min-height: 52px;
+      padding: 9px;
+      border: 1px solid #e1e6ee;
+      border-radius: 8px;
+      background: var(--panel-strong);
+    }
+
+    .team-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .team-a {
+      background: var(--blue);
+    }
+
+    .team-b {
+      background: var(--green);
+    }
+
+    .team-c {
+      background: var(--gold);
+    }
+
+    .team-d {
+      background: var(--violet);
+    }
+
+    .team-score {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .team-name {
+      display: block;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .score-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #344154;
+      font-weight: 900;
+    }
+
+    .score-input {
+      width: 86px;
+      min-height: 38px;
+      border: 1px solid #d7dee8;
+      border-radius: 6px;
+      background: #f9fbfd;
+      color: #18202b;
+      padding: 8px 10px;
+      text-align: right;
+      font-weight: 900;
+      font: inherit;
+    }
+
+    .score-input:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(243, 52, 47, 0.14);
+      outline: none;
+    }
+
+    .time-tools {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .time-tool {
+      border: 1px solid #e1e6ee;
+      border-radius: 8px;
+      background: var(--panel-strong);
+      padding: 12px;
+    }
+
+    .time-tool h3 {
+      margin: 0;
+      color: #344154;
+      font-size: 0.95rem;
+      line-height: 1.2;
+    }
+
+    .time-display {
+      margin-top: 8px;
+      color: #18202b;
+      font-size: 1.65rem;
+      line-height: 1;
+      font-weight: 900;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-actions,
+    .timer-inputs {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .time-actions button {
+      flex: 1;
+      min-height: 36px;
+      border-radius: 6px;
+      background: #1d2a3d;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .time-actions button:hover,
+    .time-actions button:focus-visible {
+      background: var(--red);
+      outline: none;
+    }
+
+    .timer-inputs {
+      align-items: center;
+      color: #657181;
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .timer-inputs input {
+      width: 68px;
+      min-height: 36px;
+      border: 1px solid #d7dee8;
+      border-radius: 6px;
+      background: #f9fbfd;
+      color: #18202b;
+      padding: 7px 8px;
+      text-align: right;
+      font: inherit;
+      font-weight: 900;
+    }
+
+    .timer-inputs input:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(243, 52, 47, 0.14);
+      outline: none;
+    }
+
+    @media (max-width: 1060px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      .score-board {
+        position: static;
+        width: min(100%, 1360px);
+        margin: 0 auto;
+        order: -1;
+      }
+
+      .team-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 14px;
+        gap: 14px;
+      }
+
+      .map-title {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .map-title h1 {
+        font-size: 1.3rem;
+      }
+
+      .team-list {
+        grid-template-columns: 1fr;
+      }
+
+      .hotspot {
+        border-width: 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="map-panel" aria-label="학교 미니게임 지도">
+      <div class="map-title">
+        <h1>키트 중학교</h1>
+        <p>4개의 미션 교실</p>
+      </div>
+
+      <div class="map-frame">
+        <img class="school-map" src="assets/교실-단면-사진.png" alt="한국 중학교 단면도">
+        <div class="school-name-overlay school-name-overlay--title">키트 중학교</div>
+        <div class="school-name-overlay school-name-overlay--sign">키트 중학교</div>
+
+        <a class="hotspot" style="--x: 78.74%; --y: 19.92%; --w: 12.50%; --h: 16.30%;" href="teacherroom.html" aria-label="교무실 미니게임으로 이동">
+          <span class="visually-hidden">교무실</span>
+        </a>
+
+        <a class="hotspot" style="--x: 35.54%; --y: 37.45%; --w: 22.06%; --h: 16.29%;" href="game-library.html" aria-label="도서관 미니게임으로 이동">
+          <span class="visually-hidden">도서관</span>
+        </a>
+
+        <a class="hotspot" style="--x: 10.97%; --y: 54.88%; --w: 24.02%; --h: 16.39%;" href="game-science.html" aria-label="과학실 미니게임으로 이동">
+          <span class="visually-hidden">과학실</span>
+        </a>
+
+        <a class="hotspot" style="--x: 10.97%; --y: 72.51%; --w: 17.71%; --h: 16.08%;" href="game-entrance.html" aria-label="출입문 미니게임으로 이동">
+          <span class="visually-hidden">출입문</span>
+        </a>
+      </div>
+    </section>
+
+    <aside class="score-board" aria-label="조별 점수판">
+      <div class="clock-card" aria-label="현재 시간">
+        <div class="analog-clock" data-clock>
+          <div class="analog-clock__face">
+            <div class="analog-clock__hand analog-clock__hand--hour"></div>
+            <div class="analog-clock__hand analog-clock__hand--minute"></div>
+            <div class="analog-clock__hand analog-clock__hand--second"></div>
+            <div class="analog-clock__center"></div>
+          </div>
+          <div class="analog-clock__time" data-clock-time>00:00:00</div>
+        </div>
+      </div>
+
+      <div class="score-head">
+        <h2>조별 점수</h2>
+        <button class="reset-btn" type="button" id="resetScores">초기화</button>
+      </div>
+
+      <div class="team-list">
+        <div class="team-row">
+          <div class="team-badge team-a">A</div>
+          <div class="team-score">
+            <span class="team-name">A조</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreA" type="number" min="0" step="1" inputmode="numeric" data-score-input="A" aria-label="A조 점수">
+              <span>점</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-b">B</div>
+          <div class="team-score">
+            <span class="team-name">B조</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreB" type="number" min="0" step="1" inputmode="numeric" data-score-input="B" aria-label="B조 점수">
+              <span>점</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-c">C</div>
+          <div class="team-score">
+            <span class="team-name">C조</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreC" type="number" min="0" step="1" inputmode="numeric" data-score-input="C" aria-label="C조 점수">
+              <span>점</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-d">D</div>
+          <div class="team-score">
+            <span class="team-name">D조</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreD" type="number" min="0" step="1" inputmode="numeric" data-score-input="D" aria-label="D조 점수">
+              <span>점</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-tools" aria-label="시간 도구">
+        <section class="time-tool" aria-label="스톱워치">
+          <h3>스톱워치</h3>
+          <div class="time-display" id="stopwatchDisplay">00:00.0</div>
+          <div class="time-actions">
+            <button type="button" id="stopwatchToggle">시작</button>
+            <button type="button" id="stopwatchReset">초기화</button>
+          </div>
+        </section>
+
+        <section class="time-tool" aria-label="타이머">
+          <h3>타이머</h3>
+          <div class="time-display" id="timerDisplay">05:00</div>
+          <div class="timer-inputs">
+            <input id="timerMinutes" type="number" min="0" max="99" step="1" value="5" aria-label="타이머 분">
+            <span>분</span>
+            <input id="timerSeconds" type="number" min="0" max="59" step="1" value="0" aria-label="타이머 초">
+            <span>초</span>
+          </div>
+          <div class="time-actions">
+            <button type="button" id="timerToggle">시작</button>
+            <button type="button" id="timerReset">초기화</button>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script src="clock.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>과학실 미니게임</title>
+  <link rel="stylesheet" href="clock.css">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: linear-gradient(135deg, #101826, #3d354f);
+      color: #18202b;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .panel {
+      width: min(520px, 100%);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+      padding: 30px;
+      text-align: center;
+    }
+
+    .label {
+      margin: 0 0 10px;
+      color: #657181;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 2rem;
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 0 0 24px;
+      color: #4b5868;
+      font-weight: 700;
+    }
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      border-radius: 6px;
+      padding: 11px 18px;
+      background: #f3342f;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 900;
+    }
+
+    a:hover,
+    a:focus-visible {
+      background: #c92521;
+      outline: none;
+    }
+  </style>
+</head>
+<body class="game-page">
+  <main class="panel">
+    <div class="clock-card" aria-label="현재 시간">
+      <div class="analog-clock" data-clock>
+        <div class="analog-clock__face">
+          <div class="analog-clock__hand analog-clock__hand--hour"></div>
+          <div class="analog-clock__hand analog-clock__hand--minute"></div>
+          <div class="analog-clock__hand analog-clock__hand--second"></div>
+          <div class="analog-clock__center"></div>
+        </div>
+        <div class="analog-clock__time" data-clock-time>00:00:00</div>
+      </div>
+    </div>
+
+    <p class="label">2F 과학실</p>
+    <h1>미니게임 준비 중</h1>
+    <p>여기에 과학실 미니게임을 넣으면 됩니다.</p>
+    <a href="school.html">학교로 돌아가기</a>
+  </main>
+  <script src="game-status.js"></script>
+  <script src="clock.js"></script>
+</body>
+</html>
