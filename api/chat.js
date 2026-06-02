@@ -341,6 +341,7 @@ function scriptedReplyFor(message, payload = {}) {
 
   const asksGreeting = includesAny(raw, [/^안녕/, /^야$/, /반가워/, /하이/i]);
   const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름/, /소개/]);
+  const asksTruncated = includesAny(raw, [/말.*끊/, /끊어.*말/, /끝까지/, /다\s*말/, /왜\s*끊/]);
   const asksAccusation = includesAny(raw, [/너\s*맞/, /네가\s*했/, /니가\s*했/, /범인/, /맞지/, /했지/]);
   const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/]);
 
@@ -350,6 +351,9 @@ function scriptedReplyFor(message, payload = {}) {
     }
     if (asksIdentity) {
       return "저는 00중학교 2학년 강우진이에요. 축구부 소속이고, 사건에 대해 기억나는 건 차근차근 말해볼게요.";
+    }
+    if (asksTruncated) {
+      return "아, 제가 말이 좀 어색하게 끊겼네요. 다시 차근차근 말할게요. 사건이랑 관련된 걸 물어보면 끝까지 대답해볼게요.";
     }
     const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /여자친구/, /여친/, /재회/, /헤어/, /차였/, /인정받/]);
     const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
@@ -374,6 +378,7 @@ function scriptedReplyFor(message, payload = {}) {
     if (asksAccusation) {
       return "그렇게 바로 단정하면 곤란해요. 제가 잘못한 게 있는지 확인하려면 증거랑 제 말을 비교해 봐야 하지 않을까요?";
     }
+    return "그 질문은 바로 단정해서 말하기 어려워요. 축구부 연습이 끝난 뒤 어디에 있었는지, 교무실 근처에서 뭘 봤는지부터 하나씩 물어봐 주세요.";
   }
 
   if (personaId === "seoHarin") {
@@ -382,6 +387,9 @@ function scriptedReplyFor(message, payload = {}) {
     }
     if (asksIdentity) {
       return "저는 00중학교 2학년 서하린이에요. 컴퓨터와 방송 장비를 다루는 데 익숙하지만, 시험지를 유출한 건 아니에요.";
+    }
+    if (asksTruncated) {
+      return "제가 방금 말을 애매하게 했네요. 다시 정리해서 말하면, 저는 기록과 로그를 기준으로 차분히 설명할 수 있어요.";
     }
     const asksLog = includesAny(raw, [/로그/, /기록/, /접속/, /오류/, /시스템/, /ai/i]);
     const asksPlace = includesAny(raw, [/방송실/, /컴퓨터실/, /교무실/, /어디/, /위치/]);
@@ -399,6 +407,7 @@ function scriptedReplyFor(message, payload = {}) {
     if (asksAccusation) {
       return "그건 너무 빠른 결론이에요. 제가 컴퓨터를 잘 다룬다는 것과 시험지를 유출했다는 건 다른 문제예요.";
     }
+    return "그 질문은 기록을 기준으로 봐야 해요. 방송실, 시스템 로그, 시험지 파일 중 어떤 부분을 확인하고 싶은지 물어봐 주세요.";
   }
 
   if (personaId === "choiDaniel") {
@@ -407,6 +416,9 @@ function scriptedReplyFor(message, payload = {}) {
     }
     if (asksIdentity) {
       return "저는 00중학교 2학년 최다니엘이에요. 조용한 편이고, 그날은 잃어버린 물건을 찾고 있었어요.";
+    }
+    if (asksTruncated) {
+      return "제가 말을 너무 짧게 했네요. 다시 말하면, 저는 교무실 안이 아니라 근처 복도에 있었던 이유를 설명할 수 있어요.";
     }
     const asksPlace = includesAny(raw, [/교무실/, /복도/, /근처/, /어디/, /위치/]);
     const asksObject = includesAny(raw, [/usb/i, /유에스비/, /이어폰/, /케이스/, /물건/]);
@@ -427,6 +439,7 @@ function scriptedReplyFor(message, payload = {}) {
     if (asksAccusation) {
       return "그렇게 바로 판단하긴 어려워요. CCTV에 제가 보였다고 해서 시험지랑 관련 있다고 볼 수는 없잖아요.";
     }
+    return "그 부분은 제가 아는 범위에서만 말할 수 있어요. 교무실 근처 복도에 있었던 이유나 들고 있던 물건에 대해 물어봐 주세요.";
   }
 
   return "";
@@ -480,6 +493,14 @@ function trimToThreeSentences(text) {
     reply = `${reply}.`;
   }
   return reply;
+}
+
+function looksIncompleteReply(reply) {
+  const text = String(reply || "").trim();
+  if (!text) return true;
+  if (text.length < 18) return true;
+  if (/[가-힣]\s*$/.test(text) && !/[.!?。！？]$/.test(text)) return true;
+  return /(것|거|듯|중|때문|려고|으려|하려|하며|하면서|말하려|끊으려|질문)\.$/.test(text);
 }
 
 function getGeminiKeys() {
@@ -541,7 +562,7 @@ async function callGemini(message, history, payload = {}) {
         generationConfig: {
           temperature: 0.7,
           topP: 0.9,
-          maxOutputTokens: 180,
+          maxOutputTokens: 320,
           responseMimeType: "text/plain"
         }
       })
@@ -550,6 +571,15 @@ async function callGemini(message, history, payload = {}) {
     const data = await geminiResponse.json().catch(() => ({}));
     if (geminiResponse.ok) {
       const reply = trimToThreeSentences(extractGeminiText(data));
+      if (looksIncompleteReply(reply)) {
+        return {
+          statusCode: 200,
+          body: {
+            reply: scriptedReplyFor(message, payload),
+            source: "scripted"
+          }
+        };
+      }
       return {
         statusCode: 200,
         body: {

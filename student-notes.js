@@ -8,6 +8,7 @@
   const numberedTemplate = "1. \n2. \n3. \n4. \n5. ";
   const oldTemplatePattern = /^1\. .+\uC5D0\uAC8C\uC11C \uC5BB\uC740 \uB2E8\uC11C:\s*\n2\. .+\uC5D0\uAC8C\uC11C \uC5BB\uC740 \uB2E8\uC11C:\s*\n3\. .+\uC5D0\uAC8C\uC11C \uC5BB\uC740 \uB2E8\uC11C:\s*\n4\. .+\uC5D0\uAC8C\uC11C \uC5BB\uC740 \uB2E8\uC11C:\s*$/;
   const oldTemplatePhrase = /\uC5D0\uAC8C\uC11C\s*\uC5BB\uC740/;
+  const junkLinePattern = /^(?:[1-5]\.\s*)?(?:v|ㅍ){2,}\s*$/i;
 
   const getTemplate = () => numberedTemplate;
 
@@ -27,8 +28,19 @@
     if (oldTemplatePattern.test(savedNote)) return true;
 
     const lines = savedNote.split(/\n/).filter((line) => line.trim());
+    if (lines.length && lines.every((line) => /^[1-5]\.\s*$/.test(line.trim()) || junkLinePattern.test(line.trim()))) {
+      return true;
+    }
     return lines.some((line) => oldTemplatePhrase.test(line)) &&
       lines.every(isOldTemplateLine);
+  }
+
+  function cleanSavedNote(savedNote) {
+    if (savedNote === null) return null;
+    return savedNote
+      .split(/\n/)
+      .map((line) => junkLinePattern.test(line.trim()) ? line.replace(/(?:v|ㅍ)+/gi, "") : line)
+      .join("\n");
   }
 
   document.querySelectorAll("[data-note-key]").forEach((textarea) => {
@@ -37,12 +49,13 @@
     const status = document.querySelector(`[data-note-status="${key}"]`);
     let saveTimer = 0;
 
-    const savedNote = localStorage.getItem(storageKey);
+    const savedNote = cleanSavedNote(localStorage.getItem(storageKey));
     if (shouldUseTemplate(savedNote)) {
       textarea.value = getTemplate();
       localStorage.setItem(storageKey, textarea.value);
     } else {
       textarea.value = savedNote;
+      localStorage.setItem(storageKey, textarea.value);
     }
 
     textarea.addEventListener("input", () => {
