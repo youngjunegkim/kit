@@ -315,7 +315,7 @@ function safetyReplyFor(message) {
   ];
   const aggressive = [
     /죽어|죽일|패버|때리|괴롭히|왕따|따돌림|혐오|찐따|장애인|못생긴/i,
-    /꺼지라고|입\s*닫아|협박/i
+    /꺼지라고|꺼져|입\s*닫아|협박|구라치지마|구라|재수|제까|제꺼|장난치지마/i
   ];
   const technicalCrime = [
     /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취/i,
@@ -339,10 +339,18 @@ function scriptedReplyFor(message, payload = {}) {
   const raw = String(message || "").trim();
   const compact = normalize(raw);
 
+  const asksGreeting = includesAny(raw, [/^안녕/, /^야$/, /반가워/, /하이/i]);
+  const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름/, /소개/]);
   const asksAccusation = includesAny(raw, [/너\s*맞/, /네가\s*했/, /니가\s*했/, /범인/, /맞지/, /했지/]);
   const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/]);
 
   if (personaId === "kangWoojin") {
+    if (asksGreeting) {
+      return "안녕하세요. 저는 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요.";
+    }
+    if (asksIdentity) {
+      return "저는 00중학교 2학년 강우진이에요. 축구부 소속이고, 사건에 대해 기억나는 건 차근차근 말해볼게요.";
+    }
     const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /여자친구/, /여친/, /재회/, /헤어/, /차였/, /인정받/]);
     const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
     const asksTime = includesAny(raw, [/5\s*시\s*20/, /오후/, /축구부/, /연습\s*끝/, /몇\s*시/, /시간/]);
@@ -369,6 +377,12 @@ function scriptedReplyFor(message, payload = {}) {
   }
 
   if (personaId === "seoHarin") {
+    if (asksGreeting) {
+      return "안녕하세요. 저는 서하린입니다. 시스템 로그와 관련해서 궁금한 걸 물어보시면 답해볼게요.";
+    }
+    if (asksIdentity) {
+      return "저는 00중학교 2학년 서하린이에요. 컴퓨터와 방송 장비를 다루는 데 익숙하지만, 시험지를 유출한 건 아니에요.";
+    }
     const asksLog = includesAny(raw, [/로그/, /기록/, /접속/, /오류/, /시스템/, /ai/i]);
     const asksPlace = includesAny(raw, [/방송실/, /컴퓨터실/, /교무실/, /어디/, /위치/]);
     const asksUsb = includesAny(raw, [/usb/i, /유에스비/, /시험지/, /파일/]);
@@ -388,6 +402,12 @@ function scriptedReplyFor(message, payload = {}) {
   }
 
   if (personaId === "choiDaniel") {
+    if (asksGreeting) {
+      return "안녕하세요. 저는 최다니엘입니다. 교무실 근처 복도에 있었던 이유를 차분히 설명해볼게요.";
+    }
+    if (asksIdentity) {
+      return "저는 00중학교 2학년 최다니엘이에요. 조용한 편이고, 그날은 잃어버린 물건을 찾고 있었어요.";
+    }
     const asksPlace = includesAny(raw, [/교무실/, /복도/, /근처/, /어디/, /위치/]);
     const asksObject = includesAny(raw, [/usb/i, /유에스비/, /이어폰/, /케이스/, /물건/]);
     const asksAi = includesAny(raw, [/ai/i, /시스템/, /접속/, /로그/, /컴퓨터/]);
@@ -449,8 +469,17 @@ function trimToThreeSentences(text) {
   const cleaned = String(text || "").replace(/\s+/g, " ").trim();
   if (!cleaned) return "저 지금 뭐라고 답해야 할지 모르겠는데요. 제대로 다시 물어봐 주세요.";
 
-  const sentences = cleaned.match(/[^.!?。！？\n]+[.!?。！？]?/g) || [cleaned];
-  return sentences.slice(0, 3).join(" ").slice(0, 420).trim();
+  const completeSentences = cleaned.match(/[^.!?。！？\n]+[.!?。！？]/g) || [];
+  let reply = completeSentences.length
+    ? completeSentences.slice(0, 3).join(" ")
+    : cleaned;
+
+  reply = reply.slice(0, 420).trim();
+  if (!/[.!?。！？]$/.test(reply)) {
+    reply = reply.replace(/[,:;，、]\s*$/, "").trim();
+    reply = `${reply}.`;
+  }
+  return reply;
 }
 
 function getGeminiKeys() {
