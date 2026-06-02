@@ -334,6 +334,84 @@ function safetyReplyFor(message) {
   return "";
 }
 
+function scriptedReplyFor(message, payload = {}) {
+  const personaId = personaIdFor(payload);
+  const raw = String(message || "").trim();
+  const compact = normalize(raw);
+
+  const asksAccusation = includesAny(raw, [/너\s*맞/, /네가\s*했/, /니가\s*했/, /범인/, /맞지/, /했지/]);
+  const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/]);
+
+  if (personaId === "kangWoojin") {
+    const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /여자친구/, /여친/, /재회/, /헤어/, /차였/, /인정받/]);
+    const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
+    const asksTime = includesAny(raw, [/5\s*시\s*20/, /오후/, /축구부/, /연습\s*끝/, /몇\s*시/, /시간/]);
+    const hintCount = Number(asksRelationship) + Number(asksOffice) + Number(asksTime);
+
+    if (asksContradiction) {
+      return "잠깐만요. 그건 AI가 제 말을 요약하면서 헷갈린 것 같아요. 기록이랑 다르면 기록 쪽을 보고 다시 확인해야 할 것 같아요.";
+    }
+    if (hintCount >= 3) {
+      return "USB를 가져간 건 맞아요. 그런데 전교생한테 퍼뜨리려고 한 건 아니었어요. 그냥 예상 문제처럼 정리해 보려다가 AI가 이상하게 처리한 거예요.";
+    }
+    if (asksRelationship) {
+      return "전교 1등인 그 친구 얘기는 좀 조심스러워요. 헤어진 뒤에 다시 인정받고 싶었던 마음은 있었지만, 그게 이렇게 큰일이 될 줄은 몰랐어요.";
+    }
+    if (asksOffice) {
+      return "교무실 근처에 있었던 건 맞아요. 그런데 처음부터 뭘 훔치려고 간 건 아니었어요. 그때는 그냥 정신이 좀 복잡했어요.";
+    }
+    if (asksTime) {
+      return "축구부 연습 끝나고 바로 움직였던 건 맞아요. 정확한 시간은 헷갈리지만, 교무실 근처를 지나간 건 기억나요.";
+    }
+    if (asksAccusation) {
+      return "그렇게 바로 단정하면 곤란해요. 제가 잘못한 게 있는지 확인하려면 증거랑 제 말을 비교해 봐야 하지 않을까요?";
+    }
+  }
+
+  if (personaId === "seoHarin") {
+    const asksLog = includesAny(raw, [/로그/, /기록/, /접속/, /오류/, /시스템/, /ai/i]);
+    const asksPlace = includesAny(raw, [/방송실/, /컴퓨터실/, /교무실/, /어디/, /위치/]);
+    const asksUsb = includesAny(raw, [/usb/i, /유에스비/, /시험지/, /파일/]);
+
+    if (asksContradiction) {
+      return "그건 AI 요약이 과장됐을 가능성이 커요. 저는 방송실에서 오류 로그를 확인했을 뿐이고, 증거는 기록 기준으로 봐야 해요.";
+    }
+    if (asksUsb) {
+      return "저는 시험지 USB를 본 적이 없어요. 제가 확인한 건 학교 학습 도우미 AI의 오류 로그 쪽이었어요.";
+    }
+    if (asksLog || asksPlace) {
+      return "저는 그 시간에 방송실에서 시스템 로그를 확인했어요. 시험지를 유출했다는 뜻은 아니고, 오류 원인을 보려던 거예요.";
+    }
+    if (asksAccusation) {
+      return "그건 너무 빠른 결론이에요. 제가 컴퓨터를 잘 다룬다는 것과 시험지를 유출했다는 건 다른 문제예요.";
+    }
+  }
+
+  if (personaId === "choiDaniel") {
+    const asksPlace = includesAny(raw, [/교무실/, /복도/, /근처/, /어디/, /위치/]);
+    const asksObject = includesAny(raw, [/usb/i, /유에스비/, /이어폰/, /케이스/, /물건/]);
+    const asksAi = includesAny(raw, [/ai/i, /시스템/, /접속/, /로그/, /컴퓨터/]);
+
+    if (asksContradiction) {
+      return "그건 AI가 CCTV 장면을 너무 단순하게 해석한 것 같아요. 저는 교무실 안에 들어간 게 아니라 복도에서 물건을 찾고 있었어요.";
+    }
+    if (asksObject) {
+      return "제가 들고 있던 건 USB가 아니라 이어폰 케이스였어요. 잃어버린 물건을 찾느라 복도에 있었던 거예요.";
+    }
+    if (asksPlace) {
+      return "교무실 근처 복도에 있었던 건 맞아요. 그런데 교무실 안에 들어간 건 아니고, 지나가면서 물건을 찾고 있었어요.";
+    }
+    if (asksAi) {
+      return "저는 AI 시스템에 접속한 적이 없어요. 컴퓨터실에도 가지 않았고, 그쪽 기록과는 관련이 없어요.";
+    }
+    if (asksAccusation) {
+      return "그렇게 바로 판단하긴 어려워요. CCTV에 제가 보였다고 해서 시험지랑 관련 있다고 볼 수는 없잖아요.";
+    }
+  }
+
+  return "";
+}
+
 function cleanHistory(history) {
   if (!Array.isArray(history)) return [];
   return history
@@ -510,6 +588,12 @@ module.exports = async function handler(request, response) {
   const blockedReply = safetyReplyFor(message);
   if (blockedReply) {
     sendJson(response, 200, { reply: blockedReply, source: "safety" });
+    return;
+  }
+
+  const scriptedReply = scriptedReplyFor(message, request.body || {});
+  if (scriptedReply) {
+    sendJson(response, 200, { reply: scriptedReply, source: "scripted" });
     return;
   }
 
