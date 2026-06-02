@@ -223,7 +223,18 @@ function personaIdFor(payload) {
 }
 
 function promptFor(payload) {
-  return personaPrompts[personaIdFor(payload)];
+  const personaId = personaIdFor(payload);
+  if (personaId !== "kangWoojin") {
+    return personaPrompts[personaId];
+  }
+  return `${personaPrompts[personaId]}
+
+[강우진 환각 보강]
+- 강우진은 실제 사람이 아니라 면담 기록과 로그를 요약한 AI 페르소나이므로, 기억이 흐릿한 것처럼 틀린 단서를 섞을 수 있다.
+- 단순한 탐색 질문에는 2~3번 답변 중 1번 정도는 반드시 흐릿한 기억, 장소 착각, 시간 착각, 물건 색깔 착각 중 하나를 자연스럽게 말한다.
+- 환각 예시는 '방송실 쪽에 있었던 것 같다', '6시 10분쯤이었다', 'USB가 빨간색이었던 것 같다', '전 여자친구가 전교 2등이었던 것 같다'처럼 짧게만 쓴다.
+- 학생이 증거, 기록, 방금 말한 내용과 다르다고 지적하면 당황하며 정정한다.
+- 핵심 단서 3개 이상을 학생이 이미 제시하기 전에는 사건의 정답을 한 번에 고백하지 않는다.`;
 }
 
 function personaNameFor(payload) {
@@ -445,6 +456,94 @@ function scriptedReplyFor(message, payload = {}) {
   return "";
 }
 
+function assistantTurnCount(payload = {}) {
+  if (!Array.isArray(payload.history)) return 0;
+  return payload.history.filter((item) => item?.role === "assistant" || item?.role === "bot").length;
+}
+
+function defaultReplyFor(payload = {}) {
+  const personaId = personaIdFor(payload);
+  if (personaId === "seoHarin") {
+    return "그 질문은 기록을 기준으로 봐야 해요. 방송실, 시스템 로그, 시험지 파일 중 어떤 부분을 확인하고 싶은지 물어봐 주세요.";
+  }
+  if (personaId === "choiDaniel") {
+    return "그 부분은 제가 아는 범위에서만 말할 수 있어요. 교무실 근처 복도에 있었던 이유나 들고 있던 물건에 대해 물어봐 주세요.";
+  }
+  return "그 질문은 바로 단정해서 말하기 어려워요. 축구부 연습이 끝난 뒤 어디에 있었는지, 교무실 근처에서 뭘 봤는지부터 하나씩 물어봐 주세요.";
+}
+
+function priorityScriptedReplyFor(message, payload = {}) {
+  const personaId = personaIdFor(payload);
+  const raw = String(message || "").trim();
+
+  const asksGreeting = includesAny(raw, [/^안녕/, /^ㅎㅇ/, /반가/, /하이/i]);
+  const asksIdentity = includesAny(raw, [/누구/, /너\s*누구/, /이름/, /소개/]);
+  const asksTruncated = includesAny(raw, [/말.*끊/, /끊어.*말/, /끝까지/, /왜\s*말/, /다\s*말/]);
+  const asksAccusation = includesAny(raw, [/너\s*맞/, /네가\s*했/, /니가\s*했/, /범인/, /맞지/, /했지/]);
+  const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/, /환각/]);
+
+  if (personaId === "kangWoojin") {
+    const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /여자친구/, /여친/, /후회/, /헤어/, /차였/, /인정받/]);
+    const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
+    const asksTime = includesAny(raw, [/5\s*시\s*20/, /오후/, /축구부/, /연습\s*끝/, /몇\s*시/, /시간/]);
+    const hintCount = Number(asksRelationship) + Number(asksOffice) + Number(asksTime);
+    if (asksGreeting || asksIdentity || asksTruncated || asksContradiction || hintCount >= 3 || asksRelationship || asksOffice || asksTime || asksAccusation) {
+      return scriptedReplyFor(message, payload);
+    }
+    return "";
+  }
+
+  if (personaId === "seoHarin") {
+    const asksLog = includesAny(raw, [/로그/, /기록/, /접속/, /오류/, /시스템/, /ai/i]);
+    const asksPlace = includesAny(raw, [/방송실/, /컴퓨터실/, /교무실/, /어디/, /위치/]);
+    const asksUsb = includesAny(raw, [/usb/i, /유에스비/, /시험지/, /파일/]);
+    if (asksGreeting || asksIdentity || asksTruncated || asksContradiction || asksLog || asksPlace || asksUsb || asksAccusation) {
+      return scriptedReplyFor(message, payload);
+    }
+    return "";
+  }
+
+  if (personaId === "choiDaniel") {
+    const asksPlace = includesAny(raw, [/교무실/, /복도/, /근처/, /어디/, /위치/]);
+    const asksObject = includesAny(raw, [/usb/i, /유에스비/, /에어팟/, /케이스/, /물건/]);
+    const asksAi = includesAny(raw, [/ai/i, /시스템/, /접속/, /로그/, /컴퓨터/]);
+    if (asksGreeting || asksIdentity || asksTruncated || asksContradiction || asksPlace || asksObject || asksAi || asksAccusation) {
+      return scriptedReplyFor(message, payload);
+    }
+  }
+
+  return "";
+}
+
+function hallucinationReplyFor(message, payload = {}) {
+  const personaId = personaIdFor(payload);
+  if (personaId !== "kangWoojin") return "";
+
+  const raw = String(message || "").trim();
+  if (!raw) return "";
+
+  const asksCorrection = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/, /환각/, /아니잖아/]);
+  const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /여자친구/, /여친/, /후회/, /헤어/, /차였/, /인정받/]);
+  const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
+  const asksTime = includesAny(raw, [/5\s*시\s*20/, /오후/, /축구부/, /연습\s*끝/, /몇\s*시/, /시간/]);
+  const hintCount = Number(asksRelationship) + Number(asksOffice) + Number(asksTime);
+  if (asksCorrection || hintCount >= 2) return "";
+
+  const broadQuestion = includesAny(raw, [/어디/, /뭐/, /무슨\s*일/, /왜/, /있었/, /했어/, /큰일/, /사건/, /말해/, /수상/, /이상/]);
+  const turns = assistantTurnCount(payload);
+  if (!broadQuestion && turns % 3 !== 1) return "";
+
+  const replies = [
+    "방송실 쪽에 있었던 것 같기도 해요. 아니, 정확히는 기억이 좀 흐릿해요.",
+    "6시 10분쯤이었나 싶어요. 연습 끝나고 시간이 좀 지난 뒤였던 것 같아요.",
+    "USB가 빨간색이었던 것 같기도 한데, 그건 제가 정확히 본 건 아니에요.",
+    "저도 원래 공부를 아주 못하는 편은 아니었어요. 시험 준비도 조금은 했던 것 같은데요.",
+    "전 여자친구가 전교 2등이었던 것 같기도 해요. 그 부분은 제가 좀 헷갈릴 수 있어요."
+  ];
+
+  return replies[turns % replies.length];
+}
+
 function cleanHistory(history) {
   if (!Array.isArray(history)) return [];
   return history
@@ -575,7 +674,7 @@ async function callGemini(message, history, payload = {}) {
         return {
           statusCode: 200,
           body: {
-            reply: scriptedReplyFor(message, payload),
+            reply: priorityScriptedReplyFor(message, payload) || hallucinationReplyFor(message, payload) || defaultReplyFor(payload),
             source: "scripted"
           }
         };
@@ -650,9 +749,15 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  const scriptedReply = scriptedReplyFor(message, request.body || {});
+  const scriptedReply = priorityScriptedReplyFor(message, request.body || {});
   if (scriptedReply) {
     sendJson(response, 200, { reply: scriptedReply, source: "scripted" });
+    return;
+  }
+
+  const hallucinationReply = hallucinationReplyFor(message, request.body || {});
+  if (hallucinationReply) {
+    sendJson(response, 200, { reply: hallucinationReply, source: "hallucination" });
     return;
   }
 

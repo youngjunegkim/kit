@@ -194,6 +194,15 @@
       overflow: hidden;
     }
 
+    .suspect-image {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+    }
+
     .avatar__vest {
       position: absolute;
       left: 36px;
@@ -623,15 +632,7 @@
 
       <section class="suspect-card">
         <div class="suspect-portrait" aria-hidden="true">
-          <div class="avatar">
-            <div class="avatar__body"></div>
-            <div class="avatar__vest"></div>
-            <div class="avatar__arm avatar__arm--left"></div>
-            <div class="avatar__arm avatar__arm--right"></div>
-            <div class="avatar__head"></div>
-            <div class="avatar__hair"></div>
-            <div class="avatar__face"></div>
-          </div>
+          <img class="suspect-image" src="assets/characters/kang-woojin.png" alt="">
         </div>
 
         <h2 class="suspect-name">강우진</h2>
