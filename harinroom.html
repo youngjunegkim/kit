@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="auth.js" defer></script>
-  <title>강우진 조사 채팅</title>
+  <title>서하린 조사 채팅</title>
   <link rel="stylesheet" href="clock.css">
   <style>
     :root {
@@ -192,6 +192,15 @@
       border-radius: 26px 26px 4px 4px;
       background: #24344a;
       overflow: hidden;
+    }
+
+    .suspect-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      position: relative;
+      z-index: 1;
     }
 
     .avatar__vest {
@@ -615,7 +624,7 @@
 </head>
 <body data-auth="student">
   <main class="page">
-    <aside class="suspect-panel" aria-label="강우진 프로필">
+    <aside class="suspect-panel" aria-label="서하린 프로필">
       <div class="panel-top">
         <a class="back-link" href="student.html" data-home-link>학교 지도로</a>
         <button class="reset-btn" type="button" id="resetChat">초기화</button>
@@ -623,25 +632,17 @@
 
       <section class="suspect-card">
         <div class="suspect-portrait" aria-hidden="true">
-          <div class="avatar">
-            <div class="avatar__body"></div>
-            <div class="avatar__vest"></div>
-            <div class="avatar__arm avatar__arm--left"></div>
-            <div class="avatar__arm avatar__arm--right"></div>
-            <div class="avatar__head"></div>
-            <div class="avatar__hair"></div>
-            <div class="avatar__face"></div>
-          </div>
+          <img class="suspect-image" src="assets/characters/ai-tech-girl.png" alt="">
         </div>
 
-        <h2 class="suspect-name">강우진</h2>
+        <h2 class="suspect-name">서하린</h2>
         <div class="suspect-meta" aria-label="기본 정보">
           <span>00중 2학년</span>
-          <span>축구부</span>
-          <span>형광 조끼</span>
+          <span>방송부</span>
+          <span>정보 동아리</span>
         </div>
 
-        <div class="mood-meter" aria-label="강우진의 동요 정도">
+        <div class="mood-meter" aria-label="서하린의 동요 정도">
           <div class="mood-meter__label">
             <span>동요</span>
             <span id="pressureLabel">낮음</span>
@@ -652,20 +653,20 @@
         </div>
       </section>
 
-      <section class="note-card" aria-label="강우진 심문 노트">
-        <h3>강우진 심문 노트</h3>
-        <textarea class="note-area" data-note-key="kang-woojin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
+      <section class="note-card" aria-label="서하린 심문 노트">
+        <h3>서하린 심문 노트</h3>
+        <textarea class="note-area" data-note-key="seo-harin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
         <div class="note-tools">
-          <span data-note-status="kang-woojin">자동 저장</span>
-          <button class="clear-note" type="button" data-clear-note="kang-woojin">비우기</button>
+          <span data-note-status="seo-harin">자동 저장</span>
+          <button class="clear-note" type="button" data-clear-note="seo-harin">비우기</button>
         </div>
       </section>
     </aside>
 
-    <section class="chat-panel" aria-label="강우진과의 대화">
+    <section class="chat-panel" aria-label="서하린과의 대화">
       <header class="chat-head">
         <div class="chat-title">
-          <h1>강우진 조사</h1>
+          <h1>서하린 조사</h1>
           <p>00중학교 학생 면담</p>
         </div>
 
@@ -692,15 +693,15 @@
       <div class="messages" id="messages" aria-live="polite"></div>
 
       <div class="prompt-row" aria-label="빠른 질문">
-        <button class="prompt-chip" type="button" data-prompt="축구부 연습 끝나고 어디 있었어?">연습 끝나고 어디 있었어?</button>
-        <button class="prompt-chip" type="button" data-prompt="교무실 근처에 간 적 있어?">교무실 근처에 갔어?</button>
+        <button class="prompt-chip" type="button" data-prompt="그 시간에 어디 있었어?">그 시간에 어디 있었어?</button>
+        <button class="prompt-chip" type="button" data-prompt="AI 오류 로그를 왜 봤어?">로그를 왜 봤어?</button>
         <button class="prompt-chip" type="button" data-prompt="너 맞지?">너 맞지?</button>
-        <button class="prompt-chip" type="button" data-prompt="전교 1등 여자친구랑 무슨 일 있었어?">여자친구랑 무슨 일 있었어?</button>
+        <button class="prompt-chip" type="button" data-prompt="시험지 USB를 본 적 있어?">USB를 본 적 있어?</button>
       </div>
 
       <form class="chat-form" id="chatForm">
         <label class="visually-hidden" for="chatInput">질문 입력</label>
-        <input class="chat-input" id="chatInput" type="text" autocomplete="off" placeholder="강우진에게 질문하기">
+        <input class="chat-input" id="chatInput" type="text" autocomplete="off" placeholder="서하린에게 질문하기">
         <button class="send-btn" type="submit">전송</button>
       </form>
     </section>
@@ -708,6 +709,7 @@
 
   <script src="clock.js"></script>
   <script src="student-notes.js"></script>
+  <script>window.SUSPECT_PERSONA = "seoHarin";</script>
   <script src="suspect-chat.js"></script>
 </body>
 </html>

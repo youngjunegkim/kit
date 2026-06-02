@@ -27,6 +27,6 @@ module.exports = function handler(request, response) {
     provider: "gemini",
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     hasGeminiKey: getGeminiKeys().length > 0,
-    keyCount: getGeminiKeys().length
+    requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE)
   });
 };

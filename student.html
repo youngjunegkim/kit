@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학생용 AI 심문실</title>
+  <script src="auth.js" defer></script>
+  <script src="student-notes.js" defer></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 16% 10%, rgba(47, 110, 234, 0.2), transparent 30%),
+        linear-gradient(135deg, #0d1522 0%, #172235 52%, #202436 100%);
+      color: #18202b;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      color: #fff;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.7rem;
+      line-height: 1.2;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      color: rgba(255, 255, 255, 0.76);
+      font-weight: 800;
+    }
+
+    .logout-btn {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      cursor: pointer;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 900;
+    }
+
+    .suspect-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .suspect-column {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .suspect-card,
+    .note-card {
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+      overflow: hidden;
+    }
+
+    .suspect-card {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .suspect-card:hover,
+    .suspect-card:focus-visible {
+      outline: 3px solid rgba(243, 52, 47, 0.48);
+      outline-offset: 3px;
+    }
+
+    .suspect-card img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      object-position: center;
+      background: #dfe6ef;
+      padding: 18px;
+    }
+
+    .suspect-info {
+      padding: 18px;
+    }
+
+    .suspect-info h2,
+    .note-card h3 {
+      margin: 0 0 8px;
+      line-height: 1.2;
+    }
+
+    .suspect-info h2 {
+      font-size: 1.34rem;
+    }
+
+    .suspect-info p {
+      margin: 0;
+      color: #657181;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .note-card {
+      padding: 14px;
+    }
+
+    .note-card h3 {
+      color: #18202b;
+      font-size: 1.08rem;
+    }
+
+    .note-area {
+      width: 100%;
+      min-height: 260px;
+      border: 1px solid #cfd8e4;
+      border-radius: 8px;
+      background:
+        linear-gradient(#fff 31px, #e8eef6 32px),
+        #fff;
+      background-size: 100% 32px;
+      color: #18202b;
+      padding: 10px 12px;
+      resize: vertical;
+      font: inherit;
+      font-weight: 750;
+      line-height: 32px;
+    }
+
+    .note-area:focus {
+      border-color: #f3342f;
+      box-shadow: 0 0 0 3px rgba(243, 52, 47, 0.14);
+      outline: none;
+    }
+
+    .note-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 10px;
+      color: #657181;
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .clear-note {
+      min-height: 32px;
+      border: 0;
+      border-radius: 6px;
+      background: #e9eef5;
+      color: #344154;
+      cursor: pointer;
+      padding: 6px 10px;
+      font: inherit;
+      font-weight: 900;
+    }
+
+    .clear-note:hover,
+    .clear-note:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    @media (max-width: 980px) {
+      .suspect-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .suspect-card {
+        grid-template-columns: 180px minmax(0, 1fr);
+      }
+
+      .suspect-card img {
+        height: 100%;
+        aspect-ratio: auto;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 14px;
+      }
+
+      .topbar {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .suspect-card {
+        grid-template-columns: 1fr;
+      }
+
+      .note-area {
+        min-height: 220px;
+      }
+    }
+  </style>
+</head>
+<body data-auth="student">
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <h1>AI 페르소나 심문실</h1>
+        <p>용의자를 심문하면서 각 인물별 노트에 단서를 적어두세요.</p>
+      </div>
+      <button class="logout-btn" type="button" data-logout>로그아웃</button>
+    </header>
+
+    <section class="suspect-grid" aria-label="용의자 심문 및 노트">
+      <article class="suspect-column">
+        <a class="suspect-card" href="teacherroom.html" aria-label="강우진 조사 화면으로 이동">
+          <img src="assets/characters/kang-woojin.png" alt="축구부 학생 강우진">
+          <div class="suspect-info">
+            <h2>강우진</h2>
+            <p>축구부 소속. 활발하고 말이 빠른 편.</p>
+          </div>
+        </a>
+        <section class="note-card" aria-label="강우진 심문 노트">
+          <h3>강우진 심문 노트</h3>
+          <textarea class="note-area" data-note-key="kang-woojin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
+          <div class="note-tools">
+            <span data-note-status="kang-woojin">자동 저장</span>
+            <button class="clear-note" type="button" data-clear-note="kang-woojin">비우기</button>
+          </div>
+        </section>
+      </article>
+
+      <article class="suspect-column">
+        <a class="suspect-card" href="harinroom.html" aria-label="서하린 조사 화면으로 이동">
+          <img src="assets/characters/ai-tech-girl.png" alt="컴퓨터를 잘 다루는 서하린">
+          <div class="suspect-info">
+            <h2>서하린</h2>
+            <p>차분하고 꼼꼼함. 컴퓨터 사용에 익숙함.</p>
+          </div>
+        </a>
+        <section class="note-card" aria-label="서하린 심문 노트">
+          <h3>서하린 심문 노트</h3>
+          <textarea class="note-area" data-note-key="seo-harin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
+          <div class="note-tools">
+            <span data-note-status="seo-harin">자동 저장</span>
+            <button class="clear-note" type="button" data-clear-note="seo-harin">비우기</button>
+          </div>
+        </section>
+      </article>
+
+      <article class="suspect-column">
+        <a class="suspect-card" href="danielroom.html" aria-label="최다니엘 조사 화면으로 이동">
+          <img src="assets/characters/alibi-black-boy.png" alt="조용한 학생 최다니엘">
+          <div class="suspect-info">
+            <h2>최다니엘</h2>
+            <p>조용하고 성실한 편. 관찰력이 좋음.</p>
+          </div>
+        </a>
+        <section class="note-card" aria-label="최다니엘 심문 노트">
+          <h3>최다니엘 심문 노트</h3>
+          <textarea class="note-area" data-note-key="choi-daniel" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
+          <div class="note-tools">
+            <span data-note-status="choi-daniel">자동 저장</span>
+            <button class="clear-note" type="button" data-clear-note="choi-daniel">비우기</button>
+          </div>
+        </section>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,11 +1,18 @@
 (function () {
   const scoreKey = "korea-middle-school-team-scores";
+  const aScoreResetKey = "korea-middle-school-team-a-score-reset-20260602";
   const teams = ["A", "B", "C", "D"];
   const baseScores = { A: 0, B: 0, C: 0, D: 0 };
 
   function loadScores() {
     try {
-      return { ...baseScores, ...JSON.parse(localStorage.getItem(scoreKey)) };
+      const scores = { ...baseScores, ...JSON.parse(localStorage.getItem(scoreKey)) };
+      if (localStorage.getItem(aScoreResetKey) !== "1") {
+        scores.A = 0;
+        localStorage.setItem(scoreKey, JSON.stringify(scores));
+        localStorage.setItem(aScoreResetKey, "1");
+      }
+      return scores;
     } catch {
       return { ...baseScores };
     }
