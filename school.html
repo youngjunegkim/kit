@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 수사단 로그인</title>
+  <script src="auth.js" defer></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        linear-gradient(rgba(13, 21, 34, 0.9), rgba(24, 32, 43, 0.94)),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 76px),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 76px),
+        #101826;
+      color: #18202b;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .login-shell {
+      width: min(1040px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .brief-panel,
+    .login-panel {
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+      overflow: hidden;
+    }
+
+    .brief-panel {
+      display: grid;
+      align-content: space-between;
+      min-height: 560px;
+      color: #f7fafc;
+      background:
+        linear-gradient(135deg, rgba(16, 24, 38, 0.86), rgba(22, 32, 48, 0.64)),
+        url("assets/학교사진.jpg") center / cover;
+      border-color: rgba(255, 255, 255, 0.24);
+      padding: 28px;
+    }
+
+    .brief-badge {
+      width: fit-content;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 0.86rem;
+      font-weight: 900;
+    }
+
+    .brief-title {
+      margin-top: 44px;
+    }
+
+    .brief-title h1 {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.05;
+      font-weight: 950;
+    }
+
+    .brief-title p {
+      max-width: 520px;
+      margin: 14px 0 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 1.02rem;
+      line-height: 1.55;
+      font-weight: 800;
+    }
+
+    .ready-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 28px 0 0;
+    }
+
+    .ready-item {
+      min-height: 74px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      padding: 12px;
+    }
+
+    .ready-item span {
+      display: block;
+      color: #9be7c2;
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .ready-item strong {
+      display: block;
+      margin-top: 5px;
+      color: #fff;
+      font-size: 0.95rem;
+      line-height: 1.25;
+    }
+
+    .login-panel {
+      position: relative;
+      display: grid;
+      padding: 26px;
+    }
+
+    .login-panel.is-error {
+      animation: shake 0.22s ease;
+    }
+
+    .login-kicker {
+      width: fit-content;
+      border-radius: 999px;
+      background: #edf2f7;
+      color: #435064;
+      padding: 7px 11px;
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+
+    .login-panel h2 {
+      margin: 14px 0 6px;
+      color: #101826;
+      font-size: 1.68rem;
+      line-height: 1.18;
+      font-weight: 950;
+    }
+
+    .login-panel p {
+      margin: 0;
+      color: #657181;
+      line-height: 1.45;
+      font-weight: 800;
+    }
+
+    .role-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .role-btn {
+      min-height: 70px;
+      border-radius: 8px;
+      background: #f4f7fb;
+      border: 1px solid #dbe3ed;
+      color: #344154;
+      padding: 11px;
+      text-align: left;
+      font-weight: 900;
+    }
+
+    .role-btn span {
+      display: block;
+      margin-top: 4px;
+      color: #657181;
+      font-size: 0.78rem;
+      line-height: 1.25;
+    }
+
+    .role-btn:hover,
+    .role-btn:focus-visible,
+    .role-btn.is-active {
+      background: #fff1f0;
+      border-color: #f3342f;
+      color: #c92521;
+      outline: none;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-top: 13px;
+      color: #344154;
+      font-weight: 900;
+    }
+
+    .password-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #cfd8e4;
+      border-radius: 6px;
+      background: #fff;
+      color: #18202b;
+      padding: 10px 11px;
+      font-weight: 800;
+    }
+
+    input.is-error,
+    input[aria-invalid="true"] {
+      border-color: #f3342f;
+      background: #fff8f7;
+    }
+
+    input:focus {
+      border-color: #f3342f;
+      box-shadow: 0 0 0 3px rgba(243, 52, 47, 0.14);
+      outline: none;
+    }
+
+    .icon-btn {
+      width: 44px;
+      min-height: 44px;
+      border-radius: 6px;
+      background: #e9eef5;
+      color: #344154;
+      font-size: 1rem;
+      font-weight: 950;
+    }
+
+    .icon-btn:hover,
+    .icon-btn:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 13px;
+      border-radius: 8px;
+      background: #f7fafc;
+      border: 1px solid #e2e9f2;
+      padding: 11px 12px;
+      color: #435064;
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .option-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: #f3342f;
+    }
+
+    .submit-btn {
+      position: relative;
+      width: 100%;
+      min-height: 46px;
+      margin-top: 18px;
+      border-radius: 6px;
+      background: #f3342f;
+      color: #fff;
+      font-weight: 950;
+    }
+
+    .submit-btn:hover,
+    .submit-btn:focus-visible {
+      background: #c92521;
+      outline: none;
+    }
+
+    .submit-btn[disabled] {
+      cursor: wait;
+      opacity: 0.78;
+    }
+
+    .submit-spinner {
+      display: none;
+      width: 15px;
+      height: 15px;
+      margin-right: 8px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: #fff;
+      vertical-align: -2px;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .submit-btn.is-loading .submit-spinner {
+      display: inline-block;
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 12px;
+      color: #c92521;
+      font-weight: 900;
+    }
+
+    .message.is-ok {
+      color: #14724c;
+    }
+
+    .account-note {
+      display: grid;
+      gap: 8px;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid #e1e8f0;
+    }
+
+    .account-note div {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #5b6878;
+      font-size: 0.86rem;
+      font-weight: 850;
+    }
+
+    .account-note strong {
+      color: #243146;
+    }
+
+    .student-guide {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(16, 24, 38, 0.72);
+      backdrop-filter: blur(10px);
+    }
+
+    .student-guide[hidden] {
+      display: none;
+    }
+
+    .guide-card {
+      width: min(420px, 100%);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
+      padding: 24px;
+    }
+
+    .guide-card h3 {
+      margin: 0 0 10px;
+      color: #101826;
+      font-size: 1.32rem;
+    }
+
+    .guide-card p {
+      margin: 0;
+      color: #657181;
+      line-height: 1.55;
+      font-weight: 850;
+    }
+
+    .guide-card button {
+      width: 100%;
+      min-height: 44px;
+      margin-top: 18px;
+      border-radius: 6px;
+      background: #f3342f;
+      color: #fff;
+      font-weight: 950;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-6px);
+      }
+
+      75% {
+        transform: translateX(6px);
+      }
+    }
+
+    @media (max-width: 880px) {
+      .login-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .brief-panel {
+        min-height: 360px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 14px;
+      }
+
+      .brief-panel,
+      .login-panel {
+        padding: 18px;
+      }
+
+      .ready-list,
+      .role-picker {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="login-shell">
+    <section class="brief-panel" aria-label="AI 수사단 안내">
+      <div>
+        <div class="brief-badge">AI 수사단 사건 파일</div>
+        <div class="brief-title">
+          <h1>수사본부 입장</h1>
+          <p>계정 권한을 확인하고 선생용 진행 화면 또는 학생용 AI 심문실로 이동합니다.</p>
+        </div>
+      </div>
+
+      <div class="ready-list" aria-label="수업 준비 상태">
+        <div class="ready-item">
+          <span>READY</span>
+          <strong>AI 심문실</strong>
+        </div>
+        <div class="ready-item">
+          <span>READY</span>
+          <strong>심문 노트</strong>
+        </div>
+        <div class="ready-item">
+          <span>READY</span>
+          <strong>권한 분리</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-panel" data-login-panel>
+      <div class="login-kicker">접근 권한 확인</div>
+      <h2>AI 수사단 로그인</h2>
+      <p>역할을 선택한 뒤 아이디와 비밀번호를 입력하세요.</p>
+
+      <div class="role-picker" aria-label="역할 빠른 선택">
+        <button class="role-btn" type="button" data-role-preset="student">
+          학생용
+          <span>강우진, 서하린, 최다니엘 심문</span>
+        </button>
+        <button class="role-btn" type="button" data-role-preset="master">
+          선생용
+          <span>전체 진행 화면 및 교실 미션</span>
+        </button>
+      </div>
+
+      <form data-login-form>
+        <label class="field">
+          아이디
+          <input name="userId" type="text" autocomplete="username" autofocus>
+        </label>
+        <label class="field">
+          비밀번호
+          <span class="password-row">
+            <input name="password" type="password" autocomplete="current-password">
+            <button class="icon-btn" type="button" data-password-toggle aria-label="비밀번호 보기" title="비밀번호 보기">보기</button>
+          </span>
+        </label>
+
+        <label class="option-row">
+          전체화면으로 시작
+          <input name="fullscreen" type="checkbox" data-fullscreen-toggle>
+        </label>
+
+        <button class="submit-btn" type="submit" data-login-submit>
+          <span class="submit-spinner" aria-hidden="true"></span>
+          <span data-submit-text>입장</span>
+        </button>
+        <div class="message" data-login-message aria-live="polite"></div>
+      </form>
+
+      <div class="account-note" aria-label="계정별 이동 화면">
+        <div><strong>선생용</strong><span>전체 진행 화면</span></div>
+        <div><strong>학생용</strong><span>AI 심문실</span></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="student-guide" data-student-guide hidden aria-label="학생 심문 안내">
+    <div class="guide-card">
+      <h3>학생 심문실 입장</h3>
+      <p>AI에게 질문하고, 얻은 단서는 각 인물의 심문 노트에 적으세요.</p>
+      <button type="button" data-student-start>심문 시작</button>
+    </div>
+  </section>
+</body>
+</html>

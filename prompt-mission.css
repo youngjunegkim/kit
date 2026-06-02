@@ -1,0 +1,270 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(243, 52, 47, 0.18), transparent 30%),
+    linear-gradient(135deg, #0d1522 0%, #182235 52%, #202436 100%);
+  color: #18202b;
+  font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  letter-spacing: 0;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.mission-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+  align-items: start;
+  padding: 22px;
+}
+
+.mission-main,
+.mission-timer {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.mission-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #dfe6ef;
+  background: #fbfdff;
+}
+
+.mission-title {
+  min-width: 0;
+}
+
+.mission-title h1 {
+  margin: 0;
+  font-size: 1.32rem;
+  line-height: 1.2;
+}
+
+.mission-title p {
+  margin: 4px 0 0;
+  color: #657181;
+  font-weight: 800;
+}
+
+.back-link {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border-radius: 6px;
+  padding: 8px 11px;
+  background: #e9eef5;
+  color: #344154;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.mission-image-wrap {
+  padding: 16px;
+}
+
+.mission-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid #dfe6ef;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mission-timer {
+  position: sticky;
+  top: 22px;
+  padding: 16px;
+}
+
+.timer-label {
+  margin: 0 0 12px;
+  color: #344154;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.timer-display {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  border-radius: 8px;
+  background: #101826;
+  color: #fff;
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.timer-actions button {
+  min-height: 40px;
+  border-radius: 6px;
+  background: #1d2a3d;
+  color: #fff;
+  font-weight: 900;
+}
+
+.timer-actions button:hover,
+.timer-actions button:focus-visible {
+  background: #f3342f;
+  outline: none;
+}
+
+.word-checker {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dfe6ef;
+}
+
+.word-checker h2 {
+  margin: 0 0 10px;
+  color: #344154;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.word-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.word-input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #cfd8e4;
+  border-radius: 6px;
+  background: #fff;
+  color: #18202b;
+  padding: 9px 10px;
+  font: inherit;
+  font-weight: 800;
+}
+
+.word-input:focus {
+  border-color: #f3342f;
+  box-shadow: 0 0 0 3px rgba(243, 52, 47, 0.14);
+  outline: none;
+}
+
+.check-btn {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border-radius: 6px;
+  background: #f3342f;
+  color: #fff;
+  font-weight: 900;
+}
+
+.check-btn:hover,
+.check-btn:focus-visible {
+  background: #c92521;
+  outline: none;
+}
+
+.check-result {
+  display: none;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: #f4f7fb;
+  border: 1px solid #dbe3ed;
+  padding: 12px;
+}
+
+.check-result.is-visible {
+  display: block;
+}
+
+.score-line {
+  margin: 0 0 8px;
+  color: #18202b;
+  font-weight: 900;
+}
+
+.matched-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.word-chip {
+  border-radius: 999px;
+  background: #e6edf6;
+  color: #435064;
+  padding: 5px 8px;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.word-chip--hit {
+  background: rgba(20, 138, 91, 0.14);
+  color: #14724c;
+}
+
+.answer-box {
+  margin: 0;
+  border-left: 4px solid #f3342f;
+  padding: 8px 0 8px 10px;
+  color: #344154;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .mission-page {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-timer {
+    position: static;
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .mission-page {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .mission-head {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .back-link {
+    width: 100%;
+    text-align: center;
+  }
+
+  .timer-display {
+    min-height: 86px;
+    font-size: 2.4rem;
+  }
+}

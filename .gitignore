@@ -1,0 +1,10 @@
+.env
+.env.*
+node_modules/
+.vercel/
+.codex_pdf_pages/
+.codex_pdf_tools/
+.edge-profile/
+*.log
+Thumbs.db
+school.backup-*.html

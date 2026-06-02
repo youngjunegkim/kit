@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="auth.js" defer></script>
+  <title>서하린 조사 채팅</title>
+  <link rel="stylesheet" href="clock.css">
+  <style>
+    :root {
+      --bg: #101826;
+      --bg-soft: #1b2738;
+      --panel: rgba(255, 255, 255, 0.96);
+      --ink: #162030;
+      --muted: #667386;
+      --line: #dfe6ef;
+      --accent: #d73832;
+      --accent-dark: #b82924;
+      --vest: #c6ff2e;
+      --bubble-user: #203249;
+      --bubble-bot: #f2f6fa;
+      --shadow: 0 20px 54px rgba(0, 0, 0, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(120deg, rgba(16, 24, 38, 0.88), rgba(27, 39, 56, 0.9)),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 84px),
+        #101826;
+      color: var(--ink);
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(250px, 360px) minmax(0, 760px);
+      justify-content: center;
+      gap: 20px;
+      padding: 24px;
+    }
+
+    .suspect-panel,
+    .chat-panel {
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(14px);
+    }
+
+    .suspect-panel {
+      align-self: start;
+    }
+
+    .panel-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f7fafc;
+    }
+
+    .back-link,
+    .reset-btn {
+      min-height: 36px;
+      border-radius: 6px;
+      padding: 8px 11px;
+      background: #e9eef5;
+      color: #344154;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 900;
+    }
+
+    .back-link:hover,
+    .back-link:focus-visible,
+    .reset-btn:hover,
+    .reset-btn:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    .suspect-card {
+      padding: 22px;
+    }
+
+    .suspect-portrait {
+      position: relative;
+      display: grid;
+      place-items: end center;
+      height: 230px;
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(16, 24, 38, 0.12), rgba(16, 24, 38, 0.2)),
+        linear-gradient(180deg, #dfe7ef 0 52%, #596b7d 52% 100%);
+    }
+
+    .suspect-portrait::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 52%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow: 0 34px rgba(255, 255, 255, 0.42);
+    }
+
+    .avatar {
+      position: relative;
+      width: 150px;
+      height: 198px;
+      z-index: 1;
+    }
+
+    .avatar__head {
+      position: absolute;
+      left: 47px;
+      top: 10px;
+      width: 58px;
+      height: 64px;
+      border-radius: 48% 48% 45% 45%;
+      background: #f0c49b;
+      box-shadow: inset 0 -7px rgba(173, 103, 66, 0.16);
+    }
+
+    .avatar__hair {
+      position: absolute;
+      left: 41px;
+      top: 4px;
+      width: 70px;
+      height: 34px;
+      border-radius: 46% 46% 28% 28%;
+      background: #1f2530;
+      transform: rotate(-3deg);
+    }
+
+    .avatar__hair::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 20px;
+      width: 58px;
+      height: 18px;
+      border-radius: 50%;
+      background: #1f2530;
+    }
+
+    .avatar__face {
+      position: absolute;
+      left: 58px;
+      top: 43px;
+      width: 36px;
+      height: 12px;
+      border-top: 3px solid #222936;
+      border-bottom: 3px solid rgba(98, 54, 37, 0.8);
+    }
+
+    .avatar__body {
+      position: absolute;
+      left: 22px;
+      bottom: 0;
+      width: 108px;
+      height: 122px;
+      border-radius: 26px 26px 4px 4px;
+      background: #24344a;
+      overflow: hidden;
+    }
+
+    .suspect-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      position: relative;
+      z-index: 1;
+    }
+
+    .avatar__vest {
+      position: absolute;
+      left: 36px;
+      bottom: 0;
+      width: 80px;
+      height: 112px;
+      border-radius: 18px 18px 4px 4px;
+      background:
+        linear-gradient(90deg, transparent 0 18%, rgba(25, 35, 48, 0.9) 18% 25%, transparent 25% 75%, rgba(25, 35, 48, 0.9) 75% 82%, transparent 82%),
+        var(--vest);
+      box-shadow: inset 0 -28px rgba(0, 0, 0, 0.08);
+    }
+
+    .avatar__arm {
+      position: absolute;
+      top: 92px;
+      width: 26px;
+      height: 84px;
+      border-radius: 999px;
+      background: #24344a;
+    }
+
+    .avatar__arm--left {
+      left: 12px;
+      transform: rotate(8deg);
+    }
+
+    .avatar__arm--right {
+      right: 10px;
+      transform: rotate(-10deg);
+    }
+
+    .suspect-name {
+      margin: 18px 0 8px;
+      font-size: 1.65rem;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .suspect-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .suspect-meta span {
+      border-radius: 999px;
+      background: #edf2f7;
+      color: #435064;
+      padding: 6px 9px;
+      font-size: 0.84rem;
+      font-weight: 900;
+    }
+
+    .mood-meter {
+      display: grid;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .mood-meter__label {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 900;
+    }
+
+    .mood-meter__track {
+      height: 10px;
+      border-radius: 999px;
+      background: #e5ebf2;
+      overflow: hidden;
+    }
+
+    .mood-meter__fill {
+      width: 18%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #5b7089, var(--accent));
+      transition: width 0.22s ease;
+    }
+
+    .note-card {
+      border-top: 1px solid var(--line);
+      background: #fbfdff;
+      padding: 16px;
+    }
+
+    .note-card h3 {
+      margin: 0 0 9px;
+      color: var(--ink);
+      font-size: 1.05rem;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .note-area {
+      width: 100%;
+      min-height: 220px;
+      border: 1px solid #cfd8e4;
+      border-radius: 8px;
+      background:
+        linear-gradient(#fff 31px, #e8eef6 32px),
+        #fff;
+      background-size: 100% 32px;
+      color: var(--ink);
+      padding: 10px 12px;
+      resize: vertical;
+      outline: none;
+      font-weight: 750;
+      line-height: 32px;
+    }
+
+    .note-area:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(215, 56, 50, 0.14);
+    }
+
+    .note-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 900;
+    }
+
+    .clear-note {
+      min-height: 32px;
+      border-radius: 6px;
+      background: #e9eef5;
+      color: #344154;
+      padding: 6px 10px;
+      font-weight: 900;
+    }
+
+    .clear-note:hover,
+    .clear-note:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    .chat-panel {
+      display: grid;
+      grid-template-rows: auto minmax(360px, 1fr) auto;
+      min-height: calc(100vh - 48px);
+    }
+
+    .chat-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .chat-title {
+      min-width: 0;
+    }
+
+    .chat-title h1 {
+      margin: 0;
+      font-size: 1.28rem;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .chat-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .api-status {
+      display: grid;
+      gap: 4px;
+      min-width: 176px;
+      border: 1px solid #dbe3ed;
+      border-radius: 8px;
+      background: #f4f7fb;
+      padding: 9px 11px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .api-status__label {
+      color: #344154;
+      font-size: 0.86rem;
+    }
+
+    .api-status__value {
+      color: var(--muted);
+    }
+
+    .api-status__value--ok {
+      color: #14724c;
+    }
+
+    .api-status__value--bad {
+      color: var(--accent);
+    }
+
+    .clock-mini {
+      width: 116px;
+      flex: 0 0 auto;
+    }
+
+    .clock-mini .clock-card {
+      padding: 8px;
+      background: #f4f7fb;
+    }
+
+    .clock-mini .analog-clock__face {
+      width: 54px;
+      border-width: 3px;
+    }
+
+    .clock-mini .analog-clock__center {
+      width: 9px;
+      height: 9px;
+      border-width: 2px;
+    }
+
+    .clock-mini .analog-clock__time {
+      min-width: 68px;
+      font-size: 0.76rem;
+    }
+
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 18px;
+      overflow-y: auto;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.88)),
+        linear-gradient(90deg, rgba(22, 32, 48, 0.06) 1px, transparent 1px),
+        linear-gradient(rgba(22, 32, 48, 0.06) 1px, transparent 1px);
+      background-size: auto, 34px 34px, 34px 34px;
+    }
+
+    .message {
+      display: grid;
+      gap: 4px;
+      max-width: min(76%, 560px);
+    }
+
+    .message--bot {
+      align-self: flex-start;
+    }
+
+    .message--user {
+      align-self: flex-end;
+    }
+
+    .message__name {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .message--user .message__name {
+      text-align: right;
+    }
+
+    .message__bubble {
+      border-radius: 8px;
+      padding: 11px 13px;
+      font-size: 0.98rem;
+      line-height: 1.52;
+      font-weight: 750;
+      white-space: pre-wrap;
+    }
+
+    .message--bot .message__bubble {
+      background: var(--bubble-bot);
+      border: 1px solid #dce4ee;
+      color: var(--ink);
+    }
+
+    .message--user .message__bubble {
+      background: var(--bubble-user);
+      color: #fff;
+    }
+
+    .prompt-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 18px 0;
+      border-top: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .prompt-chip {
+      min-height: 34px;
+      border-radius: 999px;
+      background: #edf2f7;
+      color: #435064;
+      padding: 7px 11px;
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .prompt-chip:hover,
+    .prompt-chip:focus-visible {
+      background: #dde6f0;
+      outline: none;
+    }
+
+    .chat-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 12px 18px 18px;
+      background: #fbfdff;
+    }
+
+    .chat-input {
+      min-height: 46px;
+      width: 100%;
+      border: 1px solid #cfd8e4;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 12px 13px;
+      outline: none;
+      font-weight: 800;
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(215, 56, 50, 0.14);
+    }
+
+    .send-btn {
+      min-width: 88px;
+      min-height: 46px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 0 18px;
+      font-weight: 900;
+    }
+
+    .send-btn:hover,
+    .send-btn:focus-visible {
+      background: var(--accent-dark);
+      outline: none;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 920px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      .chat-panel {
+        min-height: 660px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 14px;
+        gap: 14px;
+      }
+
+      .chat-head {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .clock-mini {
+        width: 100%;
+      }
+
+      .api-status {
+        width: 100%;
+      }
+
+      .clock-mini .clock-card {
+        width: 132px;
+      }
+
+      .message {
+        max-width: 92%;
+      }
+
+      .chat-form {
+        grid-template-columns: 1fr;
+      }
+
+      .send-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body data-auth="student">
+  <main class="page">
+    <aside class="suspect-panel" aria-label="서하린 프로필">
+      <div class="panel-top">
+        <a class="back-link" href="student.html" data-home-link>학교 지도로</a>
+        <button class="reset-btn" type="button" id="resetChat">초기화</button>
+      </div>
+
+      <section class="suspect-card">
+        <div class="suspect-portrait" aria-hidden="true">
+          <img class="suspect-image" src="assets/characters/ai-tech-girl.png" alt="">
+        </div>
+
+        <h2 class="suspect-name">서하린</h2>
+        <div class="suspect-meta" aria-label="기본 정보">
+          <span>00중 2학년</span>
+          <span>방송부</span>
+          <span>정보 동아리</span>
+        </div>
+
+        <div class="mood-meter" aria-label="서하린의 동요 정도">
+          <div class="mood-meter__label">
+            <span>동요</span>
+            <span id="pressureLabel">낮음</span>
+          </div>
+          <div class="mood-meter__track">
+            <div class="mood-meter__fill" id="pressureFill"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="note-card" aria-label="서하린 심문 노트">
+        <h3>서하린 심문 노트</h3>
+        <textarea class="note-area" data-note-key="seo-harin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
+        <div class="note-tools">
+          <span data-note-status="seo-harin">자동 저장</span>
+          <button class="clear-note" type="button" data-clear-note="seo-harin">비우기</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="chat-panel" aria-label="서하린과의 대화">
+      <header class="chat-head">
+        <div class="chat-title">
+          <h1>서하린 조사</h1>
+          <p>00중학교 학생 면담</p>
+        </div>
+
+        <div class="api-status" aria-label="AI 연결 상태">
+          <span class="api-status__label">AI 연결</span>
+          <span class="api-status__value" id="apiStatus">확인 중</span>
+        </div>
+
+        <div class="clock-mini" aria-label="현재 시간">
+          <div class="clock-card">
+            <div class="analog-clock" data-clock>
+              <div class="analog-clock__face">
+                <div class="analog-clock__hand analog-clock__hand--hour"></div>
+                <div class="analog-clock__hand analog-clock__hand--minute"></div>
+                <div class="analog-clock__hand analog-clock__hand--second"></div>
+                <div class="analog-clock__center"></div>
+              </div>
+              <div class="analog-clock__time" data-clock-time>00:00:00</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="messages" id="messages" aria-live="polite"></div>
+
+      <div class="prompt-row" aria-label="빠른 질문">
+        <button class="prompt-chip" type="button" data-prompt="그 시간에 어디 있었어?">그 시간에 어디 있었어?</button>
+        <button class="prompt-chip" type="button" data-prompt="AI 오류 로그를 왜 봤어?">로그를 왜 봤어?</button>
+        <button class="prompt-chip" type="button" data-prompt="너 맞지?">너 맞지?</button>
+        <button class="prompt-chip" type="button" data-prompt="시험지 USB를 본 적 있어?">USB를 본 적 있어?</button>
+      </div>
+
+      <form class="chat-form" id="chatForm">
+        <label class="visually-hidden" for="chatInput">질문 입력</label>
+        <input class="chat-input" id="chatInput" type="text" autocomplete="off" placeholder="서하린에게 질문하기">
+        <button class="send-btn" type="submit">전송</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="clock.js"></script>
+  <script src="student-notes.js"></script>
+  <script>window.SUSPECT_PERSONA = "seoHarin";</script>
+  <script src="suspect-chat.js"></script>
+</body>
+</html>

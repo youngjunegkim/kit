@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>과학실 프롬프트 미션</title>
+  <script src="auth.js" defer></script>
+  <link rel="stylesheet" href="clock.css">
+  <link rel="stylesheet" href="prompt-mission.css">
+</head>
+<body class="game-page" data-auth="teacher">
+  <main class="mission-page">
+    <section class="mission-main" aria-label="과학실 프롬프트 역추적 이미지">
+      <header class="mission-head">
+        <div class="mission-title">
+          <h1>과학실</h1>
+          <p>프롬프트 역추적 미션</p>
+        </div>
+        <a class="back-link" href="teacher.html">학교 지도로</a>
+      </header>
+      <div class="mission-image-wrap">
+        <img class="mission-image" src="assets/prompts/robot.jpg" alt="흰 가운을 입고 플라스크를 드는 로봇">
+      </div>
+    </section>
+
+    <aside class="mission-timer" data-countdown="30" aria-label="30초 타이머">
+      <p class="timer-label">제한 시간</p>
+      <div class="timer-display" data-countdown-display>00:30</div>
+      <div class="timer-actions">
+        <button type="button" data-countdown-toggle>시작</button>
+        <button type="button" data-countdown-reset>초기화</button>
+      </div>
+
+      <form class="word-checker" data-word-checker data-answer-words="로봇,흰 가운,플라스크,실험실" data-answer-sentence="흰 가운을 입고 플라스크를 드는 로봇.">
+        <h2>단어 입력</h2>
+        <div class="word-grid">
+          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 1">
+          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 2">
+          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 3">
+          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 4">
+        </div>
+        <button class="check-btn" type="submit">채점</button>
+        <div class="check-result" data-check-result aria-live="polite"></div>
+      </form>
+    </aside>
+  </main>
+  <script src="prompt-timer.js"></script>
+  <script src="prompt-checker.js"></script>
+</body>
+</html>
