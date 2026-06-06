@@ -581,6 +581,21 @@
     if (!input.disabled) input.focus();
   }
 
+  function requestResetChat() {
+    if (state.role === "student") {
+      const shouldReset = window.confirm("대화 내용이 모두 사라집니다. 채팅내역을 초기화하려면 확인을 누르세요.");
+      if (!shouldReset) return;
+
+      const code = window.prompt("채팅내역 초기화 암호를 입력하세요.");
+      if (code !== "kit") {
+        window.alert("암호가 맞지 않아 채팅내역을 초기화하지 않았습니다.");
+        return;
+      }
+    }
+
+    resetChat();
+  }
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     submitQuestion(input.value);
@@ -595,6 +610,6 @@
   refreshApiStatus();
   startCreditSync();
 
-  resetButton.addEventListener("click", resetChat);
+  resetButton.addEventListener("click", requestResetChat);
   resetChat();
 })();
