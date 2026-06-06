@@ -43,6 +43,7 @@
     waiting: false,
     requiresAccessCode: false,
     accessCode: sessionStorage.getItem("class-access-code") || "",
+    teacherCode: sessionStorage.getItem("kit-teacher-access-code") || "",
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
@@ -456,6 +457,20 @@
     sessionStorage.removeItem("class-access-code");
   }
 
+  function ensureTeacherCode() {
+    if (state.role !== "teacher" || state.teacherCode) return true;
+
+    const code = window.prompt("선생용 보안 코드를 입력하세요. Vercel 환경변수 TEACHER_ACCESS_CODE 값입니다.");
+    if (!code || !code.trim()) {
+      setApiStatus("선생용 보안 코드 필요", "bad");
+      return false;
+    }
+
+    state.teacherCode = code.trim();
+    sessionStorage.setItem("kit-teacher-access-code", state.teacherCode);
+    return true;
+  }
+
   async function requestApiReply(text, priorHistory) {
     const safetyReply = safetyReplyFor(text);
     if (safetyReply) return safetyReply;
@@ -469,6 +484,10 @@
         "x-kit-team": state.team
       };
       if (state.accessCode) headers["x-class-code"] = state.accessCode;
+      if (state.role === "teacher") {
+        if (!ensureTeacherCode()) return "선생용 보안 코드가 필요합니다.";
+        headers["x-teacher-code"] = state.teacherCode;
+      }
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -494,6 +513,12 @@
         clearAccessCode();
         setApiStatus("입장 코드 다시 입력 필요", "bad");
         return "입장 코드가 맞지 않습니다. 다시 입력해 주세요.";
+      }
+      if (response.status === 401 && data.code === "TEACHER_CODE_REQUIRED") {
+        state.teacherCode = "";
+        sessionStorage.removeItem("kit-teacher-access-code");
+        setApiStatus("선생용 보안 코드 다시 입력 필요", "bad");
+        return "선생용 보안 코드가 맞지 않습니다. 다시 입력해 주세요.";
       }
       if (response.status === 402 && data.code === "NO_CREDITS") {
         applyCredits(0);

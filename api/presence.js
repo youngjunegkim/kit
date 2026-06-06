@@ -37,8 +37,33 @@ function actorFrom(request, body = {}) {
   return { user, role, label, team };
 }
 
+function isAllowedOrigin(request) {
+  const origin = headerValue(request, "origin");
+  if (!origin) return true;
+
+  const allowedOrigins = String(process.env.ALLOWED_ORIGINS || "")
+    .split(/[,\n;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (allowedOrigins.includes(origin)) return true;
+
+  const host = String(headerValue(request, "x-forwarded-host") || headerValue(request, "host") || "");
+  if (!host) return false;
+
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = async function handler(request, response) {
   try {
+    if (!isAllowedOrigin(request)) {
+      sendJson(response, 403, { error: "Origin is not allowed.", fallback: true });
+      return;
+    }
+
     if (request.method === "GET") {
       sendJson(response, 200, {
         online: await getPresence(),

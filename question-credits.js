@@ -89,7 +89,7 @@
       setLogCount(data.count || 0);
       renderStudentLogs(Array.isArray(data.logs) ? data.logs : []);
     } catch {
-      setCreditText("동기화 실패");
+      setCreditText("받기 실패");
     } finally {
       setRefreshBusy(false);
     }

@@ -29,6 +29,54 @@ function isTeacher(request, body = {}) {
   return String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase() === "teacher";
 }
 
+function teacherAccessCode() {
+  return String(process.env.TEACHER_ACCESS_CODE || process.env.KIT_TEACHER_ACCESS_CODE || "").trim();
+}
+
+function isTeacherCodeConfigured() {
+  return Boolean(teacherAccessCode());
+}
+
+function teacherCodeFor(request, body = {}) {
+  return String(headerValue(request, "x-teacher-code") || body.teacherCode || "").trim();
+}
+
+function teacherAuthError(request, body = {}) {
+  if (!isTeacher(request, body)) {
+    return { status: 403, code: "TEACHER_ROLE_REQUIRED", error: "Teacher role is required." };
+  }
+
+  const configuredCode = teacherAccessCode();
+  if (!configuredCode) return null;
+  if (teacherCodeFor(request, body) === configuredCode) return null;
+
+  return {
+    status: 401,
+    code: "TEACHER_CODE_REQUIRED",
+    error: "Teacher access code is required."
+  };
+}
+
+function isAllowedOrigin(request) {
+  const origin = headerValue(request, "origin");
+  if (!origin) return true;
+
+  const allowedOrigins = String(process.env.ALLOWED_ORIGINS || "")
+    .split(/[,\n;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (allowedOrigins.includes(origin)) return true;
+
+  const host = String(headerValue(request, "x-forwarded-host") || headerValue(request, "host") || "");
+  if (!host) return false;
+
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 function queryParam(request, name) {
   if (request.query?.[name]) return request.query[name];
   try {
@@ -56,6 +104,11 @@ function bodyFor(request) {
 
 module.exports = async function handler(request, response) {
   try {
+    if (!isAllowedOrigin(request)) {
+      sendJson(response, 403, { error: "Origin is not allowed.", fallback: true });
+      return;
+    }
+
     if (request.method === "GET") {
       const team = actorTeam(request);
       if (team) {
@@ -69,8 +122,9 @@ module.exports = async function handler(request, response) {
         return;
       }
 
-      if (!isTeacher(request)) {
-        sendJson(response, 403, { error: "Teacher role is required.", fallback: true });
+      const authError = teacherAuthError(request);
+      if (authError) {
+        sendJson(response, authError.status, { ...authError, fallback: true });
         return;
       }
 
@@ -78,7 +132,8 @@ module.exports = async function handler(request, response) {
         credits: await getAllCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
-        persistent: hasPersistentStore()
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
       });
       return;
     }
@@ -90,8 +145,9 @@ module.exports = async function handler(request, response) {
     }
 
     const body = bodyFor(request);
-    if (!isTeacher(request, body)) {
-      sendJson(response, 403, { error: "Teacher role is required.", fallback: true });
+    const authError = teacherAuthError(request, body);
+    if (authError) {
+      sendJson(response, authError.status, { ...authError, fallback: true });
       return;
     }
 
@@ -101,7 +157,8 @@ module.exports = async function handler(request, response) {
         credits: await resetCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
-        persistent: hasPersistentStore()
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
       });
       return;
     }
@@ -112,7 +169,8 @@ module.exports = async function handler(request, response) {
         credits: await getAllCredits(),
         counts: result.counts,
         logs: result.logs,
-        persistent: hasPersistentStore()
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
       });
       return;
     }
@@ -124,7 +182,8 @@ module.exports = async function handler(request, response) {
         credits: await getAllCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
-        persistent: hasPersistentStore()
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
       });
       return;
     }
@@ -145,7 +204,8 @@ module.exports = async function handler(request, response) {
       allCredits: await getAllCredits(),
       counts: await getAllQuestionCounts(),
       logs: await getQuestionLogs(),
-      persistent: hasPersistentStore()
+      persistent: hasPersistentStore(),
+      teacherCodeConfigured: isTeacherCodeConfigured()
     });
   } catch (error) {
     sendJson(response, 503, {

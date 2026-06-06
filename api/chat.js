@@ -315,6 +315,16 @@ function isAuthorized(request) {
   return String(headerValue(request, "x-class-code") || "") === accessCode;
 }
 
+function teacherAccessCode() {
+  return String(process.env.TEACHER_ACCESS_CODE || process.env.KIT_TEACHER_ACCESS_CODE || "").trim();
+}
+
+function isTeacherAuthorized(request) {
+  const accessCode = teacherAccessCode();
+  if (!accessCode) return true;
+  return String(headerValue(request, "x-teacher-code") || "").trim() === accessCode;
+}
+
 function isAllowedOrigin(request) {
   const origin = headerValue(request, "origin");
   if (!origin) return true;
@@ -801,6 +811,15 @@ module.exports = async function handler(request, response) {
   }
 
   const actor = actorFor(request);
+  if (actor.role === "teacher" && !isTeacherAuthorized(request)) {
+    sendJson(response, 401, {
+      error: "Teacher access code is required.",
+      code: "TEACHER_CODE_REQUIRED",
+      fallback: true
+    });
+    return;
+  }
+
   let creditInfo = null;
   if (actor.role === "student") {
     if (!actor.team) {

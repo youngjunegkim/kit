@@ -4,6 +4,7 @@
   const baseScores = Object.fromEntries(teams.map((team) => [team, 0]));
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
+  const teacherCodeKey = "kit-teacher-access-code";
   let syncStatus = null;
   let questionCounts = { ...baseScores };
   let questionLogs = [];
@@ -48,11 +49,40 @@
   }
 
   function authHeaders() {
-    return {
+    const headers = {
       "content-type": "application/json",
       "x-kit-user": user,
       "x-kit-role": role
     };
+    const teacherCode = sessionStorage.getItem(teacherCodeKey) || "";
+    if (teacherCode) headers["x-teacher-code"] = teacherCode;
+    return headers;
+  }
+
+  async function requestCredits(url, options = {}, retry = true) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...authHeaders(),
+        ...(options.headers || {})
+      }
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401 && data.code === "TEACHER_CODE_REQUIRED" && retry) {
+      const code = window.prompt("선생용 보안 코드를 입력하세요. Vercel 환경변수 TEACHER_ACCESS_CODE 값입니다.");
+      if (!code || !code.trim()) {
+        throw new Error("선생용 보안 코드가 필요합니다.");
+      }
+      sessionStorage.setItem(teacherCodeKey, code.trim());
+      return requestCredits(url, options, false);
+    }
+
+    if (response.status === 401) {
+      sessionStorage.removeItem(teacherCodeKey);
+    }
+
+    return { response, data };
   }
 
   function renderScores() {
@@ -118,12 +148,9 @@
   }
 
   async function fetchScores() {
-    const response = await fetch("/api/credits", {
-      headers: authHeaders()
-    });
-    const data = await response.json().catch(() => ({}));
+    const { response, data } = await requestCredits("/api/credits");
     if (!response.ok || !data.credits) {
-      throw new Error(data.error || "질문권 동기화 실패");
+      throw new Error(data.error || "질문권 현황 불러오기 실패");
     }
     scores = { ...baseScores, ...data.credits };
     questionCounts = { ...baseScores, ...(data.counts || {}) };
@@ -131,20 +158,18 @@
     saveScores(scores);
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 현황을 불러왔습니다." : "임시 저장소 사용 중: Upstash Redis 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "질문권 현황을 불러왔습니다." : "공유 저장소 미연결: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function updateScore(team, credits) {
-    const response = await fetch("/api/credits", {
+    const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
-      headers: authHeaders(),
       body: JSON.stringify({
         action: "set",
         team,
         credits
       })
     });
-    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || "질문권 저장 실패");
     }
@@ -154,20 +179,18 @@
     saveScores(scores);
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 저장됨" : "임시 저장됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "질문권 저장됨" : "임시 저장됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function publishScores() {
     setSyncStatus("질문권을 주는 중입니다...");
-    const response = await fetch("/api/credits", {
+    const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
-      headers: authHeaders(),
       body: JSON.stringify({
         action: "setAll",
         credits: scores
       })
     });
-    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || "질문권 지급 실패");
     }
@@ -180,18 +203,16 @@
     setSyncStatus(
       data.persistent
         ? "질문권 지급 완료. 학생은 질문권 받기를 누르면 반영됩니다."
-        : "임시 지급 완료: Upstash Redis 환경변수가 필요합니다.",
+        : "임시 지급 완료: 여러 기기 공유에는 Upstash 환경변수가 필요합니다.",
       data.persistent ? "ok" : "bad"
     );
   }
 
   async function resetServerScores() {
-    const response = await fetch("/api/credits", {
+    const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
-      headers: authHeaders(),
       body: JSON.stringify({ action: "reset" })
     });
-    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || "질문권 초기화 실패");
     }
@@ -201,29 +222,27 @@
     saveScores(scores);
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 초기화됨" : "임시 초기화됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "질문권 초기화됨" : "임시 초기화됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function clearServerLogs() {
-    const response = await fetch("/api/credits", {
+    const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
-      headers: authHeaders(),
       body: JSON.stringify({ action: "clearLogs" })
     });
-    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || "로그 삭제 실패");
     }
     questionCounts = { ...baseScores, ...(data.counts || {}) };
     questionLogs = Array.isArray(data.logs) ? data.logs : [];
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문 로그 삭제됨" : "임시 로그 삭제됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "질문 로그 삭제됨" : "임시 로그 삭제됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   function startScoreSync() {
     fetchScores().catch((error) => {
       renderScores();
-      setSyncStatus(error.message || "질문권 동기화 실패", "bad");
+      setSyncStatus(error.message || "질문권 현황 불러오기 실패", "bad");
     });
   }
 
