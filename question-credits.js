@@ -8,7 +8,6 @@
 
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
-  const user = sessionStorage.getItem("kit-auth-user") || "";
 
   function setCreditText(text) {
     creditCounts.forEach((node) => {
@@ -78,9 +77,7 @@
       setRefreshBusy(true);
       const response = await fetch(`/api/credits?team=${encodeURIComponent(team)}`, {
         headers: {
-          "x-kit-user": user,
-          "x-kit-role": role,
-          "x-kit-team": team
+          "x-kit-role": role
         }
       });
       const data = await response.json().catch(() => ({}));

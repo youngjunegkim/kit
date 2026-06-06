@@ -17,6 +17,16 @@ function headerValue(request, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function decodedHeaderValue(request, name) {
+  const value = headerValue(request, name);
+  if (!value) return "";
+  try {
+    return decodeURIComponent(String(value));
+  } catch {
+    return String(value);
+  }
+}
+
 function bodyFor(request) {
   if (!request.body) return {};
   if (typeof request.body === "string") {
@@ -30,10 +40,10 @@ function bodyFor(request) {
 }
 
 function actorFrom(request, body = {}) {
-  const user = String(headerValue(request, "x-kit-user") || body.user || "").trim();
+  const user = String(decodedHeaderValue(request, "x-kit-user") || body.user || "").trim();
   const role = String(headerValue(request, "x-kit-role") || body.role || "").trim();
-  const label = String(headerValue(request, "x-kit-label") || body.label || user).trim();
-  const team = String(headerValue(request, "x-kit-team") || body.team || "").trim();
+  const label = String(decodedHeaderValue(request, "x-kit-label") || body.label || user).trim();
+  const team = String(decodedHeaderValue(request, "x-kit-team") || body.team || "").trim();
   return { user, role, label, team };
 }
 

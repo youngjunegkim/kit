@@ -25,6 +25,16 @@ function headerValue(request, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function decodedHeaderValue(request, name) {
+  const value = headerValue(request, name);
+  if (!value) return "";
+  try {
+    return decodeURIComponent(String(value));
+  } catch {
+    return String(value);
+  }
+}
+
 function isTeacher(request, body = {}) {
   return String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase() === "teacher";
 }
@@ -87,7 +97,7 @@ function queryParam(request, name) {
 }
 
 function actorTeam(request, body = {}) {
-  return normalizeTeam(headerValue(request, "x-kit-team") || body.team || queryParam(request, "team"));
+  return normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team || queryParam(request, "team"));
 }
 
 function bodyFor(request) {

@@ -255,6 +255,16 @@ function headerValue(request, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function decodedHeaderValue(request, name) {
+  const value = headerValue(request, name);
+  if (!value) return "";
+  try {
+    return decodeURIComponent(String(value));
+  } catch {
+    return String(value);
+  }
+}
+
 function clientIdFor(request) {
   const forwarded = headerValue(request, "x-forwarded-for");
   return String(forwarded || request.socket?.remoteAddress || "unknown").split(",")[0].trim();
@@ -264,8 +274,8 @@ function actorFor(request) {
   const body = request.body || {};
   return {
     role: String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase(),
-    user: String(headerValue(request, "x-kit-user") || body.user || "").trim().toLowerCase(),
-    team: normalizeTeam(headerValue(request, "x-kit-team") || body.team)
+    user: String(decodedHeaderValue(request, "x-kit-user") || body.user || "").trim().toLowerCase(),
+    team: normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team)
   };
 }
 

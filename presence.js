@@ -17,10 +17,7 @@
   function accountHeaders(account) {
     return {
       "content-type": "application/json",
-      "x-kit-user": account.user,
-      "x-kit-role": account.role,
-      "x-kit-label": account.label || account.user,
-      "x-kit-team": account.team || ""
+      "x-kit-role": account.role
     };
   }
 

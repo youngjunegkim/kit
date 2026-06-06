@@ -388,9 +388,7 @@
       setRefreshBusy(true);
       const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}`, {
         headers: {
-          "x-kit-user": state.user,
-          "x-kit-role": state.role,
-          "x-kit-team": state.team
+          "x-kit-role": state.role
         }
       });
       const data = await response.json().catch(() => ({}));
@@ -479,9 +477,7 @@
     try {
       const headers = {
         "content-type": "application/json",
-        "x-kit-user": state.user,
-        "x-kit-role": state.role,
-        "x-kit-team": state.team
+        "x-kit-role": state.role
       };
       if (state.accessCode) headers["x-class-code"] = state.accessCode;
       if (state.role === "teacher") {
