@@ -65,7 +65,9 @@
 
   async function requestPresence(action = "touch") {
     const account = sessionAccount();
-    if (!account.user || !account.role) return null;
+    if (!account.user || !account.role) {
+      throw new Error("로그인 정보를 찾지 못했습니다. 다시 로그인해 주세요.");
+    }
 
     const response = await fetch("/api/presence", {
       method: "POST",
@@ -74,7 +76,11 @@
       keepalive: action === "leave",
       cache: "no-store"
     });
-    return response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "접속 정보를 불러오지 못했습니다.");
+    }
+    return data;
   }
 
   function setPresenceButtonsBusy(isBusy) {
@@ -94,8 +100,8 @@
     try {
       const data = await requestPresence("touch");
       if (data?.online) renderPresence(data.online);
-    } catch {
-      renderPresence([], "접속 정보를 불러오지 못했습니다.");
+    } catch (error) {
+      renderPresence([], error.message || "접속 정보를 불러오지 못했습니다.");
     } finally {
       setPresenceButtonsBusy(false);
     }
