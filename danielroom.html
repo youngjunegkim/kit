@@ -351,6 +351,26 @@
       font-weight: 950;
     }
 
+    .presence-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .presence-refresh-btn {
+      min-height: 30px;
+      padding: 6px 8px;
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .presence-refresh-btn:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
     .presence-list {
       display: grid;
       gap: 7px;
@@ -783,7 +803,10 @@
       <section class="presence-panel" aria-label="접속 중 계정">
         <div class="presence-head">
           <h3>접속 중 계정</h3>
-          <strong data-presence-count>0명</strong>
+          <div class="presence-actions">
+            <strong data-presence-count>0명</strong>
+            <button class="credit-refresh-btn presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
+          </div>
         </div>
         <div class="presence-list" data-presence-list></div>
       </section>

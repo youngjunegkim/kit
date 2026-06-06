@@ -9,7 +9,7 @@ globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
-const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 90000);
+const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
 
 function normalizeTeam(team) {
   const normalized = String(team || "").trim();

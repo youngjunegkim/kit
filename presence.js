@@ -1,6 +1,5 @@
 (function () {
-  const heartbeatMs = 30000;
-  let heartbeatTimer = 0;
+  let refreshBusy = false;
 
   function sessionAccount() {
     return {
@@ -12,7 +11,7 @@
   }
 
   function hasPresenceUi() {
-    return Boolean(document.querySelector("[data-presence-list], [data-presence-count]"));
+    return Boolean(document.querySelector("[data-presence-list], [data-presence-count], [data-refresh-presence]"));
   }
 
   function accountHeaders(account) {
@@ -29,7 +28,7 @@
     return role === "teacher" ? "선생님" : "학생";
   }
 
-  function renderPresence(online = []) {
+  function renderPresence(online = [], emptyText = "아직 접속 중인 계정이 없습니다.") {
     const visible = Array.isArray(online) ? online : [];
     document.querySelectorAll("[data-presence-count]").forEach((node) => {
       node.textContent = `${visible.length}명`;
@@ -41,7 +40,7 @@
       if (!visible.length) {
         const empty = document.createElement("p");
         empty.className = "presence-empty";
-        empty.textContent = "아직 접속 중인 계정이 없습니다.";
+        empty.textContent = emptyText;
         list.append(empty);
         return;
       }
@@ -78,12 +77,27 @@
     return response.json();
   }
 
-  async function touchAndRender() {
+  function setPresenceButtonsBusy(isBusy) {
+    refreshBusy = isBusy;
+    document.querySelectorAll("[data-refresh-presence]").forEach((button) => {
+      if (!button.dataset.defaultText) {
+        button.dataset.defaultText = button.textContent.trim() || "접속중 인원 보기";
+      }
+      button.disabled = isBusy;
+      button.textContent = isBusy ? "확인 중" : button.dataset.defaultText;
+    });
+  }
+
+  async function refreshPresence() {
+    if (refreshBusy) return;
+    setPresenceButtonsBusy(true);
     try {
       const data = await requestPresence("touch");
       if (data?.online) renderPresence(data.online);
     } catch {
-      renderPresence([]);
+      renderPresence([], "접속 정보를 불러오지 못했습니다.");
+    } finally {
+      setPresenceButtonsBusy(false);
     }
   }
 
@@ -111,17 +125,16 @@
     const account = sessionAccount();
     if (!account.user || !account.role) return;
 
-    touchAndRender();
-    heartbeatTimer = window.setInterval(touchAndRender, heartbeatMs);
+    renderPresence([], "접속 정보를 아직 불러오지 않았습니다.");
+
+    document.querySelectorAll("[data-refresh-presence]").forEach((button) => {
+      button.addEventListener("click", refreshPresence);
+    });
 
     document.querySelectorAll("[data-logout]").forEach((button) => {
       button.addEventListener("click", leavePresence, { capture: true });
     });
   }
-
-  window.addEventListener("pagehide", () => {
-    window.clearInterval(heartbeatTimer);
-  });
 
   document.addEventListener("DOMContentLoaded", startPresence);
 })();

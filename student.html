@@ -82,6 +82,29 @@
       outline: none;
     }
 
+    .presence-refresh-btn {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: #eef1f5;
+      color: #18202b;
+      cursor: pointer;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 950;
+    }
+
+    .presence-refresh-btn:hover,
+    .presence-refresh-btn:focus-visible {
+      background: #dfe5ec;
+      outline: none;
+    }
+
+    .presence-refresh-btn:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
     .student-tools {
       display: flex;
       align-items: center;
@@ -136,6 +159,14 @@
       color: #c92521;
       font-size: 0.95rem;
       font-weight: 950;
+    }
+
+    .student-log-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .student-log-list {
@@ -405,6 +436,7 @@
           <span>접속</span>
           <strong data-presence-count>0명</strong>
         </div>
+        <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
         <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
         <button class="logout-btn" type="button" data-logout>로그아웃</button>
       </div>
@@ -469,7 +501,10 @@
     <section class="student-log-card" aria-label="접속 중 계정">
       <div class="student-log-head">
         <h2>접속 중 계정</h2>
-        <strong data-presence-count>0명</strong>
+        <div class="student-log-actions">
+          <strong data-presence-count>0명</strong>
+          <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
+        </div>
       </div>
       <div class="presence-list" data-presence-list></div>
     </section>

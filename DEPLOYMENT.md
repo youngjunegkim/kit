@@ -45,13 +45,13 @@ TEACHER_ACCESS_CODE=선생용보안코드
 UPSTASH_REDIS_REST_URL=Upstash Redis REST URL
 UPSTASH_REDIS_REST_TOKEN=Upstash Redis REST Token
 KIT_CREDIT_NAMESPACE=kit-class-1
-KIT_PRESENCE_TTL_MS=90000
+KIT_PRESENCE_TTL_MS=300000
 ALLOWED_ORIGINS=https://kit-six-tau.vercel.app
 ```
 
 `KIT_CREDIT_NAMESPACE`는 선택값입니다. 같은 Redis를 여러 수업에 재사용할 때 반별로 값을 다르게 넣으면 질문권 데이터가 섞이지 않습니다.
 이 값을 넣지 않으면 `default` 저장 공간을 씁니다.
-`KIT_PRESENCE_TTL_MS`는 접속 중 계정이 마지막 신호 후 몇 ms 동안 온라인으로 보일지 정하는 선택값입니다. 기본값은 90000, 즉 90초입니다.
+`KIT_PRESENCE_TTL_MS`는 접속 중 계정이 마지막 수동 확인 후 몇 ms 동안 온라인으로 보일지 정하는 선택값입니다. 기본값은 300000, 즉 5분입니다.
 `ALLOWED_ORIGINS`는 API 요청을 허용할 배포 주소입니다. 여러 주소는 쉼표로 구분할 수 있습니다.
 Upstash 환경 변수가 없으면 질문권, 질문 로그, 접속 중 계정은 서버 메모리에만 임시 저장되므로, Vercel 배포 환경에서는 여러 기기 사이 공유가 안정적으로 유지되지 않습니다.
 
