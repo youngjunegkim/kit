@@ -73,7 +73,7 @@
     .page {
       min-height: 100vh;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 292px;
+      grid-template-columns: minmax(0, 1fr) 340px;
       gap: 22px;
       align-items: start;
       padding: 22px;
@@ -266,6 +266,8 @@
     .score-board {
       position: sticky;
       top: 22px;
+      max-height: calc(100vh - 44px);
+      overflow-y: auto;
       background: var(--panel);
       border: 1px solid rgba(255, 255, 255, 0.62);
       border-radius: 8px;
@@ -288,6 +290,23 @@
       line-height: 1.2;
     }
 
+    .score-sync-status {
+      min-height: 20px;
+      margin: -4px 0 12px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+
+    .score-sync-status--ok {
+      color: var(--green);
+    }
+
+    .score-sync-status--bad {
+      color: var(--red);
+    }
+
     .reset-btn {
       min-height: 34px;
       border-radius: 6px;
@@ -295,6 +314,7 @@
       background: #eef1f5;
       color: #3a4553;
       font-weight: 800;
+      white-space: nowrap;
     }
 
     .reset-btn:hover,
@@ -385,6 +405,92 @@
       border-color: var(--red);
       box-shadow: 0 0 0 3px rgba(243, 52, 47, 0.14);
       outline: none;
+    }
+
+    .log-panel {
+      margin-top: 14px;
+      border: 1px solid #e1e6ee;
+      border-radius: 8px;
+      background: var(--panel-strong);
+      padding: 12px;
+    }
+
+    .log-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .log-head h3 {
+      margin: 0;
+      color: #344154;
+      font-size: 0.96rem;
+      line-height: 1.2;
+    }
+
+    .usage-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .usage-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 34px;
+      border-radius: 7px;
+      background: #f6f8fb;
+      border: 1px solid #e6edf5;
+      padding: 7px 8px;
+      color: #5b6878;
+      font-size: 0.84rem;
+      font-weight: 900;
+    }
+
+    .usage-row strong {
+      color: #18202b;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .log-list {
+      display: grid;
+      gap: 7px;
+      max-height: 210px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .log-entry {
+      border-radius: 7px;
+      background: #fbfdff;
+      border: 1px solid #e6edf5;
+      padding: 8px;
+    }
+
+    .log-entry__meta {
+      color: #657181;
+      font-size: 0.76rem;
+      font-weight: 900;
+    }
+
+    .log-entry p,
+    .log-empty {
+      margin: 4px 0 0;
+      color: #18202b;
+      font-size: 0.82rem;
+      line-height: 1.38;
+      font-weight: 800;
+      word-break: keep-all;
+    }
+
+    .log-empty {
+      margin: 0;
+      color: var(--muted);
     }
 
     .time-tools {
@@ -589,7 +695,7 @@
       </div>
     </section>
 
-    <aside class="score-board" aria-label="조별 질문권">
+    <aside class="score-board" aria-label="학생별 질문권">
       <div class="clock-card" aria-label="현재 시간">
         <div class="analog-clock" data-clock>
           <div class="analog-clock__face">
@@ -603,55 +709,108 @@
       </div>
 
       <div class="score-head">
-        <h2>조별 질문권</h2>
-        <button class="reset-btn" type="button" id="resetScores">초기화</button>
+        <h2>학생별 질문권</h2>
+        <button class="reset-btn" type="button" id="resetScores">질문권 초기화</button>
       </div>
 
       <div class="team-list">
         <div class="team-row">
-          <div class="team-badge team-a">A</div>
+          <div class="team-badge team-a">승</div>
           <div class="team-score">
-            <span class="team-name">A조</span>
+            <span class="team-name">승우</span>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreA" type="number" min="0" step="1" inputmode="numeric" data-score-input="A" aria-label="A조 질문권">
+              <input class="score-input" id="scoreSeungwoo" type="number" min="0" step="1" inputmode="numeric" data-score-input="승우" aria-label="승우 질문권">
               <span>개</span>
             </label>
           </div>
         </div>
 
         <div class="team-row">
-          <div class="team-badge team-b">B</div>
+          <div class="team-badge team-b">연</div>
           <div class="team-score">
-            <span class="team-name">B조</span>
+            <span class="team-name">연수</span>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreB" type="number" min="0" step="1" inputmode="numeric" data-score-input="B" aria-label="B조 질문권">
+              <input class="score-input" id="scoreYeonsu" type="number" min="0" step="1" inputmode="numeric" data-score-input="연수" aria-label="연수 질문권">
               <span>개</span>
             </label>
           </div>
         </div>
 
         <div class="team-row">
-          <div class="team-badge team-c">C</div>
+          <div class="team-badge team-c">은</div>
           <div class="team-score">
-            <span class="team-name">C조</span>
+            <span class="team-name">은혁</span>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreC" type="number" min="0" step="1" inputmode="numeric" data-score-input="C" aria-label="C조 질문권">
+              <input class="score-input" id="scoreEunhyeok" type="number" min="0" step="1" inputmode="numeric" data-score-input="은혁" aria-label="은혁 질문권">
               <span>개</span>
             </label>
           </div>
         </div>
 
         <div class="team-row">
-          <div class="team-badge team-d">D</div>
+          <div class="team-badge team-d">영</div>
           <div class="team-score">
-            <span class="team-name">D조</span>
+            <span class="team-name">영준</span>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreD" type="number" min="0" step="1" inputmode="numeric" data-score-input="D" aria-label="D조 질문권">
+              <input class="score-input" id="scoreYoungjun" type="number" min="0" step="1" inputmode="numeric" data-score-input="영준" aria-label="영준 질문권">
+              <span>개</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-a">혜</div>
+          <div class="team-score">
+            <span class="team-name">혜빈</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreHyebin" type="number" min="0" step="1" inputmode="numeric" data-score-input="혜빈" aria-label="혜빈 질문권">
+              <span>개</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-b">윤</div>
+          <div class="team-score">
+            <span class="team-name">윤지</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreYunji" type="number" min="0" step="1" inputmode="numeric" data-score-input="윤지" aria-label="윤지 질문권">
+              <span>개</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-c">가</div>
+          <div class="team-score">
+            <span class="team-name">가빈</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreGabin" type="number" min="0" step="1" inputmode="numeric" data-score-input="가빈" aria-label="가빈 질문권">
+              <span>개</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <div class="team-badge team-d">채</div>
+          <div class="team-score">
+            <span class="team-name">채희</span>
+            <label class="score-input-wrap">
+              <input class="score-input" id="scoreChaehee" type="number" min="0" step="1" inputmode="numeric" data-score-input="채희" aria-label="채희 질문권">
               <span>개</span>
             </label>
           </div>
         </div>
       </div>
+
+      <section class="log-panel" aria-label="학생별 질문 로그">
+        <div class="log-head">
+          <h3>질문 사용 현황</h3>
+          <button class="reset-btn" type="button" id="clearQuestionLogs">로그 지우기</button>
+        </div>
+        <div class="usage-grid" id="questionUsage" aria-label="학생별 질문 횟수"></div>
+        <div class="log-list" id="questionLogList" aria-label="최근 질문 로그"></div>
+      </section>
 
       <div class="time-tools" aria-label="시간 도구">
         <section class="time-tool" aria-label="스톱워치">

@@ -1,11 +1,20 @@
 (function () {
   const accounts = {
-    master: { password: "master1", role: "teacher", label: "선생용" },
-    student: { password: "student1", role: "student", label: "학생용" }
+    master: { password: "master1", role: "teacher", label: "선생님 1" },
+    master2: { password: "master2", role: "teacher", label: "선생님 2" },
+    "승우": { password: "승우1", role: "student", label: "승우", team: "승우" },
+    "연수": { password: "연수1", role: "student", label: "연수", team: "연수" },
+    "은혁": { password: "은혁1", role: "student", label: "은혁", team: "은혁" },
+    "영준": { password: "영준1", role: "student", label: "영준", team: "영준" },
+    "혜빈": { password: "혜빈1", role: "student", label: "혜빈", team: "혜빈" },
+    "윤지": { password: "윤지1", role: "student", label: "윤지", team: "윤지" },
+    "가빈": { password: "가빈1", role: "student", label: "가빈", team: "가빈" },
+    "채희": { password: "채희1", role: "student", label: "채희", team: "채희" }
   };
 
   const role = sessionStorage.getItem("kit-auth-role") || "";
   const user = sessionStorage.getItem("kit-auth-user") || "";
+  const team = sessionStorage.getItem("kit-auth-team") || "";
   const lastLoginKey = "kit-last-login-id";
   const fullscreenKey = "kit-fullscreen-start";
 
@@ -90,6 +99,12 @@
       pendingPath = homeFor(account.role);
       sessionStorage.setItem("kit-auth-user", userIdInput.value.trim().toLowerCase());
       sessionStorage.setItem("kit-auth-role", account.role);
+      sessionStorage.setItem("kit-auth-label", account.label);
+      if (account.team) {
+        sessionStorage.setItem("kit-auth-team", account.team);
+      } else {
+        sessionStorage.removeItem("kit-auth-team");
+      }
       rememberLogin(userIdInput.value.trim().toLowerCase());
       requestFullscreenIfNeeded();
       clearErrorState();
@@ -150,7 +165,7 @@
       go(pendingPath || "student.html");
     });
 
-    const lastLoginId = localStorage.getItem(lastLoginKey) || "student";
+    const lastLoginId = localStorage.getItem(lastLoginKey) || "승우";
     userIdInput.value = lastLoginId;
     setActiveRole(lastLoginId);
     if (fullscreenToggle) fullscreenToggle.checked = localStorage.getItem(fullscreenKey) === "1";
@@ -175,6 +190,8 @@
       button.addEventListener("click", () => {
         sessionStorage.removeItem("kit-auth-user");
         sessionStorage.removeItem("kit-auth-role");
+        sessionStorage.removeItem("kit-auth-label");
+        sessionStorage.removeItem("kit-auth-team");
         go("school.html");
       });
     });
@@ -186,7 +203,7 @@
     });
     document.querySelectorAll("[data-auth-label]").forEach((node) => {
       const account = accounts[user];
-      node.textContent = account ? account.label : "";
+      node.textContent = account ? account.label : sessionStorage.getItem("kit-auth-label") || "";
     });
   }
 
@@ -195,6 +212,15 @@
     if (!required) return;
 
     if (!role) {
+      go("school.html");
+      return;
+    }
+
+    if (role === "student" && !team) {
+      sessionStorage.removeItem("kit-auth-user");
+      sessionStorage.removeItem("kit-auth-role");
+      sessionStorage.removeItem("kit-auth-label");
+      sessionStorage.removeItem("kit-auth-team");
       go("school.html");
       return;
     }

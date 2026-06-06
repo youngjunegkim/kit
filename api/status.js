@@ -1,3 +1,5 @@
+const { hasPersistentStore } = require("./_credits");
+
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
   response.setHeader("content-type", "application/json; charset=utf-8");
@@ -27,6 +29,7 @@ module.exports = function handler(request, response) {
     provider: "gemini",
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     hasGeminiKey: getGeminiKeys().length > 0,
-    requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE)
+    requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
+    hasCreditStore: hasPersistentStore()
   });
 };

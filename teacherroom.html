@@ -414,6 +414,30 @@
       color: var(--accent);
     }
 
+    .question-credit {
+      display: grid;
+      gap: 4px;
+      min-width: 128px;
+      border: 1px solid #dbe3ed;
+      border-radius: 8px;
+      background: #fff7ed;
+      padding: 9px 11px;
+      color: #9a3412;
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .question-credit strong {
+      color: #7c2d12;
+      font-size: 0.96rem;
+    }
+
+    .question-credit small {
+      color: #9a3412;
+      font-size: 0.76rem;
+      font-weight: 900;
+    }
+
     .clock-mini {
       width: 116px;
       flex: 0 0 auto;
@@ -520,6 +544,12 @@
     .prompt-chip:focus-visible {
       background: #dde6f0;
       outline: none;
+    }
+
+    .prompt-chip:disabled,
+    .send-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
     }
 
     .chat-form {
@@ -673,6 +703,12 @@
         <div class="api-status" aria-label="AI 연결 상태">
           <span class="api-status__label">AI 연결</span>
           <span class="api-status__value" id="apiStatus">확인 중</span>
+        </div>
+
+        <div class="question-credit" aria-label="남은 질문권">
+          <span data-team-label>학생</span>
+          <strong data-credit-count>확인 중</strong>
+          <small data-log-count>질문 0회</small>
         </div>
 
         <div class="clock-mini" aria-label="현재 시간">

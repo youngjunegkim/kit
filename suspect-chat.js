@@ -29,6 +29,11 @@
   const pressureFill = document.getElementById("pressureFill");
   const pressureLabel = document.getElementById("pressureLabel");
   const apiStatus = document.getElementById("apiStatus");
+  const sendButton = form?.querySelector(".send-btn");
+  const creditCount = document.querySelector("[data-credit-count]");
+  const teamLabel = document.querySelector("[data-team-label]");
+  const logCount = document.querySelector("[data-log-count]");
+  const defaultInputPlaceholder = input?.placeholder || "";
 
   const state = {
     pressure: 0,
@@ -36,7 +41,11 @@
     history: [],
     waiting: false,
     requiresAccessCode: false,
-    accessCode: sessionStorage.getItem("class-access-code") || ""
+    accessCode: sessionStorage.getItem("class-access-code") || "",
+    user: sessionStorage.getItem("kit-auth-user") || "",
+    role: sessionStorage.getItem("kit-auth-role") || "",
+    team: sessionStorage.getItem("kit-auth-team") || "",
+    credits: null
   };
 
   function addMessage(role, text, options = {}) {
@@ -327,6 +336,70 @@
     apiStatus.classList.toggle("api-status__value--bad", type === "bad");
   }
 
+  function setCreditText(text) {
+    if (teamLabel) teamLabel.textContent = state.team || "학생 없음";
+    if (creditCount) creditCount.textContent = text;
+  }
+
+  function setLogCount(count) {
+    if (logCount) logCount.textContent = `질문 ${Number(count || 0)}회`;
+  }
+
+  function updateInputAvailability() {
+    const locked = state.role === "student" && state.credits === 0;
+    if (!state.waiting) {
+      input.disabled = locked;
+      if (sendButton) sendButton.disabled = locked;
+    }
+    document.querySelectorAll("[data-prompt]").forEach((button) => {
+      button.disabled = locked || state.waiting;
+    });
+    if (locked) {
+      input.placeholder = "질문권이 0개입니다";
+    } else if (defaultInputPlaceholder) {
+      input.placeholder = defaultInputPlaceholder;
+    }
+  }
+
+  function applyCredits(credits) {
+    if (credits === null || credits === undefined) return;
+    state.credits = Math.max(0, Number(credits) || 0);
+    setCreditText(`${state.credits}개`);
+    updateInputAvailability();
+  }
+
+  async function refreshCredits() {
+    if (!state.team) {
+      setCreditText("조 없음");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}`, {
+        headers: {
+          "x-kit-user": state.user,
+          "x-kit-role": state.role,
+          "x-kit-team": state.team
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "credit sync failed");
+      applyCredits(data.credits);
+      setLogCount(data.count || 0);
+    } catch {
+      setCreditText("동기화 실패");
+    }
+  }
+
+  function startCreditSync() {
+    if (state.role !== "student") {
+      setCreditText("제한 없음");
+      return;
+    }
+    refreshCredits();
+    window.setInterval(refreshCredits, 1500);
+  }
+
   async function refreshApiStatus() {
     try {
       const response = await fetch("/api/status");
@@ -373,7 +446,10 @@
 
     try {
       const headers = {
-        "content-type": "application/json"
+        "content-type": "application/json",
+        "x-kit-user": state.user,
+        "x-kit-role": state.role,
+        "x-kit-team": state.team
       };
       if (state.accessCode) headers["x-class-code"] = state.accessCode;
 
@@ -383,15 +459,28 @@
         body: JSON.stringify({
           suspect: suspectId,
           message: text,
-          history: priorHistory
+          history: priorHistory,
+          user: state.user,
+          role: state.role,
+          team: state.team
         })
       });
 
       const data = await response.json().catch(() => ({}));
+      if (data.credits) {
+        applyCredits(data.credits.remaining);
+      }
+      if (data.usage) {
+        setLogCount(data.usage.count || 0);
+      }
       if (response.status === 401 && data.requiresAccessCode) {
         clearAccessCode();
         setApiStatus("입장 코드 다시 입력 필요", "bad");
         return "입장 코드가 맞지 않습니다. 다시 입력해 주세요.";
+      }
+      if (response.status === 402 && data.code === "NO_CREDITS") {
+        applyCredits(0);
+        return "질문권이 0개입니다. 선생님이 질문권을 추가하면 다시 질문할 수 있어요.";
       }
       if (response.ok && data.reply) {
         return data.reply;
@@ -406,9 +495,18 @@
   async function submitQuestion(question) {
     const text = question.trim();
     if (!text || state.waiting) return;
+    if (state.role === "student" && state.credits === 0) {
+      addMessage("bot", "질문권이 0개입니다. 선생님이 질문권을 추가하면 다시 질문할 수 있어요.");
+      updateInputAvailability();
+      return;
+    }
 
     state.waiting = true;
     input.disabled = true;
+    if (sendButton) sendButton.disabled = true;
+    document.querySelectorAll("[data-prompt]").forEach((button) => {
+      button.disabled = true;
+    });
     addMessage("user", text);
     input.value = "";
     adjustPressureForQuestion(text);
@@ -427,8 +525,8 @@
       trimHistory();
     } finally {
       state.waiting = false;
-      input.disabled = false;
-      input.focus();
+      updateInputAvailability();
+      if (!input.disabled) input.focus();
     }
   }
 
@@ -441,8 +539,8 @@
     pressureLabel.textContent = "낮음";
     messages.textContent = "";
     addMessage("bot", greeting);
-    input.disabled = false;
-    input.focus();
+    updateInputAvailability();
+    if (!input.disabled) input.focus();
   }
 
   form.addEventListener("submit", (event) => {
@@ -457,6 +555,7 @@
   });
 
   refreshApiStatus();
+  startCreditSync();
 
   resetButton.addEventListener("click", resetChat);
   resetChat();

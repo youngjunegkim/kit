@@ -36,6 +36,18 @@ CLASS_ACCESS_CODE=수업용입장코드
 
 `CLASS_ACCESS_CODE`를 넣으면 학생이 처음 질문할 때 입장 코드를 입력해야 합니다. 코드가 틀리면 Gemini API를 호출하지 않습니다.
 
+질문권과 학생별 질문 로그를 선생님/학생 노트북 사이에서 실시간 공유하려면 Upstash Redis 환경 변수도 추가하세요.
+
+```text
+UPSTASH_REDIS_REST_URL=Upstash Redis REST URL
+UPSTASH_REDIS_REST_TOKEN=Upstash Redis REST Token
+KIT_CREDIT_NAMESPACE=kit-class-1
+```
+
+`KIT_CREDIT_NAMESPACE`는 선택값입니다. 같은 Redis를 여러 수업에 재사용할 때 반별로 값을 다르게 넣으면 질문권 데이터가 섞이지 않습니다.
+이 값을 넣지 않으면 `default` 저장 공간을 씁니다.
+Upstash 환경 변수가 없으면 질문권과 질문 로그는 서버 메모리에만 임시 저장되므로, Vercel 배포 환경에서는 실시간 공유가 안정적으로 유지되지 않습니다.
+
 선택으로 1분당 요청 제한도 바꿀 수 있습니다.
 
 ```text
@@ -71,4 +83,19 @@ Gemini 준비됨 (gemini-2.5-flash)
 Gemini API 키는 브라우저 코드에 넣지 말고 Vercel 환경 변수에만 저장하세요.
 Google AI Studio 또는 Google Cloud Console에서 Gemini API에만 쓸 수 있게 키 제한을 걸어두세요.
 수업 링크를 공개할 때는 `CLASS_ACCESS_CODE`를 함께 설정하는 것을 강하게 권장합니다.
-`master/master1`, `student/student1` 로그인은 화면 분리용입니다. 정적 HTML과 JS는 브라우저에서 볼 수 있으므로, 진짜 비밀 자료를 보호하는 서버 인증으로 보지 마세요.
+로그인 계정은 아래처럼 준비되어 있습니다.
+
+```text
+선생님 1: master / master1
+선생님 2: master2 / master2
+승우: 승우 / 승우1
+연수: 연수 / 연수1
+은혁: 은혁 / 은혁1
+영준: 영준 / 영준1
+혜빈: 혜빈 / 혜빈1
+윤지: 윤지 / 윤지1
+가빈: 가빈 / 가빈1
+채희: 채희 / 채희1
+```
+
+이 로그인은 수업 화면 분리용입니다. 정적 HTML과 JS는 브라우저에서 볼 수 있으므로, 진짜 비밀 자료를 보호하는 서버 인증으로 보지 마세요.

@@ -1,18 +1,19 @@
 (function () {
-  const scoreKey = "korea-middle-school-team-scores";
-  const aScoreResetKey = "korea-middle-school-team-a-score-reset-20260602";
-  const teams = ["A", "B", "C", "D"];
-  const baseScores = { A: 0, B: 0, C: 0, D: 0 };
+  const scoreKey = "kit-student-question-credits";
+  const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+  const baseScores = Object.fromEntries(teams.map((team) => [team, 0]));
+  const syncIntervalMs = 1500;
+  const user = sessionStorage.getItem("kit-auth-user") || "";
+  const role = sessionStorage.getItem("kit-auth-role") || "";
+  let syncTimer = 0;
+  let saveTimer = 0;
+  let syncStatus = null;
+  let questionCounts = { ...baseScores };
+  let questionLogs = [];
 
   function loadScores() {
     try {
-      const scores = { ...baseScores, ...JSON.parse(localStorage.getItem(scoreKey)) };
-      if (localStorage.getItem(aScoreResetKey) !== "1") {
-        scores.A = 0;
-        localStorage.setItem(scoreKey, JSON.stringify(scores));
-        localStorage.setItem(aScoreResetKey, "1");
-      }
-      return scores;
+      return { ...baseScores, ...JSON.parse(localStorage.getItem(scoreKey)) };
     } catch {
       return { ...baseScores };
     }
@@ -30,6 +31,33 @@
 
   let scores = loadScores();
 
+  function ensureSyncStatus() {
+    if (syncStatus) return syncStatus;
+    const scoreHead = document.querySelector(".score-head");
+    if (!scoreHead) return null;
+    syncStatus = document.createElement("p");
+    syncStatus.className = "score-sync-status";
+    syncStatus.textContent = "질문권 동기화 준비 중";
+    scoreHead.insertAdjacentElement("afterend", syncStatus);
+    return syncStatus;
+  }
+
+  function setSyncStatus(text, type = "") {
+    const node = ensureSyncStatus();
+    if (!node) return;
+    node.textContent = text;
+    node.classList.toggle("score-sync-status--ok", type === "ok");
+    node.classList.toggle("score-sync-status--bad", type === "bad");
+  }
+
+  function authHeaders() {
+    return {
+      "content-type": "application/json",
+      "x-kit-user": user,
+      "x-kit-role": role
+    };
+  }
+
   function renderScores() {
     teams.forEach((team) => {
       const input = document.querySelector(`[data-score-input="${team}"]`);
@@ -39,11 +67,160 @@
     });
   }
 
+  function formatLogTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function renderQuestionStats() {
+    const usage = document.getElementById("questionUsage");
+    if (usage) {
+      usage.textContent = "";
+      teams.forEach((team) => {
+        const row = document.createElement("div");
+        row.className = "usage-row";
+
+        const name = document.createElement("span");
+        name.textContent = team;
+
+        const count = document.createElement("strong");
+        count.textContent = `${questionCounts[team] || 0}회`;
+
+        row.append(name, count);
+        usage.append(row);
+      });
+    }
+
+    const logList = document.getElementById("questionLogList");
+    if (!logList) return;
+    logList.textContent = "";
+
+    if (!questionLogs.length) {
+      const empty = document.createElement("p");
+      empty.className = "log-empty";
+      empty.textContent = "아직 질문 로그가 없습니다.";
+      logList.append(empty);
+      return;
+    }
+
+    questionLogs.slice(0, 16).forEach((entry) => {
+      const item = document.createElement("article");
+      item.className = "log-entry";
+
+      const meta = document.createElement("div");
+      meta.className = "log-entry__meta";
+      meta.textContent = `${entry.team || entry.user || "학생"} · ${formatLogTime(entry.at)} · ${entry.count || 0}번째`;
+
+      const text = document.createElement("p");
+      text.textContent = entry.message || "질문 내용 없음";
+
+      item.append(meta, text);
+      logList.append(item);
+    });
+  }
+
+  async function fetchScores() {
+    const response = await fetch("/api/credits", {
+      headers: authHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.credits) {
+      throw new Error(data.error || "질문권 동기화 실패");
+    }
+    scores = { ...baseScores, ...data.credits };
+    questionCounts = { ...baseScores, ...(data.counts || {}) };
+    questionLogs = Array.isArray(data.logs) ? data.logs : [];
+    saveScores(scores);
+    renderScores();
+    renderQuestionStats();
+    setSyncStatus(data.persistent ? "질문권 실시간 동기화 중" : "임시 동기화 중: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+  }
+
+  async function updateScore(team, credits) {
+    const response = await fetch("/api/credits", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        action: "set",
+        team,
+        credits
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "질문권 저장 실패");
+    }
+    scores = { ...baseScores, ...(data.allCredits || scores), [team]: data.credits };
+    questionCounts = { ...baseScores, ...(data.counts || questionCounts) };
+    questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
+    saveScores(scores);
+    renderScores();
+    renderQuestionStats();
+    setSyncStatus(data.persistent ? "질문권 저장됨" : "임시 저장됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+  }
+
+  async function resetServerScores() {
+    const response = await fetch("/api/credits", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ action: "reset" })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "질문권 초기화 실패");
+    }
+    scores = { ...baseScores, ...(data.credits || {}) };
+    questionCounts = { ...baseScores, ...(data.counts || questionCounts) };
+    questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
+    saveScores(scores);
+    renderScores();
+    renderQuestionStats();
+    setSyncStatus(data.persistent ? "질문권 초기화됨" : "임시 초기화됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+  }
+
+  async function clearServerLogs() {
+    const response = await fetch("/api/credits", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ action: "clearLogs" })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "로그 삭제 실패");
+    }
+    questionCounts = { ...baseScores, ...(data.counts || {}) };
+    questionLogs = Array.isArray(data.logs) ? data.logs : [];
+    renderQuestionStats();
+    setSyncStatus(data.persistent ? "질문 로그 삭제됨" : "임시 로그 삭제됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+  }
+
+  function queueScoreUpdate(team, credits) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      updateScore(team, credits).catch((error) => {
+        setSyncStatus(error.message || "질문권 저장 실패", "bad");
+      });
+    }, 280);
+  }
+
+  function startScoreSync() {
+    fetchScores().catch((error) => {
+      renderScores();
+      setSyncStatus(error.message || "질문권 동기화 실패", "bad");
+    });
+    syncTimer = window.setInterval(() => {
+      if (document.querySelector(".score-input:focus")) return;
+      fetchScores().catch(() => {});
+    }, syncIntervalMs);
+  }
+
   document.querySelectorAll("[data-score-input]").forEach((input) => {
     input.addEventListener("input", () => {
       const team = input.dataset.scoreInput;
       scores[team] = cleanScore(input.value);
       saveScores(scores);
+      queueScoreUpdate(team, scores[team]);
     });
 
     input.addEventListener("blur", () => {
@@ -52,12 +229,23 @@
   });
 
   document.getElementById("resetScores").addEventListener("click", () => {
-    scores = { ...baseScores };
-    saveScores(scores);
-    renderScores();
+    resetServerScores().catch((error) => {
+      scores = { ...baseScores };
+      saveScores(scores);
+      renderScores();
+      setSyncStatus(error.message || "질문권 초기화 실패", "bad");
+    });
+  });
+
+  document.getElementById("clearQuestionLogs")?.addEventListener("click", () => {
+    clearServerLogs().catch((error) => {
+      setSyncStatus(error.message || "로그 삭제 실패", "bad");
+    });
   });
 
   renderScores();
+  renderQuestionStats();
+  startScoreSync();
 
   const stopwatchDisplay = document.getElementById("stopwatchDisplay");
   const stopwatchToggle = document.getElementById("stopwatchToggle");

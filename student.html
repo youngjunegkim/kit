@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>학생용 AI 심문실</title>
   <script src="auth.js" defer></script>
+  <script src="question-credits.js" defer></script>
   <script src="student-notes.js" defer></script>
   <style>
     * {
@@ -59,6 +60,97 @@
       padding: 8px 12px;
       font: inherit;
       font-weight: 900;
+    }
+
+    .student-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .credit-pill {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      padding: 8px 11px;
+      font-weight: 950;
+    }
+
+    .credit-pill span {
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.84rem;
+    }
+
+    .student-log-card {
+      margin-top: 18px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+      padding: 16px;
+    }
+
+    .student-log-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .student-log-head h2 {
+      margin: 0;
+      color: #18202b;
+      font-size: 1.08rem;
+      line-height: 1.2;
+    }
+
+    .student-log-head strong {
+      color: #c92521;
+      font-size: 0.95rem;
+      font-weight: 950;
+    }
+
+    .student-log-list {
+      display: grid;
+      gap: 8px;
+      max-height: 230px;
+      overflow-y: auto;
+    }
+
+    .student-log-entry {
+      border: 1px solid #e1e8f0;
+      border-radius: 8px;
+      background: #fbfdff;
+      padding: 10px;
+    }
+
+    .student-log-entry span {
+      display: block;
+      color: #657181;
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .student-log-entry p,
+    .student-log-empty {
+      margin: 5px 0 0;
+      color: #18202b;
+      font-size: 0.9rem;
+      line-height: 1.42;
+      font-weight: 800;
+    }
+
+    .student-log-empty {
+      margin: 0;
+      color: #657181;
     }
 
     .suspect-grid {
@@ -229,7 +321,17 @@
         <h1>AI 페르소나 심문실</h1>
         <p>용의자를 심문하면서 각 인물별 노트에 단서를 적어두세요.</p>
       </div>
-      <button class="logout-btn" type="button" data-logout>로그아웃</button>
+      <div class="student-tools">
+        <div class="credit-pill" aria-label="남은 질문권">
+          <span data-team-label>학생</span>
+          <strong data-credit-count>확인 중</strong>
+        </div>
+        <div class="credit-pill" aria-label="질문 횟수">
+          <span>질문</span>
+          <strong data-log-count>0회</strong>
+        </div>
+        <button class="logout-btn" type="button" data-logout>로그아웃</button>
+      </div>
     </header>
 
     <section class="suspect-grid" aria-label="용의자 심문 및 노트">
@@ -286,6 +388,14 @@
           </div>
         </section>
       </article>
+    </section>
+
+    <section class="student-log-card" aria-label="내 질문 로그">
+      <div class="student-log-head">
+        <h2>내 질문 로그</h2>
+        <strong data-log-count>0회</strong>
+      </div>
+      <div class="student-log-list" data-student-log-list></div>
     </section>
   </main>
 </body>

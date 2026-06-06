@@ -1,3 +1,5 @@
+const { addCredits, consumeCredit, logQuestion, normalizeTeam } = require("./_credits");
+
 const safetyReplies = {
   sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
   aggressive: "말이 좀 심하시네요. 그런 식의 무례한 질문에는 답변하지 않겠습니다.",
@@ -256,6 +258,55 @@ function headerValue(request, name) {
 function clientIdFor(request) {
   const forwarded = headerValue(request, "x-forwarded-for");
   return String(forwarded || request.socket?.remoteAddress || "unknown").split(",")[0].trim();
+}
+
+function actorFor(request) {
+  const body = request.body || {};
+  return {
+    role: String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase(),
+    user: String(headerValue(request, "x-kit-user") || body.user || "").trim().toLowerCase(),
+    team: normalizeTeam(headerValue(request, "x-kit-team") || body.team)
+  };
+}
+
+function attachCredits(body, creditInfo) {
+  if (!creditInfo) return body;
+  return {
+    ...body,
+    credits: {
+      team: creditInfo.team,
+      remaining: creditInfo.remaining
+    }
+  };
+}
+
+async function refundCredit(creditInfo) {
+  if (!creditInfo?.team) return creditInfo;
+  try {
+    const remaining = await addCredits(creditInfo.team, 1);
+    return { ...creditInfo, remaining };
+  } catch {
+    return creditInfo;
+  }
+}
+
+async function attachQuestionUsage(body, actor, message, payload, creditInfo) {
+  if (!creditInfo || actor.role !== "student" || !actor.team) return body;
+  const usage = await logQuestion({
+    team: actor.team,
+    user: actor.user,
+    suspect: personaIdFor(payload),
+    message,
+    remaining: creditInfo.remaining
+  });
+  if (!usage) return body;
+  return {
+    ...body,
+    usage: {
+      count: usage.count,
+      log: usage.entry
+    }
+  };
 }
 
 function isAuthorized(request) {
@@ -749,25 +800,80 @@ module.exports = async function handler(request, response) {
     return;
   }
 
+  const actor = actorFor(request);
+  let creditInfo = null;
+  if (actor.role === "student") {
+    if (!actor.team) {
+      sendJson(response, 400, { error: "Student team is required.", fallback: true });
+      return;
+    }
+
+    try {
+      creditInfo = await consumeCredit(actor.team);
+    } catch (error) {
+      sendJson(response, 503, {
+        error: error.message || "Question credit store failed.",
+        fallback: true
+      });
+      return;
+    }
+
+    if (!creditInfo.ok) {
+      sendJson(response, 402, {
+        error: "No question credits remaining.",
+        code: "NO_CREDITS",
+        credits: {
+          team: creditInfo.team,
+          remaining: creditInfo.remaining
+        },
+        fallback: true
+      });
+      return;
+    }
+  }
+
   const scriptedReply = priorityScriptedReplyFor(message, request.body || {});
   if (scriptedReply) {
-    sendJson(response, 200, { reply: scriptedReply, source: "scripted" });
+    const body = await attachQuestionUsage(
+      attachCredits({ reply: scriptedReply, source: "scripted" }, creditInfo),
+      actor,
+      message,
+      request.body || {},
+      creditInfo
+    );
+    sendJson(response, 200, body);
     return;
   }
 
   const hallucinationReply = hallucinationReplyFor(message, request.body || {});
   if (hallucinationReply) {
-    sendJson(response, 200, { reply: hallucinationReply, source: "hallucination" });
+    const body = await attachQuestionUsage(
+      attachCredits({ reply: hallucinationReply, source: "hallucination" }, creditInfo),
+      actor,
+      message,
+      request.body || {},
+      creditInfo
+    );
+    sendJson(response, 200, body);
     return;
   }
 
   try {
     const result = await callGemini(message, request.body?.history, request.body || {});
-    sendJson(response, result.statusCode, result.body);
+    if (creditInfo && result.statusCode >= 400) {
+      creditInfo = await refundCredit(creditInfo);
+    }
+    const responseBody = result.statusCode < 400
+      ? await attachQuestionUsage(attachCredits(result.body, creditInfo), actor, message, request.body || {}, creditInfo)
+      : attachCredits(result.body, creditInfo);
+    sendJson(response, result.statusCode, responseBody);
   } catch (error) {
-    sendJson(response, 502, {
+    if (creditInfo) {
+      creditInfo = await refundCredit(creditInfo);
+    }
+    sendJson(response, 502, attachCredits({
       error: error.message || "Gemini API request failed",
       fallback: true
-    });
+    }, creditInfo));
   }
 };
