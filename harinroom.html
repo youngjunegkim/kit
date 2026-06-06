@@ -510,6 +510,22 @@
       font-weight: 900;
     }
 
+    .credit-refresh-btn {
+      min-height: 30px;
+      border-radius: 6px;
+      background: #d73832;
+      color: #fff;
+      padding: 6px 8px;
+      font-size: 0.78rem;
+      font-weight: 950;
+    }
+
+    .credit-refresh-btn:hover,
+    .credit-refresh-btn:focus-visible {
+      background: #b82924;
+      outline: none;
+    }
+
     .clock-mini {
       width: 116px;
       flex: 0 0 auto;
@@ -789,6 +805,7 @@
           <span data-team-label>학생</span>
           <strong data-credit-count>확인 중</strong>
           <small data-log-count>질문 0회</small>
+          <button class="credit-refresh-btn" type="button" data-refresh-credits>질문권 받기</button>
         </div>
 
         <div class="clock-mini" aria-label="현재 시간">

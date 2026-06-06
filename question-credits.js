@@ -2,8 +2,9 @@
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
   const teamLabels = [...document.querySelectorAll("[data-team-label]")];
   const logCounts = [...document.querySelectorAll("[data-log-count]")];
+  const refreshButtons = [...document.querySelectorAll("[data-refresh-credits]")];
   const studentLogList = document.querySelector("[data-student-log-list]");
-  if (!creditCounts.length && !teamLabels.length && !logCounts.length && !studentLogList) return;
+  if (!creditCounts.length && !teamLabels.length && !logCounts.length && !studentLogList && !refreshButtons.length) return;
 
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
@@ -18,6 +19,13 @@
   function setLogCount(count) {
     logCounts.forEach((node) => {
       node.textContent = `${Number(count || 0)}회`;
+    });
+  }
+
+  function setRefreshBusy(isBusy) {
+    refreshButtons.forEach((button) => {
+      button.disabled = isBusy;
+      button.textContent = isBusy ? "받는 중..." : "질문권 받기";
     });
   }
 
@@ -67,6 +75,7 @@
     });
 
     try {
+      setRefreshBusy(true);
       const response = await fetch(`/api/credits?team=${encodeURIComponent(team)}`, {
         headers: {
           "x-kit-user": user,
@@ -81,9 +90,19 @@
       renderStudentLogs(Array.isArray(data.logs) ? data.logs : []);
     } catch {
       setCreditText("동기화 실패");
+    } finally {
+      setRefreshBusy(false);
     }
   }
 
-  refreshCredits();
-  window.setInterval(refreshCredits, 1500);
+  teamLabels.forEach((node) => {
+    node.textContent = team || "학생";
+  });
+  setCreditText(team ? "받기 필요" : "학생 없음");
+  setLogCount(0);
+  renderStudentLogs([]);
+
+  refreshButtons.forEach((button) => {
+    button.addEventListener("click", refreshCredits);
+  });
 })();

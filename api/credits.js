@@ -9,7 +9,8 @@ const {
   hasPersistentStore,
   normalizeTeam,
   resetCredits,
-  setCredits
+  setCredits,
+  teams
 } = require("./_credits");
 
 function sendJson(response, statusCode, body) {
@@ -111,6 +112,18 @@ module.exports = async function handler(request, response) {
         credits: await getAllCredits(),
         counts: result.counts,
         logs: result.logs,
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    if (action === "setall") {
+      const creditMap = body.credits && typeof body.credits === "object" ? body.credits : {};
+      await Promise.all(teams.map((team) => setCredits(team, creditMap[team] || 0)));
+      sendJson(response, 200, {
+        credits: await getAllCredits(),
+        counts: await getAllQuestionCounts(),
+        logs: await getQuestionLogs(),
         persistent: hasPersistentStore()
       });
       return;

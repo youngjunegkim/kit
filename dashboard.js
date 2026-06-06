@@ -2,11 +2,8 @@
   const scoreKey = "kit-student-question-credits";
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
   const baseScores = Object.fromEntries(teams.map((team) => [team, 0]));
-  const syncIntervalMs = 1500;
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
-  let syncTimer = 0;
-  let saveTimer = 0;
   let syncStatus = null;
   let questionCounts = { ...baseScores };
   let questionLogs = [];
@@ -37,7 +34,7 @@
     if (!scoreHead) return null;
     syncStatus = document.createElement("p");
     syncStatus.className = "score-sync-status";
-    syncStatus.textContent = "질문권 동기화 준비 중";
+    syncStatus.textContent = "숫자를 입력한 뒤 질문권 주기를 누르세요.";
     scoreHead.insertAdjacentElement("afterend", syncStatus);
     return syncStatus;
   }
@@ -134,7 +131,7 @@
     saveScores(scores);
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 실시간 동기화 중" : "임시 동기화 중: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "질문권 현황을 불러왔습니다." : "임시 저장소 사용 중: Upstash Redis 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function updateScore(team, credits) {
@@ -158,6 +155,34 @@
     renderScores();
     renderQuestionStats();
     setSyncStatus(data.persistent ? "질문권 저장됨" : "임시 저장됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
+  }
+
+  async function publishScores() {
+    setSyncStatus("질문권을 주는 중입니다...");
+    const response = await fetch("/api/credits", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        action: "setAll",
+        credits: scores
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "질문권 지급 실패");
+    }
+    scores = { ...baseScores, ...(data.credits || scores) };
+    questionCounts = { ...baseScores, ...(data.counts || questionCounts) };
+    questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
+    saveScores(scores);
+    renderScores();
+    renderQuestionStats();
+    setSyncStatus(
+      data.persistent
+        ? "질문권 지급 완료. 학생은 질문권 받기를 누르면 반영됩니다."
+        : "임시 지급 완료: Upstash Redis 환경변수가 필요합니다.",
+      data.persistent ? "ok" : "bad"
+    );
   }
 
   async function resetServerScores() {
@@ -195,24 +220,11 @@
     setSyncStatus(data.persistent ? "질문 로그 삭제됨" : "임시 로그 삭제됨: DB 환경변수 필요", data.persistent ? "ok" : "bad");
   }
 
-  function queueScoreUpdate(team, credits) {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      updateScore(team, credits).catch((error) => {
-        setSyncStatus(error.message || "질문권 저장 실패", "bad");
-      });
-    }, 280);
-  }
-
   function startScoreSync() {
     fetchScores().catch((error) => {
       renderScores();
       setSyncStatus(error.message || "질문권 동기화 실패", "bad");
     });
-    syncTimer = window.setInterval(() => {
-      if (document.querySelector(".score-input:focus")) return;
-      fetchScores().catch(() => {});
-    }, syncIntervalMs);
   }
 
   document.querySelectorAll("[data-score-input]").forEach((input) => {
@@ -220,7 +232,7 @@
       const team = input.dataset.scoreInput;
       scores[team] = cleanScore(input.value);
       saveScores(scores);
-      queueScoreUpdate(team, scores[team]);
+      setSyncStatus("변경 대기 중. 질문권 주기를 누르면 학생에게 반영됩니다.");
     });
 
     input.addEventListener("blur", () => {
@@ -234,6 +246,18 @@
       saveScores(scores);
       renderScores();
       setSyncStatus(error.message || "질문권 초기화 실패", "bad");
+    });
+  });
+
+  document.getElementById("publishScores")?.addEventListener("click", () => {
+    publishScores().catch((error) => {
+      setSyncStatus(error.message || "질문권 지급 실패", "bad");
+    });
+  });
+
+  document.getElementById("refreshQuestionStats")?.addEventListener("click", () => {
+    fetchScores().catch((error) => {
+      setSyncStatus(error.message || "현황 새로고침 실패", "bad");
     });
   });
 

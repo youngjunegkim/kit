@@ -33,6 +33,7 @@
   const creditCount = document.querySelector("[data-credit-count]");
   const teamLabel = document.querySelector("[data-team-label]");
   const logCount = document.querySelector("[data-log-count]");
+  const refreshCreditButtons = [...document.querySelectorAll("[data-refresh-credits]")];
   const defaultInputPlaceholder = input?.placeholder || "";
 
   const state = {
@@ -345,17 +346,25 @@
     if (logCount) logCount.textContent = `질문 ${Number(count || 0)}회`;
   }
 
+  function setRefreshBusy(isBusy) {
+    refreshCreditButtons.forEach((button) => {
+      button.disabled = isBusy || state.waiting;
+      button.textContent = isBusy ? "받는 중..." : "질문권 받기";
+    });
+  }
+
   function updateInputAvailability() {
     const locked = state.role === "student" && state.credits === 0;
     if (!state.waiting) {
       input.disabled = locked;
       if (sendButton) sendButton.disabled = locked;
     }
+    setRefreshBusy(false);
     document.querySelectorAll("[data-prompt]").forEach((button) => {
       button.disabled = locked || state.waiting;
     });
     if (locked) {
-      input.placeholder = "질문권이 0개입니다";
+      input.placeholder = state.credits === 0 ? "질문권 받기를 눌러 확인하세요" : "질문권이 0개입니다";
     } else if (defaultInputPlaceholder) {
       input.placeholder = defaultInputPlaceholder;
     }
@@ -375,6 +384,7 @@
     }
 
     try {
+      setRefreshBusy(true);
       const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}`, {
         headers: {
           "x-kit-user": state.user,
@@ -387,7 +397,9 @@
       applyCredits(data.credits);
       setLogCount(data.count || 0);
     } catch {
-      setCreditText("동기화 실패");
+      setCreditText("받기 실패");
+    } finally {
+      setRefreshBusy(false);
     }
   }
 
@@ -396,8 +408,13 @@
       setCreditText("제한 없음");
       return;
     }
-    refreshCredits();
-    window.setInterval(refreshCredits, 1500);
+    state.credits = 0;
+    setCreditText("받기 필요");
+    setLogCount(0);
+    updateInputAvailability();
+    refreshCreditButtons.forEach((button) => {
+      button.addEventListener("click", refreshCredits);
+    });
   }
 
   async function refreshApiStatus() {
@@ -480,7 +497,7 @@
       }
       if (response.status === 402 && data.code === "NO_CREDITS") {
         applyCredits(0);
-        return "질문권이 0개입니다. 선생님이 질문권을 추가하면 다시 질문할 수 있어요.";
+        return "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 누르면 다시 질문할 수 있어요.";
       }
       if (response.ok && data.reply) {
         return data.reply;
@@ -496,7 +513,7 @@
     const text = question.trim();
     if (!text || state.waiting) return;
     if (state.role === "student" && state.credits === 0) {
-      addMessage("bot", "질문권이 0개입니다. 선생님이 질문권을 추가하면 다시 질문할 수 있어요.");
+      addMessage("bot", "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 눌러주세요.");
       updateInputAvailability();
       return;
     }

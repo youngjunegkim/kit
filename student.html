@@ -63,6 +63,25 @@
       font-weight: 900;
     }
 
+    .receive-credit-btn {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: #dc342f;
+      color: #fff;
+      cursor: pointer;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 950;
+      box-shadow: 0 10px 24px rgba(220, 52, 47, 0.24);
+    }
+
+    .receive-credit-btn:hover,
+    .receive-credit-btn:focus-visible {
+      background: #b82924;
+      outline: none;
+    }
+
     .student-tools {
       display: flex;
       align-items: center;
@@ -386,6 +405,7 @@
           <span>접속</span>
           <strong data-presence-count>0명</strong>
         </div>
+        <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
         <button class="logout-btn" type="button" data-logout>로그아웃</button>
       </div>
     </header>

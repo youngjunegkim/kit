@@ -290,6 +290,14 @@
       line-height: 1.2;
     }
 
+    .score-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .score-sync-status {
       min-height: 20px;
       margin: -4px 0 12px;
@@ -388,6 +396,17 @@
       color: #3a4553;
       font-weight: 800;
       white-space: nowrap;
+    }
+
+    #publishScores {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(243, 52, 47, 0.2);
+    }
+
+    #publishScores:hover,
+    #publishScores:focus-visible {
+      background: #c92521;
     }
 
     .reset-btn:hover,
@@ -791,7 +810,10 @@
 
       <div class="score-head">
         <h2>학생별 질문권</h2>
-        <button class="reset-btn" type="button" id="resetScores">질문권 초기화</button>
+        <div class="score-actions">
+          <button class="reset-btn" type="button" id="publishScores">질문권 주기</button>
+          <button class="reset-btn" type="button" id="resetScores">질문권 초기화</button>
+        </div>
       </div>
 
       <div class="team-list">
@@ -887,7 +909,10 @@
       <section class="log-panel" aria-label="학생별 질문 로그">
         <div class="log-head">
           <h3>질문 사용 현황</h3>
-          <button class="reset-btn" type="button" id="clearQuestionLogs">로그 지우기</button>
+          <div class="score-actions">
+            <button class="reset-btn" type="button" id="refreshQuestionStats">현황 새로고침</button>
+            <button class="reset-btn" type="button" id="clearQuestionLogs">로그 지우기</button>
+          </div>
         </div>
         <div class="usage-grid" id="questionUsage" aria-label="학생별 질문 횟수"></div>
         <div class="log-list" id="questionLogList" aria-label="최근 질문 로그"></div>
