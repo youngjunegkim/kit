@@ -2,11 +2,14 @@ const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가�
 const memoryStore = globalThis.__kitQuestionCreditStore || new Map();
 const memoryCountStore = globalThis.__kitQuestionCountStore || new Map();
 const memoryLogStore = globalThis.__kitQuestionLogStore || [];
+const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionCountStore = memoryCountStore;
 globalThis.__kitQuestionLogStore = memoryLogStore;
+globalThis.__kitPresenceStore = memoryPresenceStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
+const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 90000);
 
 function normalizeTeam(team) {
   const normalized = String(team || "").trim();
@@ -33,6 +36,10 @@ function countKeyFor(team) {
 
 function logKey() {
   return `kit:${storeNamespace()}:question-logs`;
+}
+
+function presenceKey() {
+  return `kit:${storeNamespace()}:presence`;
 }
 
 function hasPersistentStore() {
@@ -128,6 +135,103 @@ async function getAllQuestionCounts() {
 
 function cleanLogMessage(message) {
   return String(message || "").replace(/\s+/g, " ").trim().slice(0, 140);
+}
+
+function cleanPresenceAccount(account = {}) {
+  const user = String(account.user || "").trim().toLowerCase();
+  if (!user) return null;
+
+  return {
+    user,
+    role: String(account.role || "").trim().toLowerCase() === "teacher" ? "teacher" : "student",
+    label: String(account.label || account.team || user).trim().slice(0, 30),
+    team: String(account.team || "").trim().slice(0, 30),
+    at: Number(account.at || Date.now())
+  };
+}
+
+function parsePresenceResult(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) {
+    const entries = [];
+    for (let index = 0; index < result.length; index += 2) {
+      entries.push([result[index], result[index + 1]]);
+    }
+    return entries;
+  }
+  if (typeof result === "object") {
+    return Object.entries(result);
+  }
+  return [];
+}
+
+function sortPresence(a, b) {
+  if (a.role !== b.role) return a.role === "teacher" ? -1 : 1;
+  return String(a.label || a.user).localeCompare(String(b.label || b.user), "ko");
+}
+
+async function touchPresence(account) {
+  const entry = cleanPresenceAccount(account);
+  if (!entry) return getPresence();
+
+  if (!hasPersistentStore()) {
+    memoryPresenceStore.set(entry.user, entry);
+    return getPresence();
+  }
+
+  await redisCommand(["HSET", presenceKey(), entry.user, JSON.stringify(entry)]);
+  return getPresence();
+}
+
+async function removePresence(user) {
+  const normalized = String(user || "").trim().toLowerCase();
+  if (!normalized) return getPresence();
+
+  if (!hasPersistentStore()) {
+    memoryPresenceStore.delete(normalized);
+    return getPresence();
+  }
+
+  await redisCommand(["HDEL", presenceKey(), normalized]);
+  return getPresence();
+}
+
+async function getPresence() {
+  const now = Date.now();
+
+  if (!hasPersistentStore()) {
+    [...memoryPresenceStore.entries()].forEach(([user, entry]) => {
+      if (now - Number(entry.at || 0) > presenceTtlMs) {
+        memoryPresenceStore.delete(user);
+      }
+    });
+    return [...memoryPresenceStore.values()].sort(sortPresence);
+  }
+
+  const rawEntries = parsePresenceResult(await redisCommand(["HGETALL", presenceKey()]));
+  const staleUsers = [];
+  const online = rawEntries
+    .map(([user, value]) => {
+      try {
+        return cleanPresenceAccount({ ...JSON.parse(value), user });
+      } catch {
+        staleUsers.push(user);
+        return null;
+      }
+    })
+    .filter((entry) => {
+      if (!entry) return false;
+      const isOnline = now - Number(entry.at || 0) <= presenceTtlMs;
+      if (!isOnline) staleUsers.push(entry.user);
+      return isOnline;
+    })
+    .sort(sortPresence);
+
+  if (staleUsers.length) {
+    await redisCommand(["HDEL", presenceKey(), ...staleUsers]);
+  }
+
+  return online;
 }
 
 async function getQuestionLogs(team = "", limit = maxReturnedLogs) {
@@ -241,10 +345,13 @@ module.exports = {
   getCredits,
   getQuestionCount,
   getQuestionLogs,
+  getPresence,
   hasPersistentStore,
   logQuestion,
   normalizeTeam,
+  removePresence,
   resetCredits,
   setCredits,
+  touchPresence,
   teams
 };

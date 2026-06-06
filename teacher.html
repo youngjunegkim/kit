@@ -307,6 +307,79 @@
       color: var(--red);
     }
 
+    .presence-panel {
+      margin-bottom: 14px;
+      border: 1px solid #e1e6ee;
+      border-radius: 8px;
+      background: var(--panel-strong);
+      padding: 12px;
+    }
+
+    .presence-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .presence-head h3 {
+      margin: 0;
+      color: #344154;
+      font-size: 0.96rem;
+      line-height: 1.2;
+    }
+
+    .presence-head strong {
+      color: var(--green);
+      font-size: 0.94rem;
+      font-weight: 950;
+    }
+
+    .presence-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .presence-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid #e6edf5;
+      border-radius: 7px;
+      background: #f6f8fb;
+      padding: 7px 8px;
+      color: #18202b;
+      font-weight: 950;
+    }
+
+    .presence-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .presence-role {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #e9eef5;
+      color: #516071;
+      padding: 3px 7px;
+      font-size: 0.74rem;
+      font-weight: 950;
+    }
+
+    .presence-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.4;
+      font-weight: 850;
+    }
+
     .reset-btn {
       min-height: 34px;
       border-radius: 6px;
@@ -708,6 +781,14 @@
         </div>
       </div>
 
+      <section class="presence-panel" aria-label="접속 중 계정">
+        <div class="presence-head">
+          <h3>접속 중 계정</h3>
+          <strong data-presence-count>0명</strong>
+        </div>
+        <div class="presence-list" data-presence-list></div>
+      </section>
+
       <div class="score-head">
         <h2>학생별 질문권</h2>
         <button class="reset-btn" type="button" id="resetScores">질문권 초기화</button>
@@ -841,6 +922,7 @@
   </main>
 
   <script src="clock.js"></script>
+  <script src="presence.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

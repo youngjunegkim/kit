@@ -324,6 +324,78 @@
       box-shadow: 0 0 0 3px rgba(215, 56, 50, 0.14);
     }
 
+    .presence-panel {
+      border-top: 1px solid var(--line);
+      background: #fbfdff;
+      padding: 16px;
+    }
+
+    .presence-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .presence-head h3 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 1.05rem;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .presence-head strong {
+      color: #14724c;
+      font-weight: 950;
+    }
+
+    .presence-list {
+      display: grid;
+      gap: 7px;
+      max-height: 172px;
+      overflow-y: auto;
+    }
+
+    .presence-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid #e1e8f0;
+      border-radius: 7px;
+      background: #ffffff;
+      padding: 7px 8px;
+      font-weight: 950;
+    }
+
+    .presence-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .presence-role {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #e9eef5;
+      color: #516071;
+      padding: 3px 7px;
+      font-size: 0.74rem;
+      font-weight: 950;
+    }
+
+    .presence-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.4;
+      font-weight: 850;
+    }
+
     .note-tools {
       display: flex;
       align-items: center;
@@ -691,6 +763,14 @@
           <button class="clear-note" type="button" data-clear-note="choi-daniel">비우기</button>
         </div>
       </section>
+
+      <section class="presence-panel" aria-label="접속 중 계정">
+        <div class="presence-head">
+          <h3>접속 중 계정</h3>
+          <strong data-presence-count>0명</strong>
+        </div>
+        <div class="presence-list" data-presence-list></div>
+      </section>
     </aside>
 
     <section class="chat-panel" aria-label="최다니엘과의 대화">
@@ -745,6 +825,7 @@
 
   <script src="clock.js"></script>
   <script src="student-notes.js"></script>
+  <script src="presence.js"></script>
   <script>window.SUSPECT_PERSONA = "choiDaniel";</script>
   <script src="suspect-chat.js"></script>
 </body>

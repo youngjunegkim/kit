@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>학생용 AI 심문실</title>
   <script src="auth.js" defer></script>
+  <script src="presence.js" defer></script>
   <script src="question-credits.js" defer></script>
   <script src="student-notes.js" defer></script>
   <style>
@@ -153,6 +154,49 @@
       color: #657181;
     }
 
+    .presence-list {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .presence-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 40px;
+      border: 1px solid #e1e8f0;
+      border-radius: 8px;
+      background: #fbfdff;
+      padding: 8px 10px;
+      font-weight: 950;
+    }
+
+    .presence-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .presence-role {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #e9eef5;
+      color: #516071;
+      padding: 3px 7px;
+      font-size: 0.74rem;
+      font-weight: 950;
+    }
+
+    .presence-empty {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: #657181;
+      font-weight: 850;
+    }
+
     .suspect-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -284,6 +328,10 @@
         grid-template-columns: 1fr;
       }
 
+      .presence-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .suspect-card {
         grid-template-columns: 180px minmax(0, 1fr);
       }
@@ -311,6 +359,10 @@
       .note-area {
         min-height: 220px;
       }
+
+      .presence-list {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -329,6 +381,10 @@
         <div class="credit-pill" aria-label="질문 횟수">
           <span>질문</span>
           <strong data-log-count>0회</strong>
+        </div>
+        <div class="credit-pill" aria-label="접속 중 계정">
+          <span>접속</span>
+          <strong data-presence-count>0명</strong>
         </div>
         <button class="logout-btn" type="button" data-logout>로그아웃</button>
       </div>
@@ -388,6 +444,14 @@
           </div>
         </section>
       </article>
+    </section>
+
+    <section class="student-log-card" aria-label="접속 중 계정">
+      <div class="student-log-head">
+        <h2>접속 중 계정</h2>
+        <strong data-presence-count>0명</strong>
+      </div>
+      <div class="presence-list" data-presence-list></div>
     </section>
 
     <section class="student-log-card" aria-label="내 질문 로그">
