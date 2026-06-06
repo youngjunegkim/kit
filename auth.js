@@ -2,14 +2,14 @@
   const accounts = {
     master: { password: "master1", role: "teacher", label: "선생님 1" },
     master2: { password: "master2", role: "teacher", label: "선생님 2" },
-    "승우": { password: "승우1", role: "student", label: "승우", team: "승우" },
-    "연수": { password: "연수1", role: "student", label: "연수", team: "연수" },
-    "은혁": { password: "은혁1", role: "student", label: "은혁", team: "은혁" },
-    "영준": { password: "영준1", role: "student", label: "영준", team: "영준" },
-    "혜빈": { password: "혜빈1", role: "student", label: "혜빈", team: "혜빈" },
-    "윤지": { password: "윤지1", role: "student", label: "윤지", team: "윤지" },
-    "가빈": { password: "가빈1", role: "student", label: "가빈", team: "가빈" },
-    "채희": { password: "채희1", role: "student", label: "채희", team: "채희" }
+    "승우": { password: "tmddn1", role: "student", label: "승우", team: "승우" },
+    "연수": { password: "dustn1", role: "student", label: "연수", team: "연수" },
+    "은혁": { password: "dmsgur1", role: "student", label: "은혁", team: "은혁" },
+    "영준": { password: "dudwns1", role: "student", label: "영준", team: "영준" },
+    "혜빈": { password: "gpqls1", role: "student", label: "혜빈", team: "혜빈" },
+    "윤지": { password: "dbswl1", role: "student", label: "윤지", team: "윤지" },
+    "가빈": { password: "rkqls1", role: "student", label: "가빈", team: "가빈" },
+    "채희": { password: "cogml1", role: "student", label: "채희", team: "채희" }
   };
 
   const role = sessionStorage.getItem("kit-auth-role") || "";
@@ -50,7 +50,7 @@
 
     function setActiveRole(id) {
       document.querySelectorAll("[data-role-preset]").forEach((button) => {
-        button.classList.toggle("is-active", button.dataset.rolePreset === id);
+        button.classList.toggle("is-active", Boolean(id) && button.dataset.rolePreset === id);
       });
     }
 
@@ -126,11 +126,19 @@
       button.addEventListener("click", () => {
         const id = button.dataset.rolePreset || "";
         userIdInput.value = id;
-        localStorage.setItem(lastLoginKey, id);
+        if (id) {
+          localStorage.setItem(lastLoginKey, id);
+        } else {
+          localStorage.removeItem(lastLoginKey);
+        }
         setActiveRole(id);
         clearErrorState();
         setMessage("", false);
-        passwordInput.focus();
+        if (id) {
+          passwordInput.focus();
+        } else {
+          userIdInput.focus();
+        }
       });
     });
 
@@ -165,9 +173,9 @@
       go(pendingPath || "student.html");
     });
 
-    const lastLoginId = localStorage.getItem(lastLoginKey) || "승우";
-    userIdInput.value = lastLoginId;
-    setActiveRole(lastLoginId);
+    localStorage.removeItem(lastLoginKey);
+    userIdInput.value = "";
+    setActiveRole("");
     if (fullscreenToggle) fullscreenToggle.checked = localStorage.getItem(fullscreenKey) === "1";
 
     form.addEventListener("submit", (event) => {

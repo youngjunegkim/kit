@@ -91,14 +91,14 @@ Google AI Studio 또는 Google Cloud Console에서 Gemini API에만 쓸 수 있�
 ```text
 선생님 1: master / master1
 선생님 2: master2 / master2
-승우: 승우 / 승우1
-연수: 연수 / 연수1
-은혁: 은혁 / 은혁1
-영준: 영준 / 영준1
-혜빈: 혜빈 / 혜빈1
-윤지: 윤지 / 윤지1
-가빈: 가빈 / 가빈1
-채희: 채희 / 채희1
+승우: 승우 / tmddn1
+연수: 연수 / dustn1
+은혁: 은혁 / dmsgur1
+영준: 영준 / dudwns1
+혜빈: 혜빈 / gpqls1
+윤지: 윤지 / dbswl1
+가빈: 가빈 / rkqls1
+채희: 채희 / cogml1
 ```
 
 이 로그인은 수업 화면 분리용입니다. 정적 HTML과 JS는 브라우저에서 볼 수 있으므로, 진짜 비밀 자료를 보호하는 서버 인증으로 보지 마세요.
