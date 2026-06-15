@@ -373,6 +373,56 @@
       outline: none;
     }
 
+    .science-mission-card {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.25fr) minmax(240px, 0.75fr);
+      gap: 0;
+      margin-top: 18px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .science-mission-card:hover,
+    .science-mission-card:focus-visible {
+      outline: 3px solid rgba(243, 52, 47, 0.48);
+      outline-offset: 3px;
+    }
+
+    .science-mission-card img {
+      width: 100%;
+      height: 100%;
+      min-height: 230px;
+      object-fit: cover;
+      object-position: center;
+      background: #dfe6ef;
+    }
+
+    .science-mission-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .science-mission-info h2 {
+      margin: 0 0 10px;
+      color: #18202b;
+      font-size: 1.5rem;
+      line-height: 1.2;
+    }
+
+    .science-mission-info p {
+      margin: 0;
+      color: #657181;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
     @media (max-width: 980px) {
       .suspect-grid {
         grid-template-columns: 1fr;
@@ -389,6 +439,10 @@
       .suspect-card img {
         height: 100%;
         aspect-ratio: auto;
+      }
+
+      .science-mission-card {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -516,6 +570,14 @@
       </div>
       <div class="student-log-list" data-student-log-list></div>
     </section>
+
+    <a class="science-mission-card" href="과학실.html" aria-label="과학실 할루시네이션 탐지 미니게임으로 이동">
+      <img src="assets/science-lab.jpg" alt="실험 도구가 놓인 과학실">
+      <div class="science-mission-info">
+        <h2>과학실</h2>
+        <p>할루시네이션 탐지 미니게임</p>
+      </div>
+    </a>
   </main>
 </body>
 </html>

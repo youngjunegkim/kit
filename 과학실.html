@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>과학실 할루시네이션 탐지</title>
+  <script src="auth.js" defer></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 16% 10%, rgba(47, 110, 234, 0.2), transparent 30%),
+        linear-gradient(135deg, #0d1522 0%, #172235 52%, #202436 100%);
+      color: #18202b;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      color: #fff;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 1.72rem;
+      line-height: 1.2;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      color: rgba(255, 255, 255, 0.76);
+      font-weight: 800;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-actions a,
+    .nav-actions button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      cursor: pointer;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .nav-actions a:hover,
+    .nav-actions a:focus-visible,
+    .nav-actions button:hover,
+    .nav-actions button:focus-visible {
+      background: rgba(255, 255, 255, 0.22);
+      outline: none;
+    }
+
+    .lab-card {
+      overflow: hidden;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    }
+
+    .lab-card img {
+      display: block;
+      width: 100%;
+      max-height: 520px;
+      object-fit: cover;
+      object-position: center;
+      background: #dfe6ef;
+    }
+
+    .mission-board {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .mission-panel,
+    .answer-panel {
+      border: 1px solid #e1e8f0;
+      border-radius: 8px;
+      background: #fbfdff;
+      padding: 16px;
+    }
+
+    .mission-panel h2,
+    .answer-panel h2 {
+      margin: 0 0 10px;
+      color: #18202b;
+      font-size: 1.14rem;
+      line-height: 1.2;
+    }
+
+    .mission-panel p,
+    .answer-panel p {
+      margin: 0;
+      color: #657181;
+      font-weight: 850;
+      line-height: 1.5;
+    }
+
+    .question-shell {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .question-slot {
+      min-height: 58px;
+      border: 1px dashed #cfd8e4;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #657181;
+      padding: 14px;
+      font-weight: 900;
+    }
+
+    @media (max-width: 840px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .mission-board {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-auth="science">
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <h1>과학실</h1>
+        <p>할루시네이션 탐지 미니게임</p>
+      </div>
+      <div class="nav-actions">
+        <a href="student.html" data-home-link>돌아가기</a>
+        <button type="button" data-logout>로그아웃</button>
+      </div>
+    </header>
+
+    <section class="lab-card" aria-label="과학실 할루시네이션 탐지 미니게임">
+      <img src="assets/science-lab.jpg" alt="실험 도구가 놓인 과학실">
+      <div class="mission-board">
+        <section class="mission-panel" aria-label="문제 영역">
+          <h2>문제</h2>
+          <p>AI가 만든 설명에서 사실과 다른 부분을 찾아내는 미니게임 영역입니다.</p>
+          <div class="question-shell">
+            <div class="question-slot">문제 1 준비 중</div>
+            <div class="question-slot">문제 2 준비 중</div>
+            <div class="question-slot">문제 3 준비 중</div>
+          </div>
+        </section>
+
+        <aside class="answer-panel" aria-label="판정 기록">
+          <h2>탐지 기록</h2>
+          <p>학생들이 찾아낸 할루시네이션 내용을 정리할 공간입니다.</p>
+        </aside>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
