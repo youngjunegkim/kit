@@ -11,6 +11,8 @@ const geminiImageGenerationSetting = String(process.env.GEMINI_IMAGE_GENERATION 
 const geminiImageGenerationEnabled = ["1", "true", "on", "yes"].includes(geminiImageGenerationSetting);
 const freeImageTimeoutMs = Number(process.env.FREE_IMAGE_TIMEOUT_MS || 70000);
 const translationTimeoutMs = Number(process.env.IMAGE_TRANSLATION_TIMEOUT_MS || 12000);
+const imagePromptTranslationSetting = String(process.env.IMAGE_PROMPT_TRANSLATION || process.env.GEMINI_IMAGE_PROMPT_TRANSLATION || "0").trim().toLowerCase();
+const imagePromptTranslationEnabled = ["1", "true", "on", "yes"].includes(imagePromptTranslationSetting);
 const rateBuckets = new Map();
 const translationCache = new Map();
 
@@ -237,6 +239,8 @@ function extractText(data) {
 }
 
 async function translatePromptToEnglish(prompt, room) {
+  if (!imagePromptTranslationEnabled) return "";
+
   const source = String(prompt || "").trim();
   if (!source) return "";
 

@@ -43,6 +43,10 @@ function geminiImageGenerationEnabled() {
   return isEnabledSetting(process.env.GEMINI_IMAGE_GENERATION || process.env.GOOGLE_IMAGE_GENERATION || "0");
 }
 
+function imagePromptTranslationEnabled() {
+  return isEnabledSetting(process.env.IMAGE_PROMPT_TRANSLATION || process.env.GEMINI_IMAGE_PROMPT_TRANSLATION || "0");
+}
+
 function freeImageFallbackEnabled() {
   return !isDisabledSetting(process.env.FREE_IMAGE_FALLBACK || "1");
 }
@@ -154,7 +158,8 @@ module.exports = async function handler(request, response) {
     geminiImageGenerationEnabled: imageGenerationEnabled,
     freeImageFallback: freeImageFallbackEnabled(),
     freeImageProvider: process.env.FREE_IMAGE_PROVIDER || "pollinations",
-    translatesImagePrompts: getGeminiKeys().length > 0,
+    translatesImagePrompts: imagePromptTranslationEnabled() && getGeminiKeys().length > 0,
+    imagePromptTranslationEnabled: imagePromptTranslationEnabled(),
     translationModel: process.env.GEMINI_TRANSLATION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash",
     usesSeparateImageKey: uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY).length > 0,
     requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
