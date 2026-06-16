@@ -133,8 +133,10 @@
     try {
       const response = await fetch(apiUrl("/api/status"));
       const data = await response.json().catch(() => ({}));
-      if (data.hasGeminiImageKey || data.hasGeminiKey) {
-        setStatus(data.imageModel || "Gemini 준비됨", "ok");
+      if (data.hasAvailableImageModel) {
+        setStatus(data.availableImageModels?.[0]?.model || data.imageModel || "Gemini 준비됨", "ok");
+      } else if (data.hasGeminiImageKey || data.hasGeminiKey) {
+        setStatus("이미지 모델 확인 필요", "bad");
       } else {
         setStatus("Gemini 이미지 키 없음", "bad");
       }
