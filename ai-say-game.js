@@ -38,6 +38,7 @@
 
   function setStatus(text, tone) {
     statusEl.textContent = text;
+    statusEl.title = text;
     statusEl.classList.toggle("is-ok", tone === "ok");
     statusEl.classList.toggle("is-bad", tone === "bad");
   }
@@ -218,8 +219,9 @@
       imageEl.src = data.imageDataUrl;
       imageEl.hidden = false;
       emptyEl.hidden = true;
-      captionEl.textContent = `생성 모델: ${generationModelLabel(data)}`;
-      setStatus("생성 완료", "ok");
+      const modelLabel = generationModelLabel(data);
+      captionEl.textContent = `생성 모델: ${modelLabel}`;
+      setStatus(modelLabel, "ok");
     } catch (error) {
       emptyEl.hidden = false;
       imageEl.hidden = true;

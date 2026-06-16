@@ -176,8 +176,13 @@ button:disabled {
 }
 
 .status-pill {
+  max-width: min(260px, 48vw);
   background: rgba(47, 111, 159, 0.14);
   color: #245575;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .status-pill.is-ok {
