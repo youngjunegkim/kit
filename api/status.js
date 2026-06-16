@@ -44,7 +44,7 @@ function geminiImageGenerationEnabled() {
 }
 
 function imagePromptTranslationEnabled() {
-  return isEnabledSetting(process.env.IMAGE_PROMPT_TRANSLATION || process.env.GEMINI_IMAGE_PROMPT_TRANSLATION || "0");
+  return isEnabledSetting(process.env.IMAGE_PROMPT_TRANSLATION || process.env.GEMINI_IMAGE_PROMPT_TRANSLATION || "1");
 }
 
 function freeImageFallbackEnabled() {
