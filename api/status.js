@@ -23,9 +23,12 @@ function getGeminiKeys() {
 }
 
 function getGeminiImageKeys() {
-  const imageKeys = uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY);
-  if (imageKeys.length) return imageKeys;
-  return getGeminiKeys();
+  return uniqueKeysFrom(
+    process.env.GEMINI_IMAGE_API_KEYS,
+    process.env.GEMINI_IMAGE_API_KEY,
+    process.env.GEMINI_API_KEYS,
+    process.env.GEMINI_API_KEY
+  );
 }
 
 function imageModelName() {

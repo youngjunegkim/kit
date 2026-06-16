@@ -28,7 +28,12 @@ function uniqueKeysFrom(...values) {
 
 const geminiApiKeys = uniqueKeysFrom(process.env.GEMINI_API_KEYS, geminiApiKey);
 const geminiImageApiKeys = uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, geminiImageApiKey);
-const activeGeminiImageApiKeys = geminiImageApiKeys.length ? geminiImageApiKeys : geminiApiKeys;
+const activeGeminiImageApiKeys = uniqueKeysFrom(
+  process.env.GEMINI_IMAGE_API_KEYS,
+  geminiImageApiKey,
+  process.env.GEMINI_API_KEYS,
+  geminiApiKey
+);
 let activeProvider = provider;
 let runtimeGeminiApiKey = geminiApiKeys[0] || "";
 
