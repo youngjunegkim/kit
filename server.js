@@ -8,6 +8,7 @@ const port = Number(process.env.PORT || 8123);
 const provider = String(process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "openai")).toLowerCase();
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const geminiApiKey = process.env.GEMINI_API_KEY;
+const geminiImageApiKey = process.env.GEMINI_IMAGE_API_KEY;
 const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2";
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
 function normalizeGeminiImageModel(model) {
@@ -21,12 +22,18 @@ function normalizeGeminiImageModel(model) {
 }
 
 const geminiImageModel = normalizeGeminiImageModel(process.env.GEMINI_IMAGE_MODEL);
-const geminiApiKeys = [process.env.GEMINI_API_KEYS, geminiApiKey]
-  .filter(Boolean)
-  .join(",")
-  .split(/[,\n;]/)
-  .map((key) => key.trim())
-  .filter(Boolean);
+function uniqueKeysFrom(...values) {
+  return [...new Set(values
+    .filter(Boolean)
+    .join(",")
+    .split(/[,\n;]/)
+    .map((key) => key.trim())
+    .filter(Boolean))];
+}
+
+const geminiApiKeys = uniqueKeysFrom(process.env.GEMINI_API_KEYS, geminiApiKey);
+const geminiImageApiKeys = uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, geminiImageApiKey);
+const activeGeminiImageApiKeys = geminiImageApiKeys.length ? geminiImageApiKeys : geminiApiKeys;
 let activeProvider = provider;
 let runtimeGeminiApiKey = geminiApiKeys[0] || "";
 
@@ -501,6 +508,8 @@ function handleStatus(response) {
     model: activeProvider === "gemini" ? geminiModel : openaiModel,
     imageModel: geminiImageModel,
     hasGeminiKey: Boolean(runtimeGeminiApiKey),
+    hasGeminiImageKey: activeGeminiImageApiKeys.length > 0 || Boolean(runtimeGeminiApiKey),
+    usesSeparateImageKey: geminiImageApiKeys.length > 0,
     hasOpenAiKey: Boolean(openaiApiKey)
   });
 }
@@ -586,10 +595,11 @@ function extractGeminiImage(data) {
 }
 
 async function callGeminiImage(payload) {
-  if (!runtimeGeminiApiKey) {
+  const imageApiKey = activeGeminiImageApiKeys[0] || runtimeGeminiApiKey;
+  if (!imageApiKey) {
     return {
       statusCode: 503,
-      body: { error: "GEMINI_API_KEY is not set", fallback: true }
+      body: { error: "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set", fallback: true }
     };
   }
 
@@ -599,7 +609,7 @@ async function callGeminiImage(payload) {
   const geminiResponse = await fetch(endpoint, {
     method: "POST",
     headers: {
-      "x-goog-api-key": runtimeGeminiApiKey,
+      "x-goog-api-key": imageApiKey,
       "content-type": "application/json"
     },
     body: JSON.stringify({

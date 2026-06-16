@@ -76,15 +76,20 @@ function forbiddenWordFor(prompt, card) {
   return card.forbidden.find((word) => compact.includes(normalize(word))) || "";
 }
 
-function getGeminiKeys() {
-  const rawKeys = [process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY]
+function uniqueKeysFrom(...values) {
+  const keys = values
     .filter(Boolean)
-    .join(",");
-  const keys = rawKeys
+    .join(",")
     .split(/[,\n;]/)
     .map((key) => key.trim())
     .filter(Boolean);
   return [...new Set(keys)];
+}
+
+function getGeminiImageKeys() {
+  const imageKeys = uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY);
+  if (imageKeys.length) return imageKeys;
+  return uniqueKeysFrom(process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY);
 }
 
 function imageModelCandidates() {
@@ -152,11 +157,11 @@ function shouldTryNext(statusCode, message) {
 }
 
 async function callGeminiImage(prompt, room) {
-  const keys = getGeminiKeys();
+  const keys = getGeminiImageKeys();
   if (!keys.length) {
     return {
       statusCode: 503,
-      body: { error: "GEMINI_API_KEYS or GEMINI_API_KEY is not set.", fallback: true }
+      body: { error: "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set.", fallback: true }
     };
   }
 

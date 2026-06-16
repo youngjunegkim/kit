@@ -8,15 +8,24 @@ function sendJson(response, statusCode, body) {
   response.end(JSON.stringify(body));
 }
 
-function getGeminiKeys() {
-  const rawKeys = [process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY]
+function uniqueKeysFrom(...values) {
+  const keys = values
     .filter(Boolean)
-    .join(",");
-  const keys = rawKeys
+    .join(",")
     .split(/[,\n;]/)
     .map((key) => key.trim())
     .filter(Boolean);
   return [...new Set(keys)];
+}
+
+function getGeminiKeys() {
+  return uniqueKeysFrom(process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY);
+}
+
+function getGeminiImageKeys() {
+  const imageKeys = uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY);
+  if (imageKeys.length) return imageKeys;
+  return getGeminiKeys();
 }
 
 function imageModelName() {
@@ -45,6 +54,8 @@ module.exports = function handler(request, response) {
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     imageModel: imageModelName(),
     hasGeminiKey: getGeminiKeys().length > 0,
+    hasGeminiImageKey: getGeminiImageKeys().length > 0,
+    usesSeparateImageKey: uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY).length > 0,
     requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
     hasCreditStore: hasPersistentStore()
   });
