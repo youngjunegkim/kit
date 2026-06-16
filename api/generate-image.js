@@ -95,26 +95,22 @@ function getGeminiImageKeys() {
 function imageModelCandidates() {
   function normalizeModelName(model) {
     if (!model) return "";
-    const name = String(model).trim().replace(/^models\//, "");
-    const deprecated = new Set([
-      "gemini-2.0-flash-preview-image-generation",
-      "gemini-2.0-flash-exp-image-generation"
-    ]);
-    return deprecated.has(name) ? "gemini-2.5-flash-image" : name;
+    return String(model).trim().replace(/^models\//, "");
   }
 
   return [
     normalizeModelName(process.env.GEMINI_IMAGE_MODEL),
     "gemini-3.1-flash-image",
     "gemini-2.5-flash-image",
-    "gemini-3-pro-image"
+    "gemini-2.0-flash-preview-image-generation"
   ]
     .filter(Boolean)
     .filter((model, index, models) => models.indexOf(model) === index);
 }
 
-function apiVersionFor(model) {
-  return /preview|experimental/i.test(model) ? "v1beta" : "v1";
+function apiVersionsFor(model) {
+  if (/preview|experimental/i.test(model)) return ["v1beta"];
+  return ["v1", "v1beta"];
 }
 
 function buildImagePrompt(prompt, room) {
@@ -175,56 +171,64 @@ async function callGeminiImage(prompt, room) {
   for (const model of models) {
     for (let attempt = 0; attempt < keys.length; attempt += 1) {
       const key = keys[(startIndex + attempt) % keys.length];
-      const endpoint = `https://generativelanguage.googleapis.com/${apiVersionFor(model)}/models/${encodeURIComponent(model)}:generateContent`;
-      const geminiResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "x-goog-api-key": key,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: buildImagePrompt(prompt, room) }]
-          }]
-        })
-      });
+      for (const apiVersion of apiVersionsFor(model)) {
+        const endpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(model)}:generateContent`;
+        const geminiResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": key,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: buildImagePrompt(prompt, room) }]
+            }],
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"]
+            }
+          })
+        });
 
-      const data = await geminiResponse.json().catch(() => ({}));
-      if (geminiResponse.ok) {
-        const image = extractImage(data);
-        if (!image.data) {
+        const data = await geminiResponse.json().catch(() => ({}));
+        if (geminiResponse.ok) {
+          const image = extractImage(data);
+          if (!image.data) {
+            return {
+              statusCode: 502,
+              body: {
+                error: image.text || data.promptFeedback?.blockReason || "Gemini did not return an image.",
+                fallback: true,
+                model,
+                apiVersion
+              }
+            };
+          }
           return {
-            statusCode: 502,
+            statusCode: 200,
             body: {
-              error: image.text || data.promptFeedback?.blockReason || "Gemini did not return an image.",
-              fallback: true,
-              model
+              imageDataUrl: `data:${image.mimeType};base64,${image.data}`,
+              mimeType: image.mimeType,
+              text: image.text,
+              model,
+              apiVersion
             }
           };
         }
-        return {
-          statusCode: 200,
+
+        const errorMessage = data.error?.message || data.promptFeedback?.blockReason || "Gemini image request failed.";
+        lastFailure = {
+          statusCode: geminiResponse.status,
           body: {
-            imageDataUrl: `data:${image.mimeType};base64,${image.data}`,
-            mimeType: image.mimeType,
-            text: image.text,
-            model
+            error: errorMessage,
+            fallback: true,
+            model,
+            apiVersion
           }
         };
-      }
 
-      const errorMessage = data.error?.message || data.promptFeedback?.blockReason || "Gemini image request failed.";
-      lastFailure = {
-        statusCode: geminiResponse.status,
-        body: {
-          error: errorMessage,
-          fallback: true,
-          model
+        if (!shouldTryNext(geminiResponse.status, errorMessage)) {
+          return lastFailure;
         }
-      };
-
-      if (!shouldTryNext(geminiResponse.status, errorMessage)) {
-        return lastFailure;
       }
     }
   }

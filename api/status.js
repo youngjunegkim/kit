@@ -29,14 +29,9 @@ function getGeminiImageKeys() {
 }
 
 function imageModelName() {
-  const model = String(process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image")
+  return String(process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image")
     .trim()
     .replace(/^models\//, "");
-  const deprecated = new Set([
-    "gemini-2.0-flash-preview-image-generation",
-    "gemini-2.0-flash-exp-image-generation"
-  ]);
-  return deprecated.has(model) ? "gemini-2.5-flash-image" : model;
 }
 
 module.exports = function handler(request, response) {

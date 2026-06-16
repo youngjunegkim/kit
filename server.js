@@ -13,12 +13,7 @@ const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
 function normalizeGeminiImageModel(model) {
   if (!model) return "gemini-3.1-flash-image";
-  const name = String(model).trim().replace(/^models\//, "");
-  const deprecated = new Set([
-    "gemini-2.0-flash-preview-image-generation",
-    "gemini-2.0-flash-exp-image-generation"
-  ]);
-  return deprecated.has(name) ? "gemini-2.5-flash-image" : name;
+  return String(model).trim().replace(/^models\//, "");
 }
 
 const geminiImageModel = normalizeGeminiImageModel(process.env.GEMINI_IMAGE_MODEL);
@@ -548,8 +543,30 @@ async function handleChat(request, response) {
   }
 }
 
-function apiVersionForImageModel(model) {
-  return /preview|experimental/i.test(model) ? "v1beta" : "v1";
+function apiVersionsForImageModel(model) {
+  if (/preview|experimental/i.test(model)) return ["v1beta"];
+  return ["v1", "v1beta"];
+}
+
+function shouldTryNextImageModel(statusCode, message) {
+  return statusCode === 400 ||
+    statusCode === 401 ||
+    statusCode === 403 ||
+    statusCode === 404 ||
+    statusCode === 429 ||
+    statusCode === 503 ||
+    /api key|quota|rate|model|not found|high demand/i.test(message || "");
+}
+
+function geminiImageModelCandidates() {
+  return [
+    geminiImageModel,
+    "gemini-3.1-flash-image",
+    "gemini-2.5-flash-image",
+    "gemini-2.0-flash-preview-image-generation"
+  ]
+    .filter(Boolean)
+    .filter((model, index, models) => models.indexOf(model) === index);
 }
 
 function normalizeImageText(text) {
@@ -605,53 +622,74 @@ async function callGeminiImage(payload) {
 
   const prompt = String(payload.prompt || "").trim();
   const room = String(payload.room || "").trim().slice(0, 80);
-  const endpoint = `https://generativelanguage.googleapis.com/${apiVersionForImageModel(geminiImageModel)}/models/${encodeURIComponent(geminiImageModel)}:generateContent`;
-  const geminiResponse = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": imageApiKey,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{ text: buildImagePrompt(prompt, room) }]
-      }]
-    })
-  });
-
-  const data = await geminiResponse.json().catch(() => ({}));
-  if (!geminiResponse.ok) {
-    return {
-      statusCode: geminiResponse.status,
-      body: {
-        error: data.error?.message || data.promptFeedback?.blockReason || "Gemini image request failed",
-        fallback: true,
-        model: geminiImageModel
-      }
-    };
-  }
-
-  const image = extractGeminiImage(data);
-  if (!image.data) {
-    return {
-      statusCode: 502,
-      body: {
-        error: image.text || data.promptFeedback?.blockReason || "Gemini did not return an image.",
-        fallback: true,
-        model: geminiImageModel
-      }
-    };
-  }
-
-  return {
-    statusCode: 200,
-    body: {
-      imageDataUrl: `data:${image.mimeType};base64,${image.data}`,
-      mimeType: image.mimeType,
-      text: image.text,
-      model: geminiImageModel
-    }
+  let lastFailure = {
+    statusCode: 502,
+    body: { error: "Gemini image request failed", fallback: true }
   };
+
+  for (const model of geminiImageModelCandidates()) {
+    for (const apiVersion of apiVersionsForImageModel(model)) {
+      const endpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(model)}:generateContent`;
+      const geminiResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": imageApiKey,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: buildImagePrompt(prompt, room) }]
+          }],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"]
+          }
+        })
+      });
+
+      const data = await geminiResponse.json().catch(() => ({}));
+      if (!geminiResponse.ok) {
+        lastFailure = {
+          statusCode: geminiResponse.status,
+          body: {
+            error: data.error?.message || data.promptFeedback?.blockReason || "Gemini image request failed",
+            fallback: true,
+            model,
+            apiVersion
+          }
+        };
+        if (!shouldTryNextImageModel(geminiResponse.status, lastFailure.body.error)) {
+          return lastFailure;
+        }
+        continue;
+      }
+
+      const image = extractGeminiImage(data);
+      if (!image.data) {
+        return {
+          statusCode: 502,
+          body: {
+            error: image.text || data.promptFeedback?.blockReason || "Gemini did not return an image.",
+            fallback: true,
+            model,
+            apiVersion
+          }
+        };
+      }
+
+      return {
+        statusCode: 200,
+        body: {
+          imageDataUrl: `data:${image.mimeType};base64,${image.data}`,
+          mimeType: image.mimeType,
+          text: image.text,
+          model,
+          apiVersion
+        }
+      };
+    }
+  }
+
+  return lastFailure;
 }
 
 async function handleGenerateImage(request, response) {
