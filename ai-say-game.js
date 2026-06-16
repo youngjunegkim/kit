@@ -129,6 +129,19 @@
     return `${apiOrigin}${path}`;
   }
 
+  function generationModelLabel(data) {
+    const model = data.model || "unknown";
+    let provider = data.provider || "";
+
+    if (provider === "pollinations") provider = "Pollinations";
+    if (!provider && data.requestFormat === "imagen-predict") provider = "Google Imagen";
+    if (!provider && /^gemini/i.test(model)) provider = "Gemini";
+    if (!provider) provider = "이미지 모델";
+
+    const translated = data.translationProvider === "gemini" ? " + Gemini 번역" : "";
+    return `${provider} / ${model}${translated}`;
+  }
+
   async function refreshApiStatus() {
     try {
       const response = await fetch(apiUrl("/api/status"));
@@ -205,7 +218,7 @@
       imageEl.src = data.imageDataUrl;
       imageEl.hidden = false;
       emptyEl.hidden = true;
-      captionEl.textContent = `${data.provider === "pollinations" ? "무료 이미지 모델" : data.model || "Gemini"} 결과`;
+      captionEl.textContent = `생성 모델: ${generationModelLabel(data)}`;
       setStatus("생성 완료", "ok");
     } catch (error) {
       emptyEl.hidden = false;
