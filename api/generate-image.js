@@ -106,11 +106,21 @@ function getGeminiKeys() {
 }
 
 function imageModelCandidates() {
+  function normalizeModelName(model) {
+    if (!model) return "";
+    const name = String(model).trim();
+    const deprecated = new Set([
+      "gemini-2.0-flash-preview-image-generation",
+      "gemini-2.0-flash-exp-image-generation"
+    ]);
+    return deprecated.has(name) ? "gemini-2.5-flash-image" : name;
+  }
+
   return [
-    process.env.GEMINI_IMAGE_MODEL,
+    normalizeModelName(process.env.GEMINI_IMAGE_MODEL),
     "gemini-3.1-flash-image",
     "gemini-2.5-flash-image",
-    "gemini-2.0-flash-preview-image-generation"
+    "gemini-3-pro-image"
   ]
     .filter(Boolean)
     .filter((model, index, models) => models.indexOf(model) === index);

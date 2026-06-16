@@ -10,7 +10,17 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2";
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
-const geminiImageModel = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
+function normalizeGeminiImageModel(model) {
+  if (!model) return "gemini-3.1-flash-image";
+  const name = String(model).trim();
+  const deprecated = new Set([
+    "gemini-2.0-flash-preview-image-generation",
+    "gemini-2.0-flash-exp-image-generation"
+  ]);
+  return deprecated.has(name) ? "gemini-2.5-flash-image" : name;
+}
+
+const geminiImageModel = normalizeGeminiImageModel(process.env.GEMINI_IMAGE_MODEL);
 const geminiApiKeys = [process.env.GEMINI_API_KEYS, geminiApiKey]
   .filter(Boolean)
   .join(",")
