@@ -314,6 +314,95 @@ const koreanImageKeywordMap = [
   [/강아지|개/g, "dog"]
 ];
 
+function scenePromptFromKorean(prompt) {
+  const text = String(prompt || "");
+  const rules = [
+    {
+      keys: ["도복", "발차기"],
+      prompt: "a full-body taekwondo martial artist wearing a white dobok uniform on a visible padded training mat, one leg raised high above the waist with the foot extended in a powerful front kick, dynamic action pose, not standing still"
+    },
+    {
+      keys: ["잔디", "경기장", "공"],
+      prompt: "a wide outdoor grass soccer field with soccer players in uniforms kicking a round ball, soccer goal nets at both ends"
+    },
+    {
+      keys: ["파란 물", "수영모"],
+      prompt: "a swimmer wearing a swim cap in a blue swimming pool lane, moving forward with strong arm strokes, clear water splashes"
+    },
+    {
+      keys: ["배낭", "산길"],
+      prompt: "hikers wearing backpacks walking up a mountain trail, distant mountain peak, trees around the path"
+    },
+    {
+      keys: ["다이아몬드", "방망이"],
+      prompt: "a diamond-shaped baseball field with a batter holding a bat and other players wearing gloves"
+    },
+    {
+      keys: ["빨간 국물", "꼬불꼬불"],
+      prompt: "a bowl of red spicy soup with curly noodles, chopsticks lifting the noodles"
+    },
+    {
+      keys: ["토마토소스", "치즈"],
+      prompt: "a round flat bread topped with tomato sauce, stretchy melted cheese, and colorful toppings"
+    },
+    {
+      keys: ["밥", "회"],
+      prompt: "small rice pieces topped with thin slices of raw fish, neatly arranged on a wooden board"
+    },
+    {
+      keys: ["콘", "디저트"],
+      prompt: "a cold white creamy dessert scoop sitting on a crispy cone"
+    },
+    {
+      keys: ["불판", "고기"],
+      prompt: "thick pieces of striped pork belly sizzling on a hot grill plate"
+    },
+    {
+      keys: ["검정", "흰색", "새"],
+      prompt: "a plump black-and-white bird standing on snow"
+    },
+    {
+      keys: ["다리", "여덟", "먹물"],
+      prompt: "an underwater octopus with eight arms swimming and releasing dark ink"
+    },
+    {
+      keys: ["긴 목", "점박이"],
+      prompt: "a tall giraffe with a long neck and spotted pattern eating leaves from a tree"
+    },
+    {
+      keys: ["뾰족한", "가시"],
+      prompt: "a small round hedgehog curled on grass with sharp spines raised"
+    },
+    {
+      keys: ["도마뱀", "나뭇가지"],
+      prompt: "a color-changing chameleon on a tree branch, stretching out a long tongue"
+    },
+    {
+      keys: ["책장", "책"],
+      prompt: "a quiet library interior filled with bookshelves, a person sitting at a desk reading a book"
+    },
+    {
+      keys: ["롤러코스터"],
+      prompt: "an amusement park with a roller coaster, ferris wheel, and people waiting in line"
+    },
+    {
+      keys: ["흰 가운", "침대"],
+      prompt: "a clean hospital room with a doctor wearing a white coat, a bed, and a stethoscope"
+    },
+    {
+      keys: ["텐트", "모닥불"],
+      prompt: "a campsite in a forest at night with a tent, a campfire, and people resting under a starry sky"
+    },
+    {
+      keys: ["열차", "손잡이"],
+      prompt: "inside a subway train, people standing while holding hand straps, station platform visible through the windows"
+    }
+  ];
+
+  const match = rules.find((rule) => rule.keys.every((key) => text.includes(key)));
+  return match?.prompt || "";
+}
+
 function isLikelySoccerScene(prompt) {
   return /(잔디|운동장|경기장|유니폼|그물|골대)/.test(prompt) && /(공|발|차고|찬다|축구)/.test(prompt);
 }
@@ -338,19 +427,21 @@ function englishImageHint(prompt) {
 }
 
 function buildFreeImagePrompt(prompt, room, translatedPrompt = "") {
+  const scenePrompt = scenePromptFromKorean(prompt);
+  const rewrittenPrompt = [translatedPrompt, scenePrompt].filter(Boolean).join(". ");
   const hint = englishImageHint(prompt);
   const soccerScene = isLikelySoccerScene(prompt);
   return [
-    translatedPrompt ? `English scene description: ${translatedPrompt}` : "",
+    rewrittenPrompt ? `English scene description: ${rewrittenPrompt}` : "",
     hint ? `English visual keywords: ${hint}.` : "",
-    translatedPrompt ? "" : `Original scene description: ${prompt}`,
-    "Draw only the original scene description.",
+    rewrittenPrompt ? "" : `Original scene description: ${prompt}`,
+    "Draw only the described scene. Include every mentioned object, clothing item, place, and action.",
+    "The main subject and action must be clearly visible in the center of the image.",
     soccerScene ? "This is an outdoor soccer scene; do not draw an indoor hallway or an ordinary door." : "",
     "If it describes a single object, make that object large, centered, and unmistakable.",
-    "Use a clear colorful realistic illustration style.",
-    "Keep the image safe for students, but do not add a classroom background unless the scene asks for it.",
+    "Use a high-quality, sharp, clear, colorful, realistic illustration style with a clean composition.",
+    "Do not add a classroom, art room, studio, or unrelated indoor background unless the scene explicitly asks for it.",
     "No readable text, no captions, no logos, no watermarks.",
-    room ? `Game room context, not required as a background: ${room}.` : "",
   ].filter(Boolean).join(" ");
 }
 
