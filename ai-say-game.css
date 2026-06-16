@@ -316,6 +316,18 @@ button:disabled {
   line-height: 1.45;
 }
 
+.result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 18px 18px;
+}
+
+.result-actions[hidden],
+.result-actions [hidden] {
+  display: none !important;
+}
+
 .control-panel {
   display: grid;
   gap: 14px;
@@ -397,6 +409,63 @@ body[data-room-theme="broadcast"] .topbar h1 {
 
 body[data-room-theme="art"] .topbar h1 {
   color: #335f4e;
+}
+
+body.is-guess-mode {
+  background: #11161a;
+}
+
+body.is-guess-mode .game-shell {
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+}
+
+body.is-guess-mode .topbar,
+body.is-guess-mode .panel-title,
+body.is-guess-mode .control-panel,
+body.is-guess-mode .result-caption {
+  display: none;
+}
+
+body.is-guess-mode .play-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  min-height: 100vh;
+}
+
+body.is-guess-mode .image-panel {
+  display: grid;
+  width: 100%;
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
+  background: #11161a;
+  box-shadow: none;
+}
+
+body.is-guess-mode .image-stage {
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  border: 0;
+  background: #11161a;
+}
+
+body.is-guess-mode [data-generated-image] {
+  width: 100%;
+  height: 100vh;
+  background: #11161a;
+  object-fit: contain;
+}
+
+body.is-guess-mode .result-actions {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  padding: 0;
 }
 
 @keyframes spin {

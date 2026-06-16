@@ -7,6 +7,7 @@
     user: sessionStorage.getItem("kit-auth-user") || "",
     team: sessionStorage.getItem("kit-auth-team") || ""
   };
+  let hasGeneratedImage = false;
 
   const roomName = document.body.dataset.roomName || "AI로 말해요";
   const canonicalOrigin = "https://kit-six-tau.vercel.app";
@@ -23,6 +24,23 @@
   const imageEl = document.querySelector("[data-generated-image]");
   const captionEl = document.querySelector("[data-result-caption]");
   const form = document.querySelector("[data-prompt-form]");
+  const resultActionsEl = document.createElement("div");
+  const showGuessButton = document.createElement("button");
+  const hideGuessButton = document.createElement("button");
+
+  resultActionsEl.className = "result-actions";
+  resultActionsEl.hidden = true;
+  showGuessButton.className = "primary-btn";
+  showGuessButton.type = "button";
+  showGuessButton.textContent = "맞히기 화면";
+  showGuessButton.dataset.showGuessMode = "";
+  hideGuessButton.className = "ghost-btn";
+  hideGuessButton.type = "button";
+  hideGuessButton.textContent = "다시 입력하기";
+  hideGuessButton.dataset.hideGuessMode = "";
+  hideGuessButton.hidden = true;
+  resultActionsEl.append(showGuessButton, hideGuessButton);
+  captionEl.insertAdjacentElement("afterend", resultActionsEl);
 
   const timer = {
     display: document.querySelector("[data-countdown-display]"),
@@ -41,6 +59,13 @@
     statusEl.title = text;
     statusEl.classList.toggle("is-ok", tone === "ok");
     statusEl.classList.toggle("is-bad", tone === "bad");
+  }
+
+  function setGuessMode(enabled) {
+    document.body.classList.toggle("is-guess-mode", enabled);
+    resultActionsEl.hidden = !hasGeneratedImage;
+    showGuessButton.hidden = enabled || !hasGeneratedImage;
+    hideGuessButton.hidden = !enabled;
   }
 
   function validatePrompt() {
@@ -172,6 +197,8 @@
 
     const prompt = input.value.trim();
     state.waiting = true;
+    hasGeneratedImage = false;
+    setGuessMode(false);
     validatePrompt();
     stageEl.classList.add("is-loading");
     emptyEl.hidden = false;
@@ -222,7 +249,11 @@
       const modelLabel = generationModelLabel(data);
       captionEl.textContent = `생성 모델: ${modelLabel}`;
       setStatus(modelLabel, "ok");
+      hasGeneratedImage = true;
+      setGuessMode(false);
     } catch (error) {
+      hasGeneratedImage = false;
+      setGuessMode(false);
       emptyEl.hidden = false;
       imageEl.hidden = true;
       captionEl.textContent = error.message || "이미지 생성에 실패했습니다.";
@@ -237,6 +268,13 @@
 
   input.addEventListener("input", validatePrompt);
   form.addEventListener("submit", generateImage);
+  showGuessButton.addEventListener("click", () => setGuessMode(true));
+  hideGuessButton.addEventListener("click", () => setGuessMode(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && document.body.classList.contains("is-guess-mode")) {
+      setGuessMode(false);
+    }
+  });
   timer.toggle.addEventListener("click", toggleTimer);
   timer.reset.addEventListener("click", resetTimer);
 
