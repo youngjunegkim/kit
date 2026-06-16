@@ -14,6 +14,8 @@ const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-
 const freeImageProvider = String(process.env.FREE_IMAGE_PROVIDER || "pollinations").trim().toLowerCase();
 const freeImageFallbackSetting = String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase();
 const freeImageFallbackEnabled = !["0", "false", "off", "none"].includes(freeImageFallbackSetting);
+const geminiImageGenerationSetting = String(process.env.GEMINI_IMAGE_GENERATION || process.env.GOOGLE_IMAGE_GENERATION || "0").trim().toLowerCase();
+const geminiImageGenerationEnabled = ["1", "true", "on", "yes"].includes(geminiImageGenerationSetting);
 const freeImageTimeoutMs = Number(process.env.FREE_IMAGE_TIMEOUT_MS || 70000);
 const translationTimeoutMs = Number(process.env.IMAGE_TRANSLATION_TIMEOUT_MS || 12000);
 const translationCache = new Map();
@@ -524,16 +526,18 @@ async function handleStatus(response) {
   const discoveredImageModels = [];
   const seen = new Set();
 
-  for (const key of imageApiKeys) {
-    const models = [
-      ...await listAvailableGeminiImageModels(key),
-      ...await listAvailableImagenModels(key)
-    ];
-    for (const model of models) {
-      const id = `${model.model}:${model.apiVersion}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      discoveredImageModels.push(model);
+  if (geminiImageGenerationEnabled) {
+    for (const key of imageApiKeys) {
+      const models = [
+        ...await listAvailableGeminiImageModels(key),
+        ...await listAvailableImagenModels(key)
+      ];
+      for (const model of models) {
+        const id = `${model.model}:${model.apiVersion}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        discoveredImageModels.push(model);
+      }
     }
   }
 
@@ -543,8 +547,9 @@ async function handleStatus(response) {
     imageModel: geminiImageModel,
     hasGeminiKey: Boolean(runtimeGeminiApiKey),
     hasGeminiImageKey: activeGeminiImageApiKeys.length > 0 || Boolean(runtimeGeminiApiKey),
-    hasAvailableImageModel: discoveredImageModels.length > 0,
+    hasAvailableImageModel: geminiImageGenerationEnabled && discoveredImageModels.length > 0,
     availableImageModels: discoveredImageModels.slice(0, 8),
+    geminiImageGenerationEnabled,
     allowsRuntimeApiKey: process.env.ALLOW_RUNTIME_API_KEY === "1",
     freeImageFallback: freeImageFallbackEnabled,
     freeImageProvider,
@@ -1169,8 +1174,18 @@ function extractImagenImage(data) {
 async function callGeminiImage(payload) {
   const prompt = String(payload.prompt || "").trim();
   const room = String(payload.room || "").trim().slice(0, 80);
-  const imageApiKeys = uniqueKeysFrom(activeGeminiImageApiKeys.join(","), runtimeGeminiApiKey);
   const translatedPrompt = await translatePromptToEnglish(prompt, room);
+
+  if (!geminiImageGenerationEnabled) {
+    const freeResult = await callFreeImageFallback(prompt, room, "Gemini image generation is disabled; using Pollinations directly.", translatedPrompt);
+    if (freeResult) return freeResult;
+    return {
+      statusCode: 503,
+      body: { error: "Free image fallback is disabled, and Gemini image generation is disabled.", fallback: true }
+    };
+  }
+
+  const imageApiKeys = uniqueKeysFrom(activeGeminiImageApiKeys.join(","), runtimeGeminiApiKey);
   const imagePrompt = translatedPrompt || prompt;
   if (!imageApiKeys.length) {
     const freeResult = await callFreeImageFallback(prompt, room, "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set.", translatedPrompt);

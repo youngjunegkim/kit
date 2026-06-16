@@ -31,6 +31,22 @@ function getGeminiImageKeys() {
   );
 }
 
+function isEnabledSetting(value) {
+  return ["1", "true", "on", "yes"].includes(String(value || "").trim().toLowerCase());
+}
+
+function isDisabledSetting(value) {
+  return ["0", "false", "off", "none"].includes(String(value || "").trim().toLowerCase());
+}
+
+function geminiImageGenerationEnabled() {
+  return isEnabledSetting(process.env.GEMINI_IMAGE_GENERATION || process.env.GOOGLE_IMAGE_GENERATION || "0");
+}
+
+function freeImageFallbackEnabled() {
+  return !isDisabledSetting(process.env.FREE_IMAGE_FALLBACK || "1");
+}
+
 function imageModelName() {
   return String(process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image")
     .trim()
@@ -120,19 +136,23 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  const imageModels = [
-    ...await availableImageModels(),
-    ...await availableImagenModels()
-  ];
+  const imageGenerationEnabled = geminiImageGenerationEnabled();
+  const imageModels = imageGenerationEnabled
+    ? [
+      ...await availableImageModels(),
+      ...await availableImagenModels()
+    ]
+    : [];
   sendJson(response, 200, {
     provider: "gemini",
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     imageModel: imageModelName(),
     hasGeminiKey: getGeminiKeys().length > 0,
     hasGeminiImageKey: getGeminiImageKeys().length > 0,
-    hasAvailableImageModel: imageModels.length > 0,
+    hasAvailableImageModel: imageGenerationEnabled && imageModels.length > 0,
     availableImageModels: imageModels.slice(0, 8),
-    freeImageFallback: String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase() !== "0",
+    geminiImageGenerationEnabled: imageGenerationEnabled,
+    freeImageFallback: freeImageFallbackEnabled(),
     freeImageProvider: process.env.FREE_IMAGE_PROVIDER || "pollinations",
     translatesImagePrompts: getGeminiKeys().length > 0,
     translationModel: process.env.GEMINI_TRANSLATION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash",

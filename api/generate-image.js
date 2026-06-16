@@ -7,6 +7,8 @@ const maxRequestBytes = Number(process.env.IMAGE_MAX_REQUEST_BYTES || 8000);
 const freeImageProvider = String(process.env.FREE_IMAGE_PROVIDER || "pollinations").trim().toLowerCase();
 const freeImageFallbackSetting = String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase();
 const freeImageFallbackEnabled = !["0", "false", "off", "none"].includes(freeImageFallbackSetting);
+const geminiImageGenerationSetting = String(process.env.GEMINI_IMAGE_GENERATION || process.env.GOOGLE_IMAGE_GENERATION || "0").trim().toLowerCase();
+const geminiImageGenerationEnabled = ["1", "true", "on", "yes"].includes(geminiImageGenerationSetting);
 const freeImageTimeoutMs = Number(process.env.FREE_IMAGE_TIMEOUT_MS || 70000);
 const translationTimeoutMs = Number(process.env.IMAGE_TRANSLATION_TIMEOUT_MS || 12000);
 const rateBuckets = new Map();
@@ -686,8 +688,18 @@ async function imagenRequestCandidates(key) {
 }
 
 async function callGeminiImage(prompt, room) {
-  const keys = getGeminiImageKeys();
   const translatedPrompt = await translatePromptToEnglish(prompt, room);
+
+  if (!geminiImageGenerationEnabled) {
+    const freeResult = await callFreeImageFallback(prompt, room, "Gemini image generation is disabled; using Pollinations directly.", translatedPrompt);
+    if (freeResult) return freeResult;
+    return {
+      statusCode: 503,
+      body: { error: "Free image fallback is disabled, and Gemini image generation is disabled.", fallback: true }
+    };
+  }
+
+  const keys = getGeminiImageKeys();
   const imagePrompt = translatedPrompt || prompt;
   if (!keys.length) {
     const freeResult = await callFreeImageFallback(prompt, room, "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set.", translatedPrompt);
