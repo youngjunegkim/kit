@@ -1,4 +1,5 @@
 const { hasPersistentStore } = require("./_credits");
+const { applyCors, handleCorsPreflight } = require("./_origin");
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
@@ -18,7 +19,21 @@ function getGeminiKeys() {
   return [...new Set(keys)];
 }
 
+function imageModelName() {
+  const model = String(process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image")
+    .trim()
+    .replace(/^models\//, "");
+  const deprecated = new Set([
+    "gemini-2.0-flash-preview-image-generation",
+    "gemini-2.0-flash-exp-image-generation"
+  ]);
+  return deprecated.has(model) ? "gemini-2.5-flash-image" : model;
+}
+
 module.exports = function handler(request, response) {
+  applyCors(request, response);
+  if (handleCorsPreflight(request, response, "GET")) return;
+
   if (request.method !== "GET") {
     response.setHeader("allow", "GET");
     sendJson(response, 405, { error: "Method not allowed" });
@@ -28,7 +43,7 @@ module.exports = function handler(request, response) {
   sendJson(response, 200, {
     provider: "gemini",
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    imageModel: process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image",
+    imageModel: imageModelName(),
     hasGeminiKey: getGeminiKeys().length > 0,
     requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
     hasCreditStore: hasPersistentStore()

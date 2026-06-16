@@ -9,6 +9,10 @@
   };
 
   const roomName = document.body.dataset.roomName || "AI로 말해요";
+  const canonicalOrigin = "https://kit-six-tau.vercel.app";
+  const apiOrigin = /\.vercel\.app$/i.test(window.location.hostname) && window.location.origin !== canonicalOrigin
+    ? canonicalOrigin
+    : "";
   const input = document.querySelector("[data-prompt-input]");
   const countEl = document.querySelector("[data-prompt-count]");
   const warningEl = document.querySelector("[data-warning]");
@@ -121,9 +125,13 @@
     return headers;
   }
 
+  function apiUrl(path) {
+    return `${apiOrigin}${path}`;
+  }
+
   async function refreshApiStatus() {
     try {
-      const response = await fetch("/api/status");
+      const response = await fetch(apiUrl("/api/status"));
       const data = await response.json().catch(() => ({}));
       if (data.hasGeminiKey) {
         setStatus(data.imageModel || "Gemini 준비됨", "ok");
@@ -149,7 +157,7 @@
     generateButton.textContent = "생성 중";
 
     try {
-      const response = await fetch("/api/generate-image", {
+      const response = await fetch(apiUrl("/api/generate-image"), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({

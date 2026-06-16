@@ -12,7 +12,7 @@ const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
 function normalizeGeminiImageModel(model) {
   if (!model) return "gemini-3.1-flash-image";
-  const name = String(model).trim();
+  const name = String(model).trim().replace(/^models\//, "");
   const deprecated = new Set([
     "gemini-2.0-flash-preview-image-generation",
     "gemini-2.0-flash-exp-image-generation"

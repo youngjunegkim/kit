@@ -1,3 +1,5 @@
+const { applyCors, handleCorsPreflight, isAllowedOrigin } = require("./_origin");
+
 const rateWindowMs = 60 * 1000;
 const rateLimitPerWindow = Number(process.env.IMAGE_RATE_LIMIT_PER_MINUTE || 8);
 const maxPromptChars = Number(process.env.IMAGE_MAX_PROMPT_CHARS || 900);
@@ -19,26 +21,6 @@ function headerValue(request, name) {
 function clientIdFor(request) {
   const forwarded = headerValue(request, "x-forwarded-for");
   return String(forwarded || request.socket?.remoteAddress || "unknown").split(",")[0].trim();
-}
-
-function isAllowedOrigin(request) {
-  const origin = headerValue(request, "origin");
-  if (!origin) return true;
-
-  const allowedOrigins = String(process.env.ALLOWED_ORIGINS || "")
-    .split(/[,\n;]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (allowedOrigins.includes(origin)) return true;
-
-  const host = String(headerValue(request, "x-forwarded-host") || headerValue(request, "host") || "");
-  if (!host) return false;
-
-  try {
-    return new URL(origin).host === host;
-  } catch {
-    return false;
-  }
 }
 
 function isAuthorized(request) {
@@ -108,7 +90,7 @@ function getGeminiKeys() {
 function imageModelCandidates() {
   function normalizeModelName(model) {
     if (!model) return "";
-    const name = String(model).trim();
+    const name = String(model).trim().replace(/^models\//, "");
     const deprecated = new Set([
       "gemini-2.0-flash-preview-image-generation",
       "gemini-2.0-flash-exp-image-generation"
@@ -249,6 +231,9 @@ async function callGeminiImage(prompt, room) {
 }
 
 module.exports = async function handler(request, response) {
+  applyCors(request, response);
+  if (handleCorsPreflight(request, response, "POST")) return;
+
   if (request.method !== "POST") {
     response.setHeader("allow", "POST");
     sendJson(response, 405, { error: "Method not allowed" });
