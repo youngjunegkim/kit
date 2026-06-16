@@ -134,6 +134,8 @@ module.exports = async function handler(request, response) {
     availableImageModels: imageModels.slice(0, 8),
     freeImageFallback: String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase() !== "0",
     freeImageProvider: process.env.FREE_IMAGE_PROVIDER || "pollinations",
+    translatesImagePrompts: getGeminiKeys().length > 0,
+    translationModel: process.env.GEMINI_TRANSLATION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash",
     usesSeparateImageKey: uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY).length > 0,
     requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
     hasCreditStore: hasPersistentStore()

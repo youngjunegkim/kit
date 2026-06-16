@@ -15,6 +15,8 @@ const freeImageProvider = String(process.env.FREE_IMAGE_PROVIDER || "pollination
 const freeImageFallbackSetting = String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase();
 const freeImageFallbackEnabled = !["0", "false", "off", "none"].includes(freeImageFallbackSetting);
 const freeImageTimeoutMs = Number(process.env.FREE_IMAGE_TIMEOUT_MS || 70000);
+const translationTimeoutMs = Number(process.env.IMAGE_TRANSLATION_TIMEOUT_MS || 12000);
+const translationCache = new Map();
 function normalizeGeminiImageModel(model) {
   if (!model) return "gemini-3.1-flash-image";
   return String(model).trim().replace(/^models\//, "");
@@ -40,6 +42,17 @@ const activeGeminiImageApiKeys = uniqueKeysFrom(
 );
 let activeProvider = provider;
 let runtimeGeminiApiKey = geminiApiKeys[0] || "";
+
+function getGeminiTextKeys() {
+  return uniqueKeysFrom(
+    process.env.GEMINI_API_KEYS,
+    geminiApiKey,
+    process.env.GEMINI_IMAGE_API_KEYS,
+    geminiImageApiKey,
+    activeGeminiImageApiKeys.join(","),
+    runtimeGeminiApiKey
+  );
+}
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -535,6 +548,8 @@ async function handleStatus(response) {
     allowsRuntimeApiKey: process.env.ALLOW_RUNTIME_API_KEY === "1",
     freeImageFallback: freeImageFallbackEnabled,
     freeImageProvider,
+    translatesImagePrompts: getGeminiTextKeys().length > 0,
+    translationModel: translationModelName(),
     usesSeparateImageKey: geminiImageApiKeys.length > 0,
     hasOpenAiKey: Boolean(openaiApiKey)
   });
@@ -750,6 +765,88 @@ function buildImagenPrompt(prompt, room) {
   ].filter(Boolean).join(" ");
 }
 
+function translationModelName() {
+  return String(process.env.GEMINI_TRANSLATION_MODEL || geminiModel || "gemini-2.5-flash")
+    .trim()
+    .replace(/^models\//, "");
+}
+
+function cleanTranslatedPrompt(text) {
+  return String(text || "")
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/```[a-z]*|```/gi, ""))
+    .replace(/^(english|translation|prompt)\s*:\s*/i, "")
+    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 700);
+}
+
+function cacheTranslation(key, value) {
+  if (translationCache.size > 120) {
+    const firstKey = translationCache.keys().next().value;
+    translationCache.delete(firstKey);
+  }
+  translationCache.set(key, value);
+}
+
+function extractGeminiText(data) {
+  return (data.candidates || [])
+    .flatMap((candidate) => candidate.content?.parts || [])
+    .map((part) => part.text || "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+async function translatePromptToEnglish(prompt, room) {
+  const source = String(prompt || "").trim();
+  if (!source) return "";
+
+  const cacheKey = `${room || ""}\n${source}`;
+  if (translationCache.has(cacheKey)) return translationCache.get(cacheKey);
+
+  const key = getGeminiTextKeys()[0];
+  if (!key) return "";
+
+  try {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(translationModelName())}:generateContent`;
+    const response = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": key,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: [
+              "Translate this Korean image-generation prompt into a concise English visual prompt.",
+              "Return only the English prompt. Do not add explanations, quotes, labels, markdown, or extra objects.",
+              "Preserve the original visual meaning and all concrete details.",
+              "If the prompt is already English, lightly polish it for image generation.",
+              room ? `Room context for safety only: ${room}` : "",
+              `Prompt: ${source}`
+            ].filter(Boolean).join("\n")
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 180
+        }
+      })
+    }, translationTimeoutMs);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return "";
+
+    const translated = cleanTranslatedPrompt(extractGeminiText(data));
+    if (!/[a-zA-Z]/.test(translated)) return "";
+    cacheTranslation(cacheKey, translated);
+    return translated;
+  } catch {
+    return "";
+  }
+}
+
 const koreanImageKeywordMap = [
   [/골대|그물이\s*달린\s*문/g, "soccer goal net"],
   [/빨간색|빨간|붉은|빨강/g, "red"],
@@ -804,12 +901,13 @@ function englishImageHint(prompt) {
   return hints.join(", ");
 }
 
-function buildFreeImagePrompt(prompt, room) {
+function buildFreeImagePrompt(prompt, room, translatedPrompt = "") {
   const hint = englishImageHint(prompt);
   const soccerScene = isLikelySoccerScene(prompt);
   return [
+    translatedPrompt ? `English scene description: ${translatedPrompt}` : "",
     hint ? `English visual keywords: ${hint}.` : "",
-    `Original scene description: ${prompt}`,
+    translatedPrompt ? "" : `Original scene description: ${prompt}`,
     "Draw only the original scene description.",
     soccerScene ? "This is an outdoor soccer scene; do not draw an indoor hallway or an ordinary door." : "",
     "If it describes a single object, make that object large, centered, and unmistakable.",
@@ -839,9 +937,10 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 70000) {
   }
 }
 
-async function callFreeImageFallback(prompt, room, googleError) {
+async function callFreeImageFallback(prompt, room, googleError, translatedPrompt = "") {
   if (!freeImageFallbackEnabled || freeImageProvider !== "pollinations") return null;
 
+  const finalTranslatedPrompt = translatedPrompt || await translatePromptToEnglish(prompt, room);
   const query = new URLSearchParams({
     width: "1024",
     height: "1024",
@@ -851,7 +950,7 @@ async function callFreeImageFallback(prompt, room, googleError) {
     enhance: "true",
     model: process.env.POLLINATIONS_IMAGE_MODEL || "flux"
   });
-  const imagePrompt = buildFreeImagePrompt(prompt, room);
+  const imagePrompt = buildFreeImagePrompt(prompt, room, finalTranslatedPrompt);
   const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?${query.toString()}`;
 
   try {
@@ -897,6 +996,8 @@ async function callFreeImageFallback(prompt, room, googleError) {
         requestFormat: "pollinations-prompt",
         provider: "pollinations",
         freeFallback: true,
+        translatedPrompt: finalTranslatedPrompt || undefined,
+        translationProvider: finalTranslatedPrompt ? "gemini" : undefined,
         googleError
       }
     };
@@ -978,8 +1079,10 @@ async function callGeminiImage(payload) {
   const prompt = String(payload.prompt || "").trim();
   const room = String(payload.room || "").trim().slice(0, 80);
   const imageApiKeys = uniqueKeysFrom(activeGeminiImageApiKeys.join(","), runtimeGeminiApiKey);
+  const translatedPrompt = await translatePromptToEnglish(prompt, room);
+  const imagePrompt = translatedPrompt || prompt;
   if (!imageApiKeys.length) {
-    const freeResult = await callFreeImageFallback(prompt, room, "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set.");
+    const freeResult = await callFreeImageFallback(prompt, room, "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set.", translatedPrompt);
     if (freeResult) return freeResult;
     return {
       statusCode: 503,
@@ -1004,7 +1107,7 @@ async function callGeminiImage(payload) {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          instances: [{ prompt: buildImagenPrompt(prompt, room) }],
+          instances: [{ prompt: buildImagenPrompt(imagePrompt, room) }],
           parameters: {
             sampleCount: 1,
             aspectRatio: "1:1"
@@ -1047,7 +1150,7 @@ async function callGeminiImage(payload) {
 
     const candidates = await geminiImageRequestCandidates(imageApiKey);
     for (const { model, apiVersion } of candidates) {
-      for (const requestBody of geminiImageRequestBodies(prompt, room)) {
+      for (const requestBody of geminiImageRequestBodies(imagePrompt, room)) {
       const endpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(model)}:generateContent`;
       const geminiResponse = await fetch(endpoint, {
         method: "POST",
@@ -1107,7 +1210,7 @@ async function callGeminiImage(payload) {
     }
   }
 
-  const freeResult = await callFreeImageFallback(prompt, room, lastFailure.body.error || "Google image request failed.");
+  const freeResult = await callFreeImageFallback(prompt, room, lastFailure.body.error || "Google image request failed.", translatedPrompt);
   if (freeResult?.statusCode === 200) {
     freeResult.body.attemptedModels = attempted.slice(-12);
     return freeResult;
