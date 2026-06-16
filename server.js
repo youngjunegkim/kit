@@ -655,6 +655,33 @@ function buildImagePrompt(prompt, room) {
   ].filter(Boolean).join("\n");
 }
 
+function geminiImageRequestBodies(prompt, room) {
+  const contents = [{
+    parts: [{ text: buildImagePrompt(prompt, room) }]
+  }];
+
+  return [
+    {
+      label: "default",
+      body: { contents }
+    },
+    {
+      label: "text-image",
+      body: {
+        contents,
+        generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+      }
+    },
+    {
+      label: "image",
+      body: {
+        contents,
+        generationConfig: { responseModalities: ["Image"] }
+      }
+    }
+  ];
+}
+
 function extractGeminiImage(data) {
   const parts = (data.candidates || [])
     .flatMap((candidate) => candidate.content?.parts || []);
@@ -693,6 +720,7 @@ async function callGeminiImage(payload) {
   for (const imageApiKey of imageApiKeys) {
     const candidates = await geminiImageRequestCandidates(imageApiKey);
     for (const { model, apiVersion } of candidates) {
+      for (const requestBody of geminiImageRequestBodies(prompt, room)) {
       const endpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(model)}:generateContent`;
       const geminiResponse = await fetch(endpoint, {
         method: "POST",
@@ -700,27 +728,21 @@ async function callGeminiImage(payload) {
           "x-goog-api-key": imageApiKey,
           "content-type": "application/json"
         },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: buildImagePrompt(prompt, room) }]
-          }],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"]
-          }
-        })
+        body: JSON.stringify(requestBody.body)
       });
 
       const data = await geminiResponse.json().catch(() => ({}));
       if (!geminiResponse.ok) {
         const errorMessage = data.error?.message || data.promptFeedback?.blockReason || "Gemini image request failed";
-        attempted.push(`${model} (${apiVersion}): ${geminiResponse.status}`);
+        attempted.push(`${model} (${apiVersion}, ${requestBody.label}): ${geminiResponse.status}`);
         lastFailure = {
           statusCode: geminiResponse.status,
           body: {
             error: errorMessage,
             fallback: true,
             model,
-            apiVersion
+            apiVersion,
+            requestFormat: requestBody.label
           }
         };
         if (!shouldTryNextImageModel(geminiResponse.status, errorMessage)) {
@@ -737,7 +759,8 @@ async function callGeminiImage(payload) {
             error: image.text || data.promptFeedback?.blockReason || "Gemini did not return an image.",
             fallback: true,
             model,
-            apiVersion
+            apiVersion,
+            requestFormat: requestBody.label
           }
         };
       }
@@ -749,9 +772,11 @@ async function callGeminiImage(payload) {
           mimeType: image.mimeType,
           text: image.text,
           model,
-          apiVersion
+          apiVersion,
+          requestFormat: requestBody.label
         }
       };
+      }
     }
   }
 
@@ -759,7 +784,7 @@ async function callGeminiImage(payload) {
     statusCode: lastFailure.statusCode,
     body: {
       ...lastFailure.body,
-      error: "Vercel에 저장된 Gemini 키에서 사용 가능한 이미지 생성 모델을 찾지 못했습니다. Google AI Studio에서 이 키로 사용 가능한 이미지 모델을 확인하거나 GEMINI_IMAGE_MODEL 값을 현재 지원되는 모델명으로 바꿔 주세요.",
+      error: `이미지 생성 모델 호출이 모두 실패했습니다. 마지막 시도: ${lastFailure.body.model || "unknown"} / ${lastFailure.body.apiVersion || "unknown"} / ${lastFailure.body.requestFormat || "unknown"}. 마지막 오류: ${lastFailure.body.error || "Gemini image request failed."}`,
       attemptedModels: attempted.slice(-12)
     }
   };
