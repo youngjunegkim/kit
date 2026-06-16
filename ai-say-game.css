@@ -301,6 +301,10 @@ button:disabled {
   font-size: 1.15rem;
 }
 
+.image-stage.has-image .empty-state {
+  display: none;
+}
+
 [data-generated-image] {
   width: 100%;
   height: 100%;

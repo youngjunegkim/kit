@@ -201,6 +201,7 @@
     setGuessMode(false);
     validatePrompt();
     stageEl.classList.add("is-loading");
+    stageEl.classList.remove("has-image");
     emptyEl.hidden = false;
     imageEl.hidden = true;
     captionEl.textContent = "이미지를 생성하고 있습니다.";
@@ -246,6 +247,7 @@
       imageEl.src = data.imageDataUrl;
       imageEl.hidden = false;
       emptyEl.hidden = true;
+      stageEl.classList.add("has-image");
       const modelLabel = generationModelLabel(data);
       captionEl.textContent = `생성 모델: ${modelLabel}`;
       setStatus(modelLabel, "ok");
@@ -254,6 +256,7 @@
     } catch (error) {
       hasGeneratedImage = false;
       setGuessMode(false);
+      stageEl.classList.remove("has-image");
       emptyEl.hidden = false;
       imageEl.hidden = true;
       captionEl.textContent = error.message || "이미지 생성에 실패했습니다.";

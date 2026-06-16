@@ -324,6 +324,26 @@ function scenePromptFromKorean(prompt) {
   const text = String(prompt || "");
   const rules = [
     {
+      keys: ["주가", "올라"],
+      prompt: "minimalist vector-style image of one single smartphone investment account app screen filling the frame, the screen shows a red upward stock price line chart and rising numbers, pure white background, absolutely no other objects"
+    },
+    {
+      keys: ["계좌", "올라"],
+      prompt: "minimalist vector-style image of one single smartphone investment account app screen filling the frame, the screen shows a red upward stock price line chart and rising numbers, pure white background, absolutely no other objects"
+    },
+    {
+      keys: ["방탄", "공연"],
+      prompt: "a K-pop boy band performing on a large concert stage in Busan, bright stage lights, cheering crowd, energetic live performance, no classroom, no empty room, no desks"
+    },
+    {
+      keys: ["BTS", "공연"],
+      prompt: "a K-pop boy band performing on a large concert stage in Busan, bright stage lights, cheering crowd, energetic live performance, no classroom, no empty room, no desks"
+    },
+    {
+      keys: ["부산", "공연"],
+      prompt: "a live concert stage in Busan with performers under bright stage lights and a cheering crowd, coastal city atmosphere, no classroom, no empty room, no desks"
+    },
+    {
       keys: ["도복", "발차기"],
       prompt: "a full-body taekwondo martial artist wearing a white dobok uniform on a visible padded training mat, one leg raised high above the waist with the foot extended in a powerful front kick, dynamic action pose, not standing still"
     },
@@ -441,12 +461,15 @@ function buildFreeImagePrompt(prompt, room, translatedPrompt = "") {
     rewrittenPrompt ? `English scene description: ${rewrittenPrompt}` : "",
     hint ? `English visual keywords: ${hint}.` : "",
     rewrittenPrompt ? "" : `Original scene description: ${prompt}`,
+    "Only draw what the prompt asks for. Do not add any extra objects, furniture, people, room, or background props.",
     "Draw only the described scene. Include every mentioned object, clothing item, place, and action.",
     "The main subject and action must be clearly visible in the center of the image.",
     soccerScene ? "This is an outdoor soccer scene; do not draw an indoor hallway or an ordinary door." : "",
     "If it describes a single object, make that object large, centered, and unmistakable.",
+    "If the prompt does not explicitly describe a location, use a plain simple background.",
+    "Do not invent extra people, desks, walls, boards, posters, classroom props, or room interiors.",
     "Use a high-quality, sharp, clear, colorful, realistic illustration style with a clean composition.",
-    "Do not add a classroom, art room, studio, or unrelated indoor background unless the scene explicitly asks for it.",
+    "Never add a classroom, art room, studio, school room, office, or unrelated indoor background unless the scene explicitly asks for it.",
     "No readable text, no captions, no logos, no watermarks.",
   ].filter(Boolean).join(" ");
 }
@@ -474,16 +497,17 @@ async function callFreeImageFallback(prompt, room, googleError, translatedPrompt
   if (!freeImageFallbackEnabled || freeImageProvider !== "pollinations") return null;
 
   const finalTranslatedPrompt = translatedPrompt || await translatePromptToEnglish(prompt, room);
+  const imagePrompt = buildFreeImagePrompt(prompt, room, finalTranslatedPrompt);
   const query = new URLSearchParams({
     width: "1024",
     height: "1024",
-    seed: String(seedForText(`${room}\n${prompt}`)),
+    seed: String(seedForText(imagePrompt)),
     nologo: "true",
     safe: "true",
     enhance: "true",
+    negative: "classroom, school room, art room, office, desk, table, keyboard, monitor, blackboard, posters, books, cup, pencils, calculator, extra props, unrelated background, empty room",
     model: process.env.POLLINATIONS_IMAGE_MODEL || "flux"
   });
-  const imagePrompt = buildFreeImagePrompt(prompt, room, finalTranslatedPrompt);
   const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?${query.toString()}`;
 
   try {
