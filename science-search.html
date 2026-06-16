@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>과학실 검색대</title>
+  <script src="auth.js" defer></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% 10%, rgba(0, 199, 60, 0.2), transparent 28%),
+        linear-gradient(135deg, #0d1522 0%, #172235 54%, #202436 100%);
+      color: #18202b;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 1.72rem;
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      color: rgba(255, 255, 255, 0.76);
+      font-weight: 850;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-actions a,
+    .nav-actions button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      cursor: pointer;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .nav-actions a:hover,
+    .nav-actions a:focus-visible,
+    .nav-actions button:hover,
+    .nav-actions button:focus-visible {
+      background: rgba(255, 255, 255, 0.22);
+      outline: none;
+    }
+
+    .search-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .search-panel,
+    .side-panel,
+    .note-panel {
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+
+    .lab-visual {
+      position: relative;
+      min-height: 200px;
+      background: #dfe6ef;
+    }
+
+    .lab-visual img {
+      display: block;
+      width: 100%;
+      height: 260px;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .search-box {
+      padding: 22px;
+    }
+
+    .naver-mark {
+      margin: 0 0 14px;
+      color: #03c75a;
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .search-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 108px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      min-height: 58px;
+      border: 3px solid #03c75a;
+      border-radius: 8px;
+      background: #fff;
+      color: #18202b;
+      padding: 0 16px;
+      font: inherit;
+      font-size: 1.16rem;
+      font-weight: 850;
+    }
+
+    .search-input:focus {
+      box-shadow: 0 0 0 4px rgba(3, 199, 90, 0.14);
+      outline: none;
+    }
+
+    .search-button {
+      min-height: 58px;
+      border: 0;
+      border-radius: 8px;
+      background: #03c75a;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 1.08rem;
+      font-weight: 950;
+    }
+
+    .search-button:hover,
+    .search-button:focus-visible {
+      background: #02b350;
+      outline: none;
+    }
+
+    .search-message {
+      min-height: 24px;
+      margin: 12px 0 0;
+      color: #657181;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
+    .side-panel {
+      display: grid;
+      gap: 0;
+    }
+
+    .timer-panel,
+    .history-panel {
+      padding: 18px;
+    }
+
+    .timer-panel {
+      border-bottom: 1px solid #e1e8f0;
+    }
+
+    .panel-title {
+      margin: 0 0 12px;
+      color: #18202b;
+      font-size: 1.1rem;
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .digital-timer {
+      border: 1px solid rgba(3, 199, 90, 0.34);
+      border-radius: 8px;
+      background: linear-gradient(180deg, #122033, #07101d);
+      color: #47ffbd;
+      padding: 14px;
+      text-align: center;
+      font-family: Consolas, "SFMono-Regular", "Cascadia Mono", monospace;
+      box-shadow: inset 0 0 18px rgba(71, 255, 189, 0.08);
+    }
+
+    .timer-value {
+      display: block;
+      font-size: 2.65rem;
+      line-height: 1;
+      font-weight: 950;
+      text-shadow: 0 0 12px rgba(71, 255, 189, 0.36);
+    }
+
+    .timer-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .timer-actions button,
+    .history-clear {
+      min-height: 36px;
+      border: 0;
+      border-radius: 6px;
+      background: #e9eef5;
+      color: #344154;
+      cursor: pointer;
+      padding: 7px 10px;
+      font: inherit;
+      font-weight: 900;
+    }
+
+    .timer-actions button:hover,
+    .timer-actions button:focus-visible,
+    .history-clear:hover,
+    .history-clear:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .history-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 38px;
+      border: 1px solid #e1e8f0;
+      border-radius: 7px;
+      background: #fbfdff;
+      padding: 8px 10px;
+      color: #344154;
+      font-weight: 900;
+    }
+
+    .history-list a {
+      min-width: 0;
+      overflow: hidden;
+      color: inherit;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .history-list a:hover,
+    .history-list a:focus-visible {
+      color: #03a84d;
+      outline: none;
+    }
+
+    .history-empty {
+      margin: 0;
+      color: #657181;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
+    .note-panel {
+      grid-column: 1 / -1;
+      padding: 18px;
+    }
+
+    .note-area {
+      width: 100%;
+      min-height: 300px;
+      border: 1px solid #cfd8e4;
+      border-radius: 8px;
+      background:
+        linear-gradient(#fff 31px, #e8eef6 32px),
+        #fff;
+      background-size: 100% 32px;
+      color: #18202b;
+      padding: 10px 12px;
+      resize: vertical;
+      font: inherit;
+      font-weight: 800;
+      line-height: 32px;
+    }
+
+    .note-area:focus {
+      border-color: #03c75a;
+      box-shadow: 0 0 0 3px rgba(3, 199, 90, 0.14);
+      outline: none;
+    }
+
+    .note-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 10px;
+      color: #657181;
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .note-clear {
+      min-height: 34px;
+      border: 0;
+      border-radius: 6px;
+      background: #e9eef5;
+      color: #344154;
+      cursor: pointer;
+      padding: 6px 10px;
+      font: inherit;
+      font-weight: 900;
+    }
+
+    .note-clear:hover,
+    .note-clear:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    @media (max-width: 920px) {
+      .search-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .note-panel {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 14px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .search-form {
+        grid-template-columns: 1fr;
+      }
+
+      .lab-visual img {
+        height: 190px;
+      }
+    }
+  </style>
+</head>
+<body data-auth="student">
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <h1>과학실 검색대</h1>
+        <p>AI 문장의 사실 여부를 확인하는 검색 화면</p>
+      </div>
+      <div class="nav-actions">
+        <a href="student.html" data-home-link>돌아가기</a>
+        <button type="button" data-logout>로그아웃</button>
+      </div>
+    </header>
+
+    <section class="search-layout" aria-label="할루시네이션 검색 도구">
+      <section class="search-panel" aria-label="네이버 검색">
+        <div class="lab-visual">
+          <img src="assets/science-lab.jpg" alt="실험 도구가 놓인 과학실">
+        </div>
+        <div class="search-box">
+          <h2 class="naver-mark">NAVER</h2>
+          <form class="search-form" data-search-form action="https://search.naver.com/search.naver" method="get" target="_blank">
+            <input class="search-input" data-search-input name="query" type="search" autocomplete="off" placeholder="검색어 입력">
+            <button class="search-button" type="submit">검색</button>
+          </form>
+          <p class="search-message" data-search-message></p>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="검색 보조 패널">
+        <section class="timer-panel" aria-label="30초 검색 타이머">
+          <h2 class="panel-title">검색 타이머</h2>
+          <div class="digital-timer">
+            <span class="timer-value" data-search-timer>00:30</span>
+          </div>
+          <div class="timer-actions">
+            <button type="button" data-timer-start>시작</button>
+            <button type="button" data-timer-reset>초기화</button>
+          </div>
+        </section>
+
+        <section class="history-panel" aria-label="최근 검색어">
+          <div class="history-head">
+            <h2 class="panel-title">최근 검색</h2>
+            <button class="history-clear" type="button" data-history-clear>비우기</button>
+          </div>
+          <ul class="history-list" data-search-history></ul>
+        </section>
+      </aside>
+
+      <section class="note-panel" aria-label="검색 근거 메모">
+        <h2 class="panel-title">검색 근거 메모</h2>
+        <textarea class="note-area" data-search-note spellcheck="false"></textarea>
+        <div class="note-tools">
+          <span data-note-status>자동 저장</span>
+          <button class="note-clear" type="button" data-note-clear>비우기</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const form = document.querySelector("[data-search-form]");
+    const input = document.querySelector("[data-search-input]");
+    const message = document.querySelector("[data-search-message]");
+    const historyList = document.querySelector("[data-search-history]");
+    const historyClear = document.querySelector("[data-history-clear]");
+    const note = document.querySelector("[data-search-note]");
+    const noteStatus = document.querySelector("[data-note-status]");
+    const noteClear = document.querySelector("[data-note-clear]");
+    const timerDisplay = document.querySelector("[data-search-timer]");
+    const timerStart = document.querySelector("[data-timer-start]");
+    const timerReset = document.querySelector("[data-timer-reset]");
+    const historyKey = "kit-science-search-history";
+    const noteKey = "kit-science-search-note";
+    const noteTemplate = "1. \n2. \n3. \n4. \n5. \n6. \n7. \n8. \n9. \n10. ";
+    let timerInterval = 0;
+
+    function naverUrl(query) {
+      return `https://search.naver.com/search.naver?query=${encodeURIComponent(query)}`;
+    }
+
+    function readHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(historyKey) || "[]");
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function writeHistory(items) {
+      localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 8)));
+    }
+
+    function renderHistory() {
+      const items = readHistory();
+      historyList.innerHTML = "";
+
+      if (!items.length) {
+        const empty = document.createElement("li");
+        empty.className = "history-empty";
+        empty.textContent = "최근 검색어가 없습니다.";
+        historyList.append(empty);
+        return;
+      }
+
+      items.forEach((term) => {
+        const row = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = naverUrl(term);
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = term;
+        row.append(link);
+        historyList.append(row);
+      });
+    }
+
+    function rememberSearch(term) {
+      const items = readHistory().filter((item) => item !== term);
+      writeHistory([term, ...items]);
+      renderHistory();
+    }
+
+    function formatTime(seconds) {
+      return `00:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function setTimer(seconds) {
+      timerDisplay.textContent = formatTime(seconds);
+    }
+
+    function startTimer() {
+      window.clearInterval(timerInterval);
+      const deadline = Date.now() + 30000;
+      setTimer(30);
+
+      timerInterval = window.setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        setTimer(remaining);
+        if (remaining === 0) {
+          window.clearInterval(timerInterval);
+        }
+      }, 250);
+    }
+
+    form.addEventListener("submit", (event) => {
+      const term = input.value.trim();
+      if (!term) {
+        event.preventDefault();
+        message.textContent = "검색어를 입력하세요.";
+        input.focus();
+        return;
+      }
+
+      message.textContent = `"${term}" 검색`;
+      rememberSearch(term);
+      startTimer();
+    });
+
+    historyClear.addEventListener("click", () => {
+      localStorage.removeItem(historyKey);
+      renderHistory();
+    });
+
+    timerStart.addEventListener("click", startTimer);
+    timerReset.addEventListener("click", () => {
+      window.clearInterval(timerInterval);
+      setTimer(30);
+    });
+
+    function initNote() {
+      let saveTimer = 0;
+      const saved = localStorage.getItem(noteKey);
+      note.value = saved && saved.trim() ? saved : noteTemplate;
+      localStorage.setItem(noteKey, note.value);
+
+      note.addEventListener("input", () => {
+        localStorage.setItem(noteKey, note.value);
+        noteStatus.textContent = "저장 중...";
+        clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(() => {
+          noteStatus.textContent = "자동 저장됨";
+        }, 350);
+      });
+
+      noteClear.addEventListener("click", () => {
+        note.value = noteTemplate;
+        localStorage.removeItem(noteKey);
+        noteStatus.textContent = "비웠습니다";
+        note.focus();
+      });
+    }
+
+    renderHistory();
+    initNote();
+    startTimer();
+  </script>
+</body>
+</html>
