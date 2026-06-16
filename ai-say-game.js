@@ -250,7 +250,7 @@
       captionEl.textContent = `생성 모델: ${modelLabel}`;
       setStatus(modelLabel, "ok");
       hasGeneratedImage = true;
-      setGuessMode(false);
+      setGuessMode(true);
     } catch (error) {
       hasGeneratedImage = false;
       setGuessMode(false);
