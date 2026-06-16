@@ -78,6 +78,38 @@ async function availableImageModels() {
   return available;
 }
 
+async function availableImagenModels() {
+  const keys = getGeminiImageKeys();
+  const seen = new Set();
+  const available = [];
+
+  for (const key of keys) {
+    for (const apiVersion of ["v1beta"]) {
+      try {
+        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/${apiVersion}/models`, {
+          headers: { "x-goog-api-key": key }
+        });
+        const data = await geminiResponse.json().catch(() => ({}));
+        if (!geminiResponse.ok || !Array.isArray(data.models)) continue;
+
+        for (const model of data.models) {
+          const name = normalizeModelName(model.name);
+          const methods = model.supportedGenerationMethods || model.supported_generation_methods || [];
+          if (!methods.includes("predict") || !/^imagen-/i.test(name)) continue;
+          const id = `${name}:${apiVersion}`;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          available.push({ model: name, apiVersion });
+        }
+      } catch {
+        // Keep the status endpoint usable even when Imagen discovery fails.
+      }
+    }
+  }
+
+  return available;
+}
+
 module.exports = async function handler(request, response) {
   applyCors(request, response);
   if (handleCorsPreflight(request, response, "GET")) return;
@@ -88,7 +120,10 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  const imageModels = await availableImageModels();
+  const imageModels = [
+    ...await availableImageModels(),
+    ...await availableImagenModels()
+  ];
   sendJson(response, 200, {
     provider: "gemini",
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
@@ -97,6 +132,8 @@ module.exports = async function handler(request, response) {
     hasGeminiImageKey: getGeminiImageKeys().length > 0,
     hasAvailableImageModel: imageModels.length > 0,
     availableImageModels: imageModels.slice(0, 8),
+    freeImageFallback: String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase() !== "0",
+    freeImageProvider: process.env.FREE_IMAGE_PROVIDER || "pollinations",
     usesSeparateImageKey: uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY).length > 0,
     requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
     hasCreditStore: hasPersistentStore()

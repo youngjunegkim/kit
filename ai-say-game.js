@@ -135,6 +135,8 @@
       const data = await response.json().catch(() => ({}));
       if (data.hasAvailableImageModel) {
         setStatus(data.availableImageModels?.[0]?.model || data.imageModel || "Gemini 준비됨", "ok");
+      } else if (data.freeImageFallback) {
+        setStatus(`${data.freeImageProvider || "무료"} 생성 준비됨`, "ok");
       } else if (data.hasGeminiImageKey || data.hasGeminiKey) {
         setStatus("이미지 모델 확인 필요", "bad");
       } else {
@@ -160,7 +162,7 @@
     stageEl.classList.add("is-loading");
     emptyEl.hidden = false;
     imageEl.hidden = true;
-    captionEl.textContent = "Gemini가 장면을 그리고 있습니다.";
+    captionEl.textContent = "이미지를 생성하고 있습니다.";
     generateButton.textContent = "생성 중";
 
     try {
@@ -203,7 +205,7 @@
       imageEl.src = data.imageDataUrl;
       imageEl.hidden = false;
       emptyEl.hidden = true;
-      captionEl.textContent = `${data.model || "Gemini"} 결과`;
+      captionEl.textContent = `${data.provider === "pollinations" ? "무료 이미지 모델" : data.model || "Gemini"} 결과`;
       setStatus("생성 완료", "ok");
     } catch (error) {
       emptyEl.hidden = false;

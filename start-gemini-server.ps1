@@ -19,17 +19,22 @@ try {
 }
 
 $env:AI_PROVIDER = "gemini"
+$env:ALLOW_RUNTIME_API_KEY = "1"
 if (-not [string]::IsNullOrWhiteSpace($plainKey)) {
   $env:GEMINI_API_KEY = $plainKey
+  $env:GEMINI_IMAGE_API_KEY = $plainKey
 } else {
   Remove-Item Env:\GEMINI_API_KEY -ErrorAction SilentlyContinue
+  Remove-Item Env:\GEMINI_IMAGE_API_KEY -ErrorAction SilentlyContinue
 }
 $env:GEMINI_MODEL = $Model
 $env:PORT = [string]$Port
 
-Write-Host "Starting Gemini chatbot server..."
+Write-Host "Starting Gemini local test server..."
 Write-Host "Model: $Model"
-Write-Host "URL: http://127.0.0.1:$Port/teacherroom.html"
+Write-Host "Key page: http://127.0.0.1:$Port/local-api-key.html"
+Write-Host "Art room: http://127.0.0.1:$Port/game-art.html"
+Write-Host "Broadcast room: http://127.0.0.1:$Port/game-broadcast.html"
 Write-Host "Press Ctrl+C to stop."
 
 & $nodePath server.js

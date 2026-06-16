@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로컬 Gemini API 키 연결</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #102033;
+      --muted: #617084;
+      --line: #ded5c7;
+      --accent: #df3d30;
+      --ok: #0f7b62;
+      --paper: #fffaf2;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f4efe7;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(560px, calc(100vw - 32px));
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: 0 18px 48px rgba(38, 31, 22, 0.12);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 800;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    button {
+      width: 100%;
+      min-height: 50px;
+      margin-top: 14px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .status {
+      min-height: 24px;
+      margin-top: 14px;
+      font-weight: 800;
+    }
+
+    .status.is-ok {
+      color: var(--ok);
+    }
+
+    .status.is-bad {
+      color: var(--accent);
+    }
+
+    .links {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .links a {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>로컬 Gemini API 키 연결</h1>
+    <p>이 페이지는 localhost에서만 키를 현재 로컬 서버 메모리에 저장합니다. 브라우저를 닫거나 서버를 끄면 다시 입력해야 합니다.</p>
+
+    <form data-key-form>
+      <label for="api-key">Gemini API 키</label>
+      <input id="api-key" name="apiKey" type="password" autocomplete="off" placeholder="AIza..." required>
+      <button type="submit" data-submit>키 연결</button>
+    </form>
+
+    <div class="status" data-status></div>
+
+    <div class="links">
+      <a href="game-art.html">미술실 열기</a>
+      <a href="game-broadcast.html">방송실 열기</a>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const isLocal = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+      const form = document.querySelector("[data-key-form]");
+      const input = document.querySelector("#api-key");
+      const button = document.querySelector("[data-submit]");
+      const status = document.querySelector("[data-status]");
+
+      function setStatus(message, tone) {
+        status.textContent = message;
+        status.classList.toggle("is-ok", tone === "ok");
+        status.classList.toggle("is-bad", tone === "bad");
+      }
+
+      if (!isLocal) {
+        input.disabled = true;
+        button.disabled = true;
+        setStatus("이 페이지는 로컬 서버에서만 사용할 수 있습니다.", "bad");
+        return;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const apiKey = input.value.trim();
+        if (!apiKey) return;
+
+        button.disabled = true;
+        setStatus("키를 확인하고 있습니다.", "");
+
+        try {
+          const response = await fetch("/api/key", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ apiKey })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "키 연결에 실패했습니다.");
+
+          input.value = "";
+          sessionStorage.setItem("kit-auth-user", "local-teacher");
+          sessionStorage.setItem("kit-auth-role", "teacher");
+          sessionStorage.setItem("kit-auth-label", "로컬 선생님");
+          sessionStorage.setItem("kit-teacher-access-code", "local");
+          setStatus("키 연결 완료. 미술실 또는 방송실에서 바로 테스트하세요.", "ok");
+        } catch (error) {
+          setStatus(error.message || "키 연결에 실패했습니다.", "bad");
+        } finally {
+          button.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

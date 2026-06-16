@@ -11,6 +11,10 @@ const geminiApiKey = process.env.GEMINI_API_KEY;
 const geminiImageApiKey = process.env.GEMINI_IMAGE_API_KEY;
 const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2";
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
+const freeImageProvider = String(process.env.FREE_IMAGE_PROVIDER || "pollinations").trim().toLowerCase();
+const freeImageFallbackSetting = String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase();
+const freeImageFallbackEnabled = !["0", "false", "off", "none"].includes(freeImageFallbackSetting);
+const freeImageTimeoutMs = Number(process.env.FREE_IMAGE_TIMEOUT_MS || 70000);
 function normalizeGeminiImageModel(model) {
   if (!model) return "gemini-3.1-flash-image";
   return String(model).trim().replace(/^models\//, "");
@@ -502,13 +506,35 @@ async function handleApiKey(request, response) {
   });
 }
 
-function handleStatus(response) {
+async function handleStatus(response) {
+  const imageApiKeys = uniqueKeysFrom(activeGeminiImageApiKeys.join(","), runtimeGeminiApiKey);
+  const discoveredImageModels = [];
+  const seen = new Set();
+
+  for (const key of imageApiKeys) {
+    const models = [
+      ...await listAvailableGeminiImageModels(key),
+      ...await listAvailableImagenModels(key)
+    ];
+    for (const model of models) {
+      const id = `${model.model}:${model.apiVersion}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      discoveredImageModels.push(model);
+    }
+  }
+
   sendJson(response, 200, {
     provider: activeProvider,
     model: activeProvider === "gemini" ? geminiModel : openaiModel,
     imageModel: geminiImageModel,
     hasGeminiKey: Boolean(runtimeGeminiApiKey),
     hasGeminiImageKey: activeGeminiImageApiKeys.length > 0 || Boolean(runtimeGeminiApiKey),
+    hasAvailableImageModel: discoveredImageModels.length > 0,
+    availableImageModels: discoveredImageModels.slice(0, 8),
+    allowsRuntimeApiKey: process.env.ALLOW_RUNTIME_API_KEY === "1",
+    freeImageFallback: freeImageFallbackEnabled,
+    freeImageProvider,
     usesSeparateImageKey: geminiImageApiKeys.length > 0,
     hasOpenAiKey: Boolean(openaiApiKey)
   });
@@ -576,6 +602,20 @@ function geminiImageModelCandidates() {
     .filter((model, index, models) => models.indexOf(model) === index);
 }
 
+function imagenModelCandidates() {
+  const configuredGeminiImageModel = normalizeGeminiModelName(geminiImageModel);
+  return [
+    normalizeGeminiModelName(process.env.IMAGEN_MODEL),
+    normalizeGeminiModelName(process.env.GEMINI_IMAGEN_MODEL),
+    configuredGeminiImageModel.startsWith("imagen-") ? configuredGeminiImageModel : "",
+    "imagen-4.0-generate-001",
+    "imagen-4.0-fast-generate-001",
+    "imagen-3.0-generate-002"
+  ]
+    .filter(Boolean)
+    .filter((model, index, models) => models.indexOf(model) === index);
+}
+
 function normalizeGeminiModelName(model) {
   return String(model || "").trim().replace(/^models\//, "");
 }
@@ -614,11 +654,56 @@ async function listAvailableGeminiImageModels(key) {
   return available;
 }
 
+async function listAvailableImagenModels(key) {
+  const seen = new Set();
+  const available = [];
+
+  for (const apiVersion of ["v1beta"]) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/${apiVersion}/models`, {
+        headers: { "x-goog-api-key": key }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(data.models)) continue;
+
+      for (const model of data.models) {
+        const name = normalizeGeminiModelName(model.name);
+        const methods = model.supportedGenerationMethods || model.supported_generation_methods || [];
+        if (!methods.includes("predict") || !/^imagen-/i.test(name)) continue;
+        const id = `${name}:${apiVersion}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        available.push({ model: name, apiVersion });
+      }
+    } catch {
+      // Imagen discovery is best-effort. Static candidates still run.
+    }
+  }
+
+  return available;
+}
+
 async function geminiImageRequestCandidates(key) {
   const staticCandidates = geminiImageModelCandidates()
     .flatMap((model) => apiVersionsForImageModel(model).map((apiVersion) => ({ model, apiVersion })));
   const discoveredCandidates = await listAvailableGeminiImageModels(key);
   const preferredOrder = geminiImageModelCandidates();
+
+  return [...staticCandidates, ...discoveredCandidates]
+    .sort((a, b) => {
+      const aIndex = preferredOrder.indexOf(a.model);
+      const bIndex = preferredOrder.indexOf(b.model);
+      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    })
+    .filter((candidate, index, candidates) =>
+      candidates.findIndex((item) => item.model === candidate.model && item.apiVersion === candidate.apiVersion) === index
+    );
+}
+
+async function imagenRequestCandidates(key) {
+  const staticCandidates = imagenModelCandidates().map((model) => ({ model, apiVersion: "v1beta" }));
+  const discoveredCandidates = await listAvailableImagenModels(key);
+  const preferredOrder = imagenModelCandidates();
 
   return [...staticCandidates, ...discoveredCandidates]
     .sort((a, b) => {
@@ -653,6 +738,179 @@ function buildImagePrompt(prompt, room) {
     room ? `Game room: ${room}.` : "",
     `Student prompt: ${prompt}`
   ].filter(Boolean).join("\n");
+}
+
+function buildImagenPrompt(prompt, room) {
+  return [
+    "Create one classroom-safe image for a Korean middle school guessing game.",
+    "Use a clear, colorful, realistic classroom-projection friendly style.",
+    "Do not include captions, labels, logos, UI, or readable text.",
+    room ? `Game room: ${room}.` : "",
+    `Scene description: ${prompt}`
+  ].filter(Boolean).join(" ");
+}
+
+const koreanImageKeywordMap = [
+  [/골대|그물이\s*달린\s*문/g, "soccer goal net"],
+  [/빨간색|빨간|붉은|빨강/g, "red"],
+  [/파란색|파란|푸른|파랑/g, "blue"],
+  [/초록색|초록|녹색/g, "green"],
+  [/노란색|노란|노랑/g, "yellow"],
+  [/검은색|검은|검정/g, "black"],
+  [/흰색|하얀|하얀색|흰/g, "white"],
+  [/사과/g, "apple"],
+  [/바나나/g, "banana"],
+  [/공/g, "ball"],
+  [/축구공/g, "soccer ball"],
+  [/운동장|경기장/g, "sports field"],
+  [/문/g, "door"],
+  [/사람|인물/g, "person"],
+  [/학생/g, "student"],
+  [/유니폼/g, "uniform"],
+  [/방송실/g, "broadcast studio"],
+  [/카메라/g, "camera"],
+  [/마이크/g, "microphone"],
+  [/교실/g, "classroom"],
+  [/칠판/g, "blackboard"],
+  [/책상/g, "desk"],
+  [/책/g, "book"],
+  [/컴퓨터/g, "computer"],
+  [/USB|유에스비/g, "USB drive"],
+  [/시험지/g, "exam paper"],
+  [/고양이/g, "cat"],
+  [/강아지|개/g, "dog"]
+];
+
+function isLikelySoccerScene(prompt) {
+  return /(잔디|운동장|경기장|유니폼|그물|골대)/.test(prompt) && /(공|발|차고|찬다|축구)/.test(prompt);
+}
+
+function englishImageHint(prompt) {
+  const hints = [];
+  const soccerScene = isLikelySoccerScene(prompt);
+  if (soccerScene) {
+    hints.push("outdoor grass soccer field");
+    hints.push("soccer players in uniforms kicking a round ball");
+    hints.push("soccer goal nets at both ends");
+  }
+  for (const [pattern, phrase] of koreanImageKeywordMap) {
+    pattern.lastIndex = 0;
+    if (soccerScene && phrase === "door") continue;
+    if (pattern.test(prompt) && !hints.includes(phrase)) hints.push(phrase);
+  }
+  if (/흰\s*배경|하얀\s*배경|흰색\s*배경/.test(prompt)) hints.push("plain white background");
+  if (/크게|큰|확대/.test(prompt)) hints.push("large centered main subject");
+  if (/하나|한\s*개|1\s*개/.test(prompt)) hints.push("single object");
+  return hints.join(", ");
+}
+
+function buildFreeImagePrompt(prompt, room) {
+  const hint = englishImageHint(prompt);
+  const soccerScene = isLikelySoccerScene(prompt);
+  return [
+    hint ? `English visual keywords: ${hint}.` : "",
+    `Original scene description: ${prompt}`,
+    "Draw only the original scene description.",
+    soccerScene ? "This is an outdoor soccer scene; do not draw an indoor hallway or an ordinary door." : "",
+    "If it describes a single object, make that object large, centered, and unmistakable.",
+    "Use a clear colorful realistic illustration style.",
+    "Keep the image safe for students, but do not add a classroom background unless the scene asks for it.",
+    "No readable text, no captions, no logos, no watermarks.",
+    room ? `Game room context, not required as a background: ${room}.` : "",
+  ].filter(Boolean).join(" ");
+}
+
+function seedForImageText(text) {
+  let hash = 2166136261;
+  for (const char of String(text || "")) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % 2147483647;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 70000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callFreeImageFallback(prompt, room, googleError) {
+  if (!freeImageFallbackEnabled || freeImageProvider !== "pollinations") return null;
+
+  const query = new URLSearchParams({
+    width: "1024",
+    height: "1024",
+    seed: String(seedForImageText(`${room}\n${prompt}`)),
+    nologo: "true",
+    safe: "true",
+    enhance: "true",
+    model: process.env.POLLINATIONS_IMAGE_MODEL || "flux"
+  });
+  const imagePrompt = buildFreeImagePrompt(prompt, room);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?${query.toString()}`;
+
+  try {
+    const response = await fetchWithTimeout(url, {
+      headers: { accept: "image/png,image/jpeg,image/webp,image/*" }
+    }, freeImageTimeoutMs);
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      return {
+        statusCode: response.status,
+        body: {
+          error: `Free image fallback failed: ${message || response.statusText || response.status}`,
+          fallback: true,
+          provider: "pollinations",
+          googleError
+        }
+      };
+    }
+
+    if (!contentType.startsWith("image/")) {
+      const message = await response.text().catch(() => "");
+      return {
+        statusCode: 502,
+        body: {
+          error: `Free image fallback did not return an image: ${message.slice(0, 240)}`,
+          fallback: true,
+          provider: "pollinations",
+          googleError
+        }
+      };
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return {
+      statusCode: 200,
+      body: {
+        imageDataUrl: `data:${contentType};base64,${buffer.toString("base64")}`,
+        mimeType: contentType,
+        model: process.env.POLLINATIONS_IMAGE_MODEL || "flux",
+        apiVersion: "free-http",
+        requestFormat: "pollinations-prompt",
+        provider: "pollinations",
+        freeFallback: true,
+        googleError
+      }
+    };
+  } catch (error) {
+    return {
+      statusCode: 502,
+      body: {
+        error: `Free image fallback failed: ${error.message || "request failed"}`,
+        fallback: true,
+        provider: "pollinations",
+        googleError
+      }
+    };
+  }
 }
 
 function geminiImageRequestBodies(prompt, room) {
@@ -700,17 +958,35 @@ function extractGeminiImage(data) {
   };
 }
 
+function extractImagenImage(data) {
+  const prediction = (data.predictions || []).find((item) =>
+    item?.bytesBase64Encoded || item?.bytes_base64_encoded || item?.image?.bytesBase64Encoded || item?.image?.imageBytes
+  );
+  if (!prediction) return {};
+
+  const dataValue = prediction.bytesBase64Encoded ||
+    prediction.bytes_base64_encoded ||
+    prediction.image?.bytesBase64Encoded ||
+    prediction.image?.imageBytes;
+  return {
+    mimeType: prediction.mimeType || prediction.mime_type || prediction.image?.mimeType || "image/png",
+    data: dataValue
+  };
+}
+
 async function callGeminiImage(payload) {
+  const prompt = String(payload.prompt || "").trim();
+  const room = String(payload.room || "").trim().slice(0, 80);
   const imageApiKeys = uniqueKeysFrom(activeGeminiImageApiKeys.join(","), runtimeGeminiApiKey);
   if (!imageApiKeys.length) {
+    const freeResult = await callFreeImageFallback(prompt, room, "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set.");
+    if (freeResult) return freeResult;
     return {
       statusCode: 503,
       body: { error: "GEMINI_IMAGE_API_KEY or GEMINI_API_KEY is not set", fallback: true }
     };
   }
 
-  const prompt = String(payload.prompt || "").trim();
-  const room = String(payload.room || "").trim().slice(0, 80);
   let lastFailure = {
     statusCode: 502,
     body: { error: "Gemini image request failed", fallback: true }
@@ -718,6 +994,57 @@ async function callGeminiImage(payload) {
   const attempted = [];
 
   for (const imageApiKey of imageApiKeys) {
+    const imagenCandidates = await imagenRequestCandidates(imageApiKey);
+    for (const { model, apiVersion } of imagenCandidates) {
+      const endpoint = `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(model)}:predict`;
+      const imagenResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": imageApiKey,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          instances: [{ prompt: buildImagenPrompt(prompt, room) }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: "1:1"
+          }
+        })
+      });
+      const data = await imagenResponse.json().catch(() => ({}));
+      if (imagenResponse.ok) {
+        const image = extractImagenImage(data);
+        if (image.data) {
+          return {
+            statusCode: 200,
+            body: {
+              imageDataUrl: `data:${image.mimeType};base64,${image.data}`,
+              mimeType: image.mimeType,
+              model,
+              apiVersion,
+              requestFormat: "imagen-predict"
+            }
+          };
+        }
+      }
+
+      const errorMessage = data.error?.message || "Imagen image request failed.";
+      attempted.push(`${model} (${apiVersion}, imagen-predict): ${imagenResponse.status}`);
+      lastFailure = {
+        statusCode: imagenResponse.status,
+        body: {
+          error: errorMessage,
+          fallback: true,
+          model,
+          apiVersion,
+          requestFormat: "imagen-predict"
+        }
+      };
+      if (!shouldTryNextImageModel(imagenResponse.status, errorMessage)) {
+        return lastFailure;
+      }
+    }
+
     const candidates = await geminiImageRequestCandidates(imageApiKey);
     for (const { model, apiVersion } of candidates) {
       for (const requestBody of geminiImageRequestBodies(prompt, room)) {
@@ -778,6 +1105,21 @@ async function callGeminiImage(payload) {
       };
       }
     }
+  }
+
+  const freeResult = await callFreeImageFallback(prompt, room, lastFailure.body.error || "Google image request failed.");
+  if (freeResult?.statusCode === 200) {
+    freeResult.body.attemptedModels = attempted.slice(-12);
+    return freeResult;
+  }
+  if (freeResult && lastFailure.statusCode >= 500) {
+    return {
+      statusCode: freeResult.statusCode,
+      body: {
+        ...freeResult.body,
+        attemptedModels: attempted.slice(-12)
+      }
+    };
   }
 
   return {
@@ -863,7 +1205,7 @@ const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "127.0.0.1"}`);
 
   if (request.method === "GET" && url.pathname === "/api/status") {
-    handleStatus(response);
+    await handleStatus(response);
     return;
   }
 
