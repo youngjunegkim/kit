@@ -10,8 +10,15 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2";
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
+const geminiImageModel = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
+const geminiApiKeys = [process.env.GEMINI_API_KEYS, geminiApiKey]
+  .filter(Boolean)
+  .join(",")
+  .split(/[,\n;]/)
+  .map((key) => key.trim())
+  .filter(Boolean);
 let activeProvider = provider;
-let runtimeGeminiApiKey = geminiApiKey || "";
+let runtimeGeminiApiKey = geminiApiKeys[0] || "";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -482,6 +489,7 @@ function handleStatus(response) {
   sendJson(response, 200, {
     provider: activeProvider,
     model: activeProvider === "gemini" ? geminiModel : openaiModel,
+    imageModel: geminiImageModel,
     hasGeminiKey: Boolean(runtimeGeminiApiKey),
     hasOpenAiKey: Boolean(openaiApiKey)
   });
@@ -516,6 +524,154 @@ async function handleChat(request, response) {
   } catch (error) {
     sendJson(response, 502, {
       error: error.message || `${activeProvider} API request failed`,
+      fallback: true
+    });
+  }
+}
+
+function apiVersionForImageModel(model) {
+  return /preview|experimental/i.test(model) ? "v1beta" : "v1";
+}
+
+function normalizeImageText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[.,!?'"`~\-_/\\()[\]{}:;|]/g, "");
+}
+
+function forbiddenImageWordFor(prompt, card) {
+  if (!card || !Array.isArray(card.forbidden)) return "";
+  const compact = normalizeImageText(prompt);
+  return card.forbidden.find((word) => compact.includes(normalizeImageText(word))) || "";
+}
+
+function buildImagePrompt(prompt, room) {
+  return [
+    "Create one classroom-safe image for a Korean middle school guessing game.",
+    "Follow only the scene described by the student's prompt.",
+    "Do not add captions, labels, watermarks, logos, UI, or readable text.",
+    "Use a clear, colorful, realistic classroom-projection friendly style.",
+    room ? `Game room: ${room}.` : "",
+    `Student prompt: ${prompt}`
+  ].filter(Boolean).join("\n");
+}
+
+function extractGeminiImage(data) {
+  const parts = (data.candidates || [])
+    .flatMap((candidate) => candidate.content?.parts || []);
+  const imagePart = parts.find((part) => {
+    const inlineData = part.inlineData || part.inline_data;
+    return inlineData?.data;
+  });
+  const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+  const text = parts.map((part) => part.text || "").filter(Boolean).join("\n").trim();
+
+  if (!inlineData?.data) return { text };
+  return {
+    text,
+    mimeType: inlineData.mimeType || inlineData.mime_type || "image/png",
+    data: inlineData.data
+  };
+}
+
+async function callGeminiImage(payload) {
+  if (!runtimeGeminiApiKey) {
+    return {
+      statusCode: 503,
+      body: { error: "GEMINI_API_KEY is not set", fallback: true }
+    };
+  }
+
+  const prompt = String(payload.prompt || "").trim();
+  const room = String(payload.room || "").trim().slice(0, 80);
+  const endpoint = `https://generativelanguage.googleapis.com/${apiVersionForImageModel(geminiImageModel)}/models/${encodeURIComponent(geminiImageModel)}:generateContent`;
+  const geminiResponse = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": runtimeGeminiApiKey,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: buildImagePrompt(prompt, room) }]
+      }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"]
+      }
+    })
+  });
+
+  const data = await geminiResponse.json().catch(() => ({}));
+  if (!geminiResponse.ok) {
+    return {
+      statusCode: geminiResponse.status,
+      body: {
+        error: data.error?.message || data.promptFeedback?.blockReason || "Gemini image request failed",
+        fallback: true,
+        model: geminiImageModel
+      }
+    };
+  }
+
+  const image = extractGeminiImage(data);
+  if (!image.data) {
+    return {
+      statusCode: 502,
+      body: {
+        error: image.text || data.promptFeedback?.blockReason || "Gemini did not return an image.",
+        fallback: true,
+        model: geminiImageModel
+      }
+    };
+  }
+
+  return {
+    statusCode: 200,
+    body: {
+      imageDataUrl: `data:${image.mimeType};base64,${image.data}`,
+      mimeType: image.mimeType,
+      text: image.text,
+      model: geminiImageModel
+    }
+  };
+}
+
+async function handleGenerateImage(request, response) {
+  let payload;
+  try {
+    payload = JSON.parse(await readBody(request));
+  } catch {
+    sendJson(response, 400, { error: "Invalid JSON body" });
+    return;
+  }
+
+  const prompt = String(payload.prompt || "").trim();
+  if (!prompt) {
+    sendJson(response, 400, { error: "Prompt is required" });
+    return;
+  }
+  if (prompt.length > 900) {
+    sendJson(response, 413, { error: "Prompt is too long.", fallback: true });
+    return;
+  }
+
+  const forbidden = forbiddenImageWordFor(prompt, payload.card);
+  if (forbidden) {
+    sendJson(response, 400, {
+      error: `Forbidden word included: ${forbidden}`,
+      code: "FORBIDDEN_WORD",
+      fallback: true
+    });
+    return;
+  }
+
+  try {
+    const result = await callGeminiImage(payload);
+    sendJson(response, result.statusCode, result.body);
+  } catch (error) {
+    sendJson(response, 502, {
+      error: error.message || "Gemini image request failed",
       fallback: true
     });
   }
@@ -565,6 +721,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "POST" && url.pathname === "/api/chat") {
     await handleChat(request, response);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/generate-image") {
+    await handleGenerateImage(request, response);
     return;
   }
 

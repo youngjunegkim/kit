@@ -28,6 +28,7 @@ module.exports = function handler(request, response) {
   sendJson(response, 200, {
     provider: "gemini",
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    imageModel: process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image",
     hasGeminiKey: getGeminiKeys().length > 0,
     requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
     hasCreditStore: hasPersistentStore()
