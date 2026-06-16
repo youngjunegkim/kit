@@ -17,6 +17,7 @@
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const lastLoginKey = "kit-last-login-id";
   const fullscreenKey = "kit-fullscreen-start";
+  const teacherCodeKey = "kit-teacher-access-code";
 
   function go(path) {
     window.location.href = path;
@@ -104,6 +105,11 @@
         sessionStorage.setItem("kit-auth-team", account.team);
       } else {
         sessionStorage.removeItem("kit-auth-team");
+      }
+      if (account.role === "teacher") {
+        sessionStorage.setItem(teacherCodeKey, passwordInput.value.trim());
+      } else {
+        sessionStorage.removeItem(teacherCodeKey);
       }
       rememberLogin(userIdInput.value.trim().toLowerCase());
       requestFullscreenIfNeeded();
@@ -200,6 +206,7 @@
         sessionStorage.removeItem("kit-auth-role");
         sessionStorage.removeItem("kit-auth-label");
         sessionStorage.removeItem("kit-auth-team");
+        sessionStorage.removeItem(teacherCodeKey);
         go("school.html");
       });
     });

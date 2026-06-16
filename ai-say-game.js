@@ -108,7 +108,7 @@
 
   function ensureTeacherCode() {
     if (state.role !== "teacher" || state.teacherCode) return true;
-    const code = window.prompt("선생님 보안 코드를 입력하세요.");
+    const code = window.prompt("이미지 생성을 위해 선생님 보안 코드를 입력하세요.");
     if (!code || !code.trim()) return false;
     state.teacherCode = code.trim();
     sessionStorage.setItem("kit-teacher-access-code", state.teacherCode);
@@ -146,6 +146,11 @@
   async function generateImage(event) {
     event.preventDefault();
     if (!validatePrompt()) return;
+    if (!ensureTeacherCode()) {
+      captionEl.textContent = "이미지 생성을 하려면 선생님 보안 코드가 필요합니다.";
+      setStatus("코드 필요", "bad");
+      return;
+    }
 
     const prompt = input.value.trim();
     state.waiting = true;
