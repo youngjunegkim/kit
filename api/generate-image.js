@@ -180,10 +180,7 @@ async function callGeminiImage(prompt, room) {
         body: JSON.stringify({
           contents: [{
             parts: [{ text: buildImagePrompt(prompt, room) }]
-          }],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"]
-          }
+          }]
         })
       });
 

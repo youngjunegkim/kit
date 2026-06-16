@@ -605,10 +605,7 @@ async function callGeminiImage(payload) {
     body: JSON.stringify({
       contents: [{
         parts: [{ text: buildImagePrompt(prompt, room) }]
-      }],
-      generationConfig: {
-        responseModalities: ["TEXT", "IMAGE"]
-      }
+      }]
     })
   });
 
