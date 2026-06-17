@@ -276,6 +276,8 @@ function buildQuestionGuide(message) {
     "- 마지막 질문의 핵심에 먼저 답한다. 학생이 꺼낸 단어를 피하거나 다른 주제로 돌리지 않는다.",
     "- 답변 첫 문장에 학생 질문의 핵심 단어를 최소 하나 직접 언급한다.",
     "- 완전 자백이나 최종 수사일지 문장으로 답하지 않는다.",
+    "- '네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하되 질문 속 증거부터 다룬다.",
+    "- 학생에게 되묻기만 하지 말고 최소 한 가지 상황 설명을 제공한다.",
     "- 2~3문장의 완결된 한국어로 답한다."
   ];
 
@@ -595,6 +597,10 @@ function replyQualityIssue(reply, message, payload = {}) {
     return "학생 질문에 답하지 않고 다시 질문을 요구했다.";
   }
 
+  if (!isSimpleGreeting(rawMessage) && /[?？]\s*$/.test(text)) {
+    return "학생 질문에 답하지 않고 확인 질문으로 되물었다.";
+  }
+
   const focus = questionFocusFor(rawMessage);
   if (focus.answerPatterns.length && !focus.answerPatterns.some((pattern) => pattern.test(text))) {
     return `학생 질문의 초점(${focus.labels.slice(0, 3).join(", ")})을 직접 다루지 않았다.`;
@@ -629,6 +635,8 @@ function buildRepairInstruction(issue, badReply, message) {
     "같은 페르소나로 다시 답하라.",
     "학생 질문의 핵심 단어를 첫 문장에 직접 언급하라.",
     "다른 주제로 돌리지 말고 질문에 맞는 상황만 답하라.",
+    "확인 질문으로 되묻지 말고, 인물이 아는 범위에서 바로 해명하라.",
+    "'네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하라.",
     "정답을 완전히 자백하지 말고, 단서가 드러나는 정도로 답하라.",
     "말줄임표나 끊긴 문장으로 끝내지 말고 완결된 문장으로 답하라.",
     "2~3문장의 완결된 한국어로 답하라."
@@ -688,8 +696,8 @@ async function requestGeminiCandidate(endpoint, apiKey, message, history, payloa
         }
       ],
       generationConfig: {
-        temperature: 0.85,
-        topP: 0.95,
+        temperature: 0.65,
+        topP: 0.9,
         maxOutputTokens: 420,
         responseMimeType: "text/plain"
       }
