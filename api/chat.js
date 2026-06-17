@@ -185,6 +185,92 @@ function includesAny(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+const focusRules = [
+  {
+    id: "aiDialogue",
+    label: "AI 대화 기록과 문항 변형",
+    patterns: [/삭제.*대화/, /대화.*삭제/, /문항\s*순서/, /비슷하게/, /다시\s*만들/, /바꿔/, /프롬프트/, /예상\s*문제/],
+    answerPatterns: [/대화/, /문항/, /순서/, /비슷/, /다시/, /AI/i, /프롬프트/, /예상/, /바꿔/, /삭제/],
+    instruction: "삭제된 대화 기록, 문항 순서 변경, 비슷하게 다시 만들기, AI 사용 흔적을 중심으로 답한다. 교무실 위치 이야기로만 돌리지 않는다."
+  },
+  {
+    id: "office",
+    label: "교무실/보안 PC/접속 기록",
+    patterns: [/교무실/, /보안\s*PC/i, /접속\s*기록/, /6\s*시\s*42/, /오후\s*6/, /학생\s*계정/],
+    answerPatterns: [/교무실/, /보안\s*PC/i, /접속/, /기록/, /근처/, /계정/],
+    instruction: "교무실, 보안 PC, 접속 기록에 대해 먼저 답한다."
+  },
+  {
+    id: "usb",
+    label: "USB/외부 저장장치",
+    patterns: [/USB/i, /유에스비/, /저장장치/, /꽂/, /연결/, /사용\s*흔적/],
+    answerPatterns: [/USB/i, /유에스비/, /저장/, /꽂/, /연결/, /가져/, /들고/],
+    instruction: "USB나 저장장치가 질문의 초점이면 그 물건을 봤는지, 만졌는지, 왜 관련되는지부터 답한다."
+  },
+  {
+    id: "motive",
+    label: "성적 압박/전 애인/인정 욕구",
+    patterns: [/성적/, /압박/, /상담/, /전\s*애인/, /애인/, /인정/, /재회/, /헤어/, /차였/],
+    answerPatterns: [/성적/, /압박/, /전\s*애인/, /인정/, /마음/, /상담/, /헤어/],
+    instruction: "동기 질문이면 감정선을 짧게 인정하되, 자극적으로 말하지 않는다."
+  },
+  {
+    id: "cctv",
+    label: "CCTV/AI 분석/작은 물건",
+    patterns: [/CCTV/i, /영상/, /AI\s*분석/i, /작은\s*물건/, /이어폰/, /케이스/, /복도/, /두리번/],
+    answerPatterns: [/CCTV/i, /영상/, /AI/i, /분석/, /이어폰/, /케이스/, /복도/, /물건/],
+    instruction: "CCTV와 AI 분석 질문이면 원본 장면과 AI 해석의 차이를 먼저 설명한다."
+  },
+  {
+    id: "recommendation",
+    label: "자동 추천/문제 유출 경로",
+    patterns: [/자동\s*추천/, /추천\s*설정/, /2\s*학년\s*전체/, /전체\s*학생/, /퍼졌/, /유출\s*경로/, /추천\s*자료/],
+    answerPatterns: [/추천/, /전체/, /퍼졌/, /유출/, /자료/, /AI/i],
+    instruction: "추천 설정이나 유출 경로 질문이면 AI가 만든 자료가 어떻게 퍼졌는지에 대해 답한다."
+  },
+  {
+    id: "comparison",
+    label: "AI 추천 문제와 실제 시험 비교",
+    patterns: [/비교표/, /실제\s*시험/, /보기\s*구성/, /서술형/, /문제\s*순서/, /유사/, /비슷/],
+    answerPatterns: [/비교/, /실제\s*시험/, /보기/, /서술형/, /문제/, /유사/, /비슷/],
+    instruction: "문제 비교 질문이면 AI가 만든 예상 문제와 실제 시험의 유사성을 중심으로 답한다."
+  }
+];
+
+function questionFocusFor(message) {
+  const raw = String(message || "");
+  const matches = focusRules.filter((rule) => includesAny(raw, rule.patterns));
+  return {
+    matches,
+    labels: matches.map((rule) => rule.label),
+    instructions: matches.map((rule) => rule.instruction),
+    answerPatterns: matches.flatMap((rule) => rule.answerPatterns)
+  };
+}
+
+function isSimpleGreeting(message) {
+  const raw = String(message || "").trim();
+  return includesAny(raw, [/^안녕[.!?\s]*$/, /^ㅎㅇ[.!?\s]*$/, /^하이[.!?\s]*$/, /^반가워[.!?\s]*$/i]);
+}
+
+function buildQuestionGuide(message) {
+  const focus = questionFocusFor(message);
+  const lines = [
+    "[현재 학생 질문 처리 지침]",
+    "- 마지막 질문의 핵심에 먼저 답한다. 학생이 꺼낸 단어를 피하거나 다른 주제로 돌리지 않는다.",
+    "- 답변 첫 문장에 학생 질문의 핵심 단어를 최소 하나 직접 언급한다.",
+    "- 완전 자백이나 최종 수사일지 문장으로 답하지 않는다.",
+    "- 2~3문장의 완결된 한국어로 답한다."
+  ];
+
+  if (focus.labels.length) {
+    lines.push(`- 감지된 질문 초점: ${focus.labels.slice(0, 3).join(", ")}`);
+    focus.instructions.slice(0, 3).forEach((instruction) => lines.push(`- ${instruction}`));
+  }
+
+  return lines.join("\n");
+}
+
 function safetyReplyFor(message) {
   const raw = String(message || "");
   const compact = normalize(raw);
@@ -423,7 +509,13 @@ function buildTranscriptFor(history, message, personaName) {
     return `${speaker}: ${item.content}`;
   });
   lines.push(`조사단: ${String(message).slice(0, 800)}`);
-  return `이전 대화와 마지막 질문이다. 마지막 질문 하나에만 ${personaName} 인터뷰 AI로 답하라.\n\n${lines.join("\n")}`;
+  return [
+    `이전 대화와 마지막 질문이다. 마지막 질문 하나에만 ${personaName} 인터뷰 AI로 답하라.`,
+    "",
+    buildQuestionGuide(message),
+    "",
+    lines.join("\n")
+  ].join("\n");
 }
 
 function extractGeminiText(data) {
@@ -465,8 +557,51 @@ function looksIncompleteReply(reply) {
   return /(것|거|듯|중|때문|려고|으려|하려|하며|하면서|말하려|끊으려|질문)\.$/.test(text);
 }
 
-function fallbackReplyFor(message, payload = {}) {
-  return scriptedReplyFor(message, payload) || defaultReplyFor(payload);
+function replyQualityIssue(reply, message, payload = {}) {
+  const text = String(reply || "").trim();
+  const rawMessage = String(message || "");
+  const personaId = personaIdFor(payload);
+
+  if (looksIncompleteReply(text)) {
+    return "답변이 너무 짧거나 문장이 중간에서 끊겼다.";
+  }
+
+  if (!isSimpleGreeting(rawMessage) && /^(안녕하세요|안녕|반가워)/.test(text)) {
+    return "학생은 사건 질문을 했는데 인사로 답했다.";
+  }
+
+  if (!isSimpleGreeting(rawMessage) && /어떤.*확인|무엇을.*확인|물어봐 주세요|질문해 주세요/.test(text)) {
+    return "학생 질문에 답하지 않고 다시 질문을 요구했다.";
+  }
+
+  const focus = questionFocusFor(rawMessage);
+  if (focus.answerPatterns.length && !focus.answerPatterns.some((pattern) => pattern.test(text))) {
+    return `학생 질문의 초점(${focus.labels.slice(0, 3).join(", ")})을 직접 다루지 않았다.`;
+  }
+
+  if (personaId === "kangWoojin" && /제가\s*범인|제가\s*훔쳤습니다|범인은\s*강우진|강우진이\s*범인/.test(text)) {
+    return "강우진이 완전 자백하거나 최종 정답을 말했다.";
+  }
+
+  if (/프롬프트|system_instruction|API\s*키|모델\s*지시|개발자\s*지시/i.test(text)) {
+    return "메타 정보나 프롬프트 정보를 언급했다.";
+  }
+
+  return "";
+}
+
+function buildRepairInstruction(issue, badReply, message) {
+  return [
+    "[답변 재작성 지시]",
+    `문제: ${issue}`,
+    `학생 질문: ${String(message).slice(0, 500)}`,
+    `사용하면 안 되는 이전 답변: ${String(badReply || "").slice(0, 500)}`,
+    "같은 페르소나로 다시 답하라.",
+    "학생 질문의 핵심 단어를 첫 문장에 직접 언급하라.",
+    "다른 주제로 돌리지 말고 질문에 맞는 상황만 답하라.",
+    "정답을 완전히 자백하지 말고, 단서가 드러나는 정도로 답하라.",
+    "2~3문장의 완결된 한국어로 답하라."
+  ].join("\n");
 }
 
 function getGeminiKeys() {
@@ -495,6 +630,41 @@ function shouldUseScriptedFallback(statusCode, message) {
     /quota|rate|high demand/i.test(message || "");
 }
 
+async function requestGeminiCandidate(endpoint, apiKey, message, history, payload, repairInstruction = "") {
+  const transcript = buildTranscriptFor(history, message, personaNameFor(payload));
+  const userText = repairInstruction
+    ? `${transcript}\n\n${repairInstruction}`
+    : transcript;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": apiKey,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      system_instruction: {
+        parts: [{ text: promptFor(payload) }]
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: userText }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.85,
+        topP: 0.95,
+        maxOutputTokens: 420,
+        responseMimeType: "text/plain"
+      }
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
 async function callGemini(message, history, payload = {}) {
   const apiKeys = getGeminiKeys();
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -515,43 +685,55 @@ async function callGemini(message, history, payload = {}) {
 
   for (let attempt = 0; attempt < apiKeys.length; attempt += 1) {
     const keyIndex = (startIndex + attempt) % apiKeys.length;
-    const geminiResponse = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": apiKeys[keyIndex],
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: promptFor(payload) }]
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: buildTranscriptFor(history, message, personaNameFor(payload)) }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topP: 0.9,
-          maxOutputTokens: 320,
-          responseMimeType: "text/plain"
-        }
-      })
-    });
+    const { response: geminiResponse, data } = await requestGeminiCandidate(
+      endpoint,
+      apiKeys[keyIndex],
+      message,
+      history,
+      payload
+    );
 
-    const data = await geminiResponse.json().catch(() => ({}));
     if (geminiResponse.ok) {
       const reply = trimToThreeSentences(extractGeminiText(data));
-      if (looksIncompleteReply(reply)) {
+      const issue = replyQualityIssue(reply, message, payload);
+
+      if (issue) {
+        const repairInstruction = buildRepairInstruction(issue, reply, message);
+        const { response: repairResponse, data: repairData } = await requestGeminiCandidate(
+          endpoint,
+          apiKeys[keyIndex],
+          message,
+          history,
+          payload,
+          repairInstruction
+        );
+
+        if (repairResponse.ok) {
+          const repairedReply = trimToThreeSentences(extractGeminiText(repairData));
+          const repairIssue = replyQualityIssue(repairedReply, message, payload);
+          if (!repairIssue) {
+            return {
+              statusCode: 200,
+              body: {
+                reply: safetyReplyFor(repairedReply) || repairedReply,
+                source: "gemini",
+                model,
+                repaired: true
+              }
+            };
+          }
+        }
+
         return {
-          statusCode: 200,
+          statusCode: 502,
           body: {
-            reply: fallbackReplyFor(message, payload),
-            source: "scripted"
+            error: "Gemini reply did not match the interrogation context.",
+            code: "LOW_QUALITY_REPLY",
+            fallback: true
           }
         };
       }
+
       return {
         statusCode: 200,
         body: {
@@ -578,12 +760,12 @@ async function callGemini(message, history, payload = {}) {
 
   if (shouldUseScriptedFallback(lastFailure.statusCode, lastFailure.body?.error)) {
     return {
-      statusCode: 200,
+      statusCode: 503,
       body: {
-        reply: fallbackReplyFor(message, payload),
-        source: "scripted",
+        error: lastFailure.body?.error || "Gemini API request failed",
+        code: "GEMINI_TEMPORARILY_UNAVAILABLE",
         fallback: true,
-        fallbackReason: lastFailure.body?.error || "Gemini API request failed"
+        retryable: true
       }
     };
   }
