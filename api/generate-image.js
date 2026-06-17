@@ -28,6 +28,15 @@ function headerValue(request, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function decodedHeaderValue(request, name) {
+  const value = String(headerValue(request, name) || "").trim();
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function clientIdFor(request) {
   const forwarded = headerValue(request, "x-forwarded-for");
   return String(forwarded || request.socket?.remoteAddress || "unknown").split(",")[0].trim();
@@ -36,7 +45,7 @@ function clientIdFor(request) {
 function isAuthorized(request) {
   const accessCode = process.env.CLASS_ACCESS_CODE;
   if (!accessCode) return true;
-  return String(headerValue(request, "x-class-code") || "") === accessCode;
+  return decodedHeaderValue(request, "x-class-code") === accessCode;
 }
 
 function teacherAccessCode() {
@@ -46,7 +55,7 @@ function teacherAccessCode() {
 function isTeacherAuthorized(request) {
   const accessCode = teacherAccessCode();
   if (!accessCode) return true;
-  return String(headerValue(request, "x-teacher-code") || "").trim() === accessCode;
+  return decodedHeaderValue(request, "x-teacher-code") === accessCode;
 }
 
 function isTooLargePayload(payload) {

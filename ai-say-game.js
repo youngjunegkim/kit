@@ -141,13 +141,21 @@
     return true;
   }
 
+  function safeHeaderValue(value) {
+    return encodeURIComponent(String(value || "").trim());
+  }
+
+  function safeRoleHeader(value) {
+    return value === "student" || value === "teacher" ? value : "teacher";
+  }
+
   function authHeaders() {
     const headers = {
       "content-type": "application/json",
-      "x-kit-role": state.role || "teacher"
+      "x-kit-role": safeRoleHeader(state.role)
     };
-    if (state.accessCode) headers["x-class-code"] = state.accessCode;
-    if (state.teacherCode) headers["x-teacher-code"] = state.teacherCode;
+    if (state.accessCode) headers["x-class-code"] = safeHeaderValue(state.accessCode);
+    if (state.teacherCode) headers["x-teacher-code"] = safeHeaderValue(state.teacherCode);
     return headers;
   }
 
