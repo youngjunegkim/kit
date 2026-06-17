@@ -635,6 +635,10 @@ function buildRepairInstruction(issue, badReply, message) {
   ].filter(Boolean).join("\n");
 }
 
+function canUseSoftQualityReply(reply, issue) {
+  return /^학생 질문의 초점/.test(String(issue || "")) && !looksIncompleteReply(reply);
+}
+
 function getGeminiKeys() {
   const rawKeys = [process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY]
     .filter(Boolean)
@@ -753,6 +757,7 @@ async function callGemini(message, history, payload = {}) {
               }
             };
           }
+          let softRepairReply = canUseSoftQualityReply(repairedReply, repairIssue) ? repairedReply : "";
 
           const finalRepairInstruction = [
             buildRepairInstruction(repairIssue, repairedReply, message),
@@ -773,7 +778,7 @@ async function callGemini(message, history, payload = {}) {
           if (finalRepairResponse.ok) {
             const finalReply = trimToThreeSentences(extractGeminiText(finalRepairData));
             const finalIssue = replyQualityIssue(finalReply, message, payload);
-            if (!finalIssue) {
+            if (!finalIssue || canUseSoftQualityReply(finalReply, finalIssue)) {
               return {
                 statusCode: 200,
                 body: {
@@ -781,10 +786,24 @@ async function callGemini(message, history, payload = {}) {
                   source: "gemini",
                   model,
                   repaired: true,
-                  repairAttempts: 2
+                  repairAttempts: 2,
+                  qualityWarning: finalIssue || undefined
                 }
               };
             }
+          }
+
+          if (softRepairReply) {
+            return {
+              statusCode: 200,
+              body: {
+                reply: safetyReplyFor(softRepairReply) || softRepairReply,
+                source: "gemini",
+                model,
+                repaired: true,
+                qualityWarning: repairIssue
+              }
+            };
           }
         }
 
