@@ -128,7 +128,7 @@
   function detectHints(raw, compact) {
     return {
       time: includesAny(raw, [/5\s*시\s*20/, /오후\s*5/, /다섯\s*시/, /기말고사\s*전날/, /축구부\s*연습/, /연습\s*끝/]),
-      relationship: includesAny(raw, [/전교\s*1\s*등/, /여친/, /여자친구/, /헤어/, /차였/, /재회/, /다시\s*만나/, /인정받/]),
+      relationship: includesAny(raw, [/전교\s*1\s*등/, /전\s*애인/, /애인/, /여친/, /여자친구/, /헤어/, /차였/, /재회/, /다시\s*만나/, /인정받/]),
       officeItem: includesAny(compact, [/교무실/, /usb/i, /유에스비/, /학습도우미/, /ai학습도우미/i, /예상문제/, /시험지/]),
       contradiction: includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓/, /환각/, /아니잖아/])
     };
@@ -214,7 +214,7 @@
     }
 
     if (hints.relationship) {
-      return "전교 1등인 그 친구 얘기는 좀 조심스러워요. 헤어진 뒤에 다시 인정받고 싶었던 마음은 있었지만, 그게 이렇게 큰일이 될 줄은 몰랐어요.";
+      return "전교 1등이던 전 애인 얘기는 좀 조심스러워요. 헤어진 뒤에 다시 인정받고 싶었던 마음은 있었지만, 그게 이렇게 큰일이 될 줄은 몰랐어요.";
     }
 
     if (hints.time) {
