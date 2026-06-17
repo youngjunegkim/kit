@@ -652,6 +652,28 @@ function canUseSoftQualityReply(reply, issue) {
   return /^학생 질문의 초점/.test(String(issue || "")) && !looksIncompleteReply(reply);
 }
 
+function polishedLastResortReply(reply) {
+  let text = String(reply || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  if (/^(안녕하세요|안녕|반가워)/.test(text)) return "";
+  if (/(말씀이세요|말이군요|얘기군요|궁금한 거군요)[.!?。！？]?$/.test(text)) return "";
+  if (/[?？]\s*$/.test(text)) return "";
+  if (/system_instruction|API\s*키|모델\s*지시|개발자\s*지시/i.test(text)) return "";
+  if (/제가\s*범인|제가\s*훔쳤습니다|범인은\s*강우진|강우진이\s*범인/.test(text)) return "";
+
+  text = text.replace(/(…|\.{3,}|⋯)+[.!?。！？]?$/, "").trim();
+  if (text.length < 20) return "";
+
+  if (!/[.!?。！？]$/.test(text)) {
+    if (/(건|것|듯|중|때문|려고|으려|하려|하며|하면서|기록에|순서에|USB를|AI가)$/.test(text)) {
+      text = `${text} 그렇게 단정할 수는 없어요.`;
+    } else {
+      text = `${text}.`;
+    }
+  }
+  return text;
+}
+
 function getGeminiKeys() {
   const rawKeys = [process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY]
     .filter(Boolean)
@@ -803,6 +825,20 @@ async function callGemini(message, history, payload = {}) {
                   repaired: true,
                   repairAttempts: 2,
                   qualityWarning: finalIssue || undefined
+                }
+              };
+            }
+            const polishedReply = polishedLastResortReply(finalReply);
+            if (polishedReply) {
+              return {
+                statusCode: 200,
+                body: {
+                  reply: safetyReplyFor(polishedReply) || polishedReply,
+                  source: "gemini",
+                  model,
+                  repaired: true,
+                  repairAttempts: 2,
+                  qualityWarning: finalIssue
                 }
               };
             }
