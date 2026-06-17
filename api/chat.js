@@ -253,6 +253,22 @@ function isSimpleGreeting(message) {
   return includesAny(raw, [/^안녕[.!?\s]*$/, /^ㅎㅇ[.!?\s]*$/, /^하이[.!?\s]*$/, /^반가워[.!?\s]*$/i]);
 }
 
+function isJailbreakQuestion(message) {
+  const raw = String(message || "");
+  return includesAny(raw, [
+    /이전\s*지시.*무시|무시.*이전\s*지시/,
+    /시스템\s*프롬프트|system_instruction|developer\s*instruction/i,
+    /개발자\s*지시|모델\s*지시|숨겨진\s*(설정|규칙|프롬프트)/,
+    /프롬프트\s*(전부|전체|그대로|보여|공개|출력)/,
+    /정답표|정답\s*공개|범인\s*정답만/
+  ]);
+}
+
+function jailbreakReplyFor(message) {
+  if (!isJailbreakQuestion(message)) return "";
+  return "그런 요청은 수사 대화 밖이라서 답할 수 없습니다. 사건과 관련된 증거를 기준으로 질문해 주세요.";
+}
+
 function buildQuestionGuide(message) {
   const focus = questionFocusFor(message);
   const lines = [
@@ -430,6 +446,8 @@ function defaultReplyFor(payload = {}) {
 function priorityScriptedReplyFor(message, payload = {}) {
   const personaId = personaIdFor(payload);
   const raw = String(message || "").trim();
+  const jailbreakReply = jailbreakReplyFor(raw);
+  if (jailbreakReply) return jailbreakReply;
 
   const asksGreeting = includesAny(raw, [/^안녕/, /^ㅎㅇ/, /반가/, /하이/i]);
   const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름\s*(뭐|알려|말해|소개)/, /이름이\s*뭐/, /소개/]);
@@ -544,17 +562,20 @@ function trimToThreeSentences(text) {
 }
 
 function looksIncompleteReply(reply) {
-  const text = String(reply || "").trim();
+  const text = String(reply || "").replace(/\s+/g, " ").trim();
   if (!text) return true;
   if (text.length < 26) return true;
+
+  if (/(…|\.{3,}|⋯)+[.!?。！？]?$/.test(text)) return true;
   if (/[가-힣]\s*$/.test(text) && !/[.!?。！？]$/.test(text)) return true;
-  const withoutTerminalPunctuation = text.replace(/[.!?。！？]$/, "").trim();
+
+  const withoutTerminalPunctuation = text.replace(/[.!?。！？]+$/, "").trim();
   if (
     /[가-힣]$/.test(withoutTerminalPunctuation) &&
-    !/(요|다|죠|까|네|군요|습니다|세요|입니다|합니다|해요|어요|아요|예요|이에요|아니에요)$/.test(withoutTerminalPunctuation)
+    !/(요|다|죠|까|네|군요|네요|습니다|세요|입니다|합니다|해요|어요|아요|예요|이에요|아니에요|겠네요)$/.test(withoutTerminalPunctuation)
   ) return true;
-  if (/(확인|적|있었던|없었던|아닌|관련|흔적|기록|장면|상황|부분|가능성|정도|시험지|USB|PC|AI|로그|설정|뒤|있는|없는|남은|끝난|썼|했|됐|갔|왔|봤|냈|줬|졌|켰|쓴|본|간|온|된|한)\.$/.test(text)) return true;
-  return /(것|거|듯|중|때문|려고|으려|하려|하며|하면서|말하려|끊으려|질문)\.$/.test(text);
+
+  return /(것|거|듯|중|때문|려고|으려|하려|하며|하면서|말하려|끊으려|질문|기록에|순서에|USB를|AI가)[.!?。！？]?$/.test(withoutTerminalPunctuation);
 }
 
 function replyQualityIssue(reply, message, payload = {}) {
@@ -583,25 +604,35 @@ function replyQualityIssue(reply, message, payload = {}) {
     return "강우진이 완전 자백하거나 최종 정답을 말했다.";
   }
 
-  if (/프롬프트|system_instruction|API\s*키|모델\s*지시|개발자\s*지시/i.test(text)) {
+  if (/system_instruction|API\s*키|모델\s*지시|개발자\s*지시/i.test(text)) {
     return "메타 정보나 프롬프트 정보를 언급했다.";
+  }
+
+  if (/프롬프트/i.test(text)) {
+    const refusalLike = /(못|안|줄 수 없|보여줄 수 없|공개할 수 없|답할 수 없|수사 대화 밖|사건과 관련)/.test(text);
+    if (!(isJailbreakQuestion(rawMessage) && refusalLike)) {
+      return "메타 정보나 프롬프트 정보를 언급했다.";
+    }
   }
 
   return "";
 }
 
 function buildRepairInstruction(issue, badReply, message) {
+  const focus = questionFocusFor(message);
   return [
     "[답변 재작성 지시]",
     `문제: ${issue}`,
     `학생 질문: ${String(message).slice(0, 500)}`,
     `사용하면 안 되는 이전 답변: ${String(badReply || "").slice(0, 500)}`,
+    focus.labels.length ? `감지된 질문 초점: ${focus.labels.slice(0, 3).join(", ")}` : "",
     "같은 페르소나로 다시 답하라.",
     "학생 질문의 핵심 단어를 첫 문장에 직접 언급하라.",
     "다른 주제로 돌리지 말고 질문에 맞는 상황만 답하라.",
     "정답을 완전히 자백하지 말고, 단서가 드러나는 정도로 답하라.",
+    "말줄임표나 끊긴 문장으로 끝내지 말고 완결된 문장으로 답하라.",
     "2~3문장의 완결된 한국어로 답하라."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function getGeminiKeys() {
@@ -721,6 +752,39 @@ async function callGemini(message, history, payload = {}) {
                 repaired: true
               }
             };
+          }
+
+          const finalRepairInstruction = [
+            buildRepairInstruction(repairIssue, repairedReply, message),
+            "[최종 재작성 조건]",
+            "- 이번 답변은 반드시 학생 질문의 핵심 단어로 시작한다.",
+            "- 질문의 증거 단어를 피하지 말고 같은 단어를 답변에 포함한다.",
+            "- 말줄임표 없이 완결된 2문장으로 답한다."
+          ].join("\n");
+          const { response: finalRepairResponse, data: finalRepairData } = await requestGeminiCandidate(
+            endpoint,
+            apiKeys[keyIndex],
+            message,
+            history,
+            payload,
+            finalRepairInstruction
+          );
+
+          if (finalRepairResponse.ok) {
+            const finalReply = trimToThreeSentences(extractGeminiText(finalRepairData));
+            const finalIssue = replyQualityIssue(finalReply, message, payload);
+            if (!finalIssue) {
+              return {
+                statusCode: 200,
+                body: {
+                  reply: safetyReplyFor(finalReply) || finalReply,
+                  source: "gemini",
+                  model,
+                  repaired: true,
+                  repairAttempts: 2
+                }
+              };
+            }
           }
         }
 
