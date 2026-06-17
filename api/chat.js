@@ -278,6 +278,7 @@ function buildQuestionGuide(message) {
     "- 완전 자백이나 최종 수사일지 문장으로 답하지 않는다.",
     "- '네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하되 질문 속 증거부터 다룬다.",
     "- 학생에게 되묻기만 하지 말고 최소 한 가지 상황 설명을 제공한다.",
+    "- 물음표나 말줄임표로 끝나는 답변을 쓰지 않는다.",
     "- 2~3문장의 완결된 한국어로 답한다."
   ];
 
@@ -601,6 +602,10 @@ function replyQualityIssue(reply, message, payload = {}) {
     return "학생 질문에 답하지 않고 확인 질문으로 되물었다.";
   }
 
+  if (!isSimpleGreeting(rawMessage) && /(말씀이세요|말이군요|얘기군요|궁금한 거군요)[.!?。！？]?$/.test(text) && text.length < 90) {
+    return "학생 질문에 답하지 않고 확인만 했다.";
+  }
+
   const focus = questionFocusFor(rawMessage);
   if (focus.answerPatterns.length && !focus.answerPatterns.some((pattern) => pattern.test(text))) {
     return `학생 질문의 초점(${focus.labels.slice(0, 3).join(", ")})을 직접 다루지 않았다.`;
@@ -772,7 +777,9 @@ async function callGemini(message, history, payload = {}) {
             "[최종 재작성 조건]",
             "- 이번 답변은 반드시 학생 질문의 핵심 단어로 시작한다.",
             "- 질문의 증거 단어를 피하지 말고 같은 단어를 답변에 포함한다.",
-            "- 말줄임표 없이 완결된 2문장으로 답한다."
+            "- 물음표를 쓰지 않는다.",
+            "- 말줄임표 없이 완결된 2문장으로 답한다.",
+            "- 확인만 하지 말고 사건 시간, 행동, 이유 중 하나를 진술문으로 설명한다."
           ].join("\n");
           const { response: finalRepairResponse, data: finalRepairData } = await requestGeminiCandidate(
             endpoint,
