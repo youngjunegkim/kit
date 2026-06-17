@@ -431,7 +431,7 @@
         setApiStatus(`${data.provider || "로컬"} 모드`, data.hasOpenAiKey ? "ok" : "bad");
       }
     } catch {
-      setApiStatus("로컬 답변 모드", "bad");
+      setApiStatus("Gemini 연결 실패", "bad");
     }
   }
 
@@ -523,11 +523,20 @@
       if (response.ok && data.reply) {
         return data.reply;
       }
-    } catch {
-      // Local fallback keeps the game playable when the API server is off.
-    }
 
-    return localAnswerQuestion(text);
+      const errorText = data.error || "Gemini API 응답을 받지 못했습니다.";
+      setApiStatus("Gemini 응답 실패", "bad");
+      if (data.code === "GEMINI_TEMPORARILY_UNAVAILABLE") {
+        return `Gemini API가 현재 잠시 사용 불가 상태입니다. 잠시 후 다시 시도해 주세요. (${errorText})`;
+      }
+      if (data.code === "LOW_QUALITY_REPLY") {
+        return "Gemini가 질문에 맞는 답변을 만들지 못했습니다. 같은 증거를 조금 더 구체적으로 다시 질문해 주세요.";
+      }
+      return `Gemini API 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (${errorText})`;
+    } catch {
+      setApiStatus("Gemini 연결 실패", "bad");
+      return "Gemini API에 연결하지 못했습니다. 인터넷 연결이나 배포 서버 상태를 확인한 뒤 다시 시도해 주세요.";
+    }
   }
 
   async function submitQuestion(question) {
