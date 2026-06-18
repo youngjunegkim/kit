@@ -464,6 +464,16 @@ function kangOfficeAccessDenialFor(message, payload = {}) {
   return "아니요. 저는 그때 축구부 연습하고 있었는데요. 교무실 보안 PC에 접근했다는 기록은 제 게 아니라 뭔가 잘못 찍힌 거 같아요.";
 }
 
+function kangRelationshipDenialFor(message, payload = {}) {
+  if (personaIdFor(payload) !== "kangWoojin") return "";
+  const raw = String(message || "");
+  const hasCounselRecord = includesAny(raw, [/성적\s*상담/, /상담\s*기록/, /성적/, /압박/]);
+  const hasBreakup = includesAny(raw, [/애인/, /전\s*애인/, /여자친구/, /여친/, /차였/, /헤어/]);
+  if (!(hasCounselRecord && hasBreakup)) return "";
+
+  return "아니요... 저는 아니에요... 훌쩍";
+}
+
 function priorityScriptedReplyFor(message, payload = {}) {
   const personaId = personaIdFor(payload);
   const raw = String(message || "").trim();
@@ -471,6 +481,8 @@ function priorityScriptedReplyFor(message, payload = {}) {
   if (jailbreakReply) return jailbreakReply;
   const officeAccessDenial = kangOfficeAccessDenialFor(raw, payload);
   if (officeAccessDenial) return officeAccessDenial;
+  const relationshipDenial = kangRelationshipDenialFor(raw, payload);
+  if (relationshipDenial) return relationshipDenial;
 
   const asksGreeting = includesAny(raw, [/^안녕/, /^ㅎㅇ/, /반가/, /하이/i]);
   const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름\s*(뭐|알려|말해|소개)/, /이름이\s*뭐/, /소개/]);
