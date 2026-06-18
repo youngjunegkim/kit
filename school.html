@@ -273,6 +273,37 @@
       accent-color: #f3342f;
     }
 
+    .board-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 46px;
+      margin-top: 18px;
+      border-radius: 6px;
+      background: #101826;
+      color: #fff;
+      font-weight: 950;
+    }
+
+    .board-action-btn:hover,
+    .board-action-btn:focus-visible {
+      background: #243146;
+      outline: none;
+    }
+
+    .board-action-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.16);
+      font-size: 0.84rem;
+      line-height: 1;
+    }
+
     .submit-btn {
       position: relative;
       width: 100%;
@@ -342,6 +373,145 @@
 
     .account-note strong {
       color: #243146;
+    }
+
+    body.is-board-open {
+      overflow: hidden;
+    }
+
+    .board-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 8, 17, 0.84);
+      backdrop-filter: blur(8px);
+    }
+
+    .board-viewer[hidden] {
+      display: none;
+    }
+
+    .board-viewer-dialog {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      width: min(1500px, calc(100vw - 48px));
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+    }
+
+    .board-viewer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: #fff;
+    }
+
+    .board-viewer-title {
+      font-size: 1rem;
+      font-weight: 950;
+    }
+
+    .board-close-btn {
+      min-width: 54px;
+      min-height: 40px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      color: #fff;
+      font-weight: 950;
+    }
+
+    .board-close-btn:hover,
+    .board-close-btn:focus-visible {
+      background: rgba(255, 255, 255, 0.24);
+      outline: none;
+    }
+
+    .board-viewer-frame {
+      display: grid;
+      grid-template-columns: minmax(260px, 350px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+      min-height: 0;
+    }
+
+    .board-rule-panel {
+      align-self: stretch;
+      display: grid;
+      align-content: center;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+      padding: 24px;
+      color: #18202b;
+    }
+
+    .board-rule-kicker {
+      width: fit-content;
+      border-radius: 999px;
+      background: #e6fffb;
+      color: #04756b;
+      padding: 7px 11px;
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .board-rule-panel h3 {
+      margin: 13px 0 16px;
+      color: #101826;
+      font-size: 1.38rem;
+      line-height: 1.18;
+      font-weight: 950;
+    }
+
+    .board-rule-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .board-rule-item {
+      display: grid;
+      gap: 5px;
+      border-radius: 7px;
+      background: #f7fafc;
+      border: 1px solid #e2e9f2;
+      padding: 12px;
+    }
+
+    .board-rule-item strong {
+      color: #0f766e;
+      font-size: 0.98rem;
+      font-weight: 950;
+    }
+
+    .board-rule-item span {
+      color: #344154;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      font-weight: 850;
+    }
+
+    .board-image-wrap {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .board-image-wrap img {
+      display: block;
+      max-width: 100%;
+      max-height: calc(100vh - 112px);
+      border-radius: 8px;
+      background: #eadbc0;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+      object-fit: contain;
     }
 
     .student-guide {
@@ -434,6 +604,42 @@
       .role-picker {
         grid-template-columns: 1fr;
       }
+
+      .board-viewer {
+        padding: 12px;
+      }
+
+      .board-viewer-dialog {
+        width: 100%;
+        max-height: calc(100vh - 24px);
+      }
+
+      .board-viewer-frame {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .board-rule-panel {
+        padding: 16px;
+      }
+
+      .board-rule-panel h3 {
+        margin-bottom: 12px;
+        font-size: 1.12rem;
+      }
+
+      .board-rule-list {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .board-rule-item {
+        padding: 10px;
+      }
+
+      .board-image-wrap img {
+        max-height: calc(100vh - 92px);
+      }
     }
   </style>
 </head>
@@ -468,6 +674,11 @@
       <div class="login-kicker">접근 권한 확인</div>
       <h2>AI 수사단 로그인</h2>
       <p>역할을 선택한 뒤 아이디와 비밀번호를 입력하세요.</p>
+
+      <button class="board-action-btn" type="button" data-board-open>
+        <span class="board-action-icon" aria-hidden="true">▦</span>
+        보드게임판
+      </button>
 
       <div class="role-picker" aria-label="역할 빠른 선택">
         <button class="role-btn" type="button" data-role-preset="">
@@ -512,6 +723,42 @@
     </section>
   </main>
 
+  <section class="board-viewer" data-board-viewer hidden aria-label="보드게임판 보기">
+    <div class="board-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="boardViewerTitle">
+      <div class="board-viewer-toolbar">
+        <div class="board-viewer-title" id="boardViewerTitle">보드게임판</div>
+        <button class="board-close-btn" type="button" data-board-close aria-label="보드게임판 닫기">닫기</button>
+      </div>
+      <div class="board-viewer-frame">
+        <aside class="board-rule-panel" aria-label="보드게임 칸 설명">
+          <div class="board-rule-kicker">칸 안내</div>
+          <h3>보드게임판 칸 설명</h3>
+          <div class="board-rule-list">
+            <div class="board-rule-item">
+              <strong>교실칸</strong>
+              <span>해당 교실의 미니게임을 수행합니다.</span>
+            </div>
+            <div class="board-rule-item">
+              <strong>윤리퀴즈칸</strong>
+              <span>AI 윤리퀴즈 카드를 뽑고 답합니다.</span>
+            </div>
+            <div class="board-rule-item">
+              <strong>주사위 한 번 더 칸</strong>
+              <span>주사위를 한 번 더 굴려 이동합니다.</span>
+            </div>
+            <div class="board-rule-item">
+              <strong>START/원하는 장소 이동 칸</strong>
+              <span>원하는 칸으로 이동할 수 있습니다.</span>
+            </div>
+          </div>
+        </aside>
+        <div class="board-image-wrap">
+          <img src="assets/보드게임판.jpg" alt="AI 수사단 보드게임판">
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="student-guide" data-student-guide hidden aria-label="학생 심문 안내">
     <div class="guide-card">
       <h3>학생 심문실 입장</h3>
@@ -519,5 +766,39 @@
       <button type="button" data-student-start>심문 시작</button>
     </div>
   </section>
+  <script>
+    const boardOpenButton = document.querySelector("[data-board-open]");
+    const boardViewer = document.querySelector("[data-board-viewer]");
+    const boardCloseButtons = document.querySelectorAll("[data-board-close]");
+    let boardLastFocus = null;
+
+    const openBoardViewer = () => {
+      if (!boardViewer) return;
+      boardLastFocus = document.activeElement;
+      boardViewer.hidden = false;
+      document.body.classList.add("is-board-open");
+      boardViewer.querySelector("[data-board-close]")?.focus();
+    };
+
+    const closeBoardViewer = () => {
+      if (!boardViewer || boardViewer.hidden) return;
+      boardViewer.hidden = true;
+      document.body.classList.remove("is-board-open");
+      if (boardLastFocus && typeof boardLastFocus.focus === "function") {
+        boardLastFocus.focus();
+      }
+    };
+
+    boardOpenButton?.addEventListener("click", openBoardViewer);
+    boardCloseButtons.forEach((button) => {
+      button.addEventListener("click", closeBoardViewer);
+    });
+    boardViewer?.addEventListener("click", (event) => {
+      if (event.target === boardViewer) closeBoardViewer();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeBoardViewer();
+    });
+  </script>
 </body>
 </html>
