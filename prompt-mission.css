@@ -28,6 +28,10 @@ button {
   padding: 22px;
 }
 
+.mission-page--with-list {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
 .mission-main,
 .mission-timer {
   border: 1px solid rgba(255, 255, 255, 0.62);
@@ -133,6 +137,55 @@ button {
 .timer-actions button:focus-visible {
   background: #f3342f;
   outline: none;
+}
+
+.question-nav {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dfe6ef;
+}
+
+.question-nav h2 {
+  margin: 0 0 10px;
+  color: #344154;
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.question-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.question-button {
+  min-height: 38px;
+  border: 1px solid #cfd8e4;
+  border-radius: 6px;
+  background: #fff;
+  color: #344154;
+  font-weight: 900;
+}
+
+.question-button:hover,
+.question-button:focus-visible {
+  border-color: #f3342f;
+  outline: none;
+}
+
+.question-button.is-active {
+  border-color: #172235;
+  background: #172235;
+  color: #fff;
+}
+
+.nav-note {
+  margin: 9px 0 0;
+  color: #657181;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  font-weight: 800;
 }
 
 .word-checker {

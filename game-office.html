@@ -3,23 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>교무실 프롬프트 미션</title>
+  <title>프롬프트 역추적 미션</title>
   <script src="auth.js" defer></script>
   <link rel="stylesheet" href="clock.css">
   <link rel="stylesheet" href="prompt-mission.css">
 </head>
 <body class="game-page" data-auth="teacher">
-  <main class="mission-page">
-    <section class="mission-main" aria-label="교무실 프롬프트 역추적 이미지">
+  <main class="mission-page mission-page--with-list" data-prompt-mission>
+    <section class="mission-main" aria-label="프롬프트 역추적 이미지">
       <header class="mission-head">
         <div class="mission-title">
-          <h1>교무실</h1>
-          <p>프롬프트 역추적 미션</p>
+          <h1>프롬프트 역추적 미션</h1>
+          <p data-question-title>문제 1</p>
         </div>
         <a class="back-link" href="teacher.html">학교 지도로</a>
       </header>
       <div class="mission-image-wrap">
-        <img class="mission-image" src="assets/prompts/mouse.jpg" alt="주방에서 파스타를 요리하는 생쥐">
+        <img class="mission-image" data-mission-image src="assets/prompts/mouse.jpg" alt="주방에서 파스타를 요리하는 생쥐">
       </div>
     </section>
 
@@ -31,7 +31,13 @@
         <button type="button" data-countdown-reset>초기화</button>
       </div>
 
-      <form class="word-checker" data-word-checker data-answer-words="파스타,생쥐,주방,요리하는" data-answer-sentence="주방에서 파스타를 요리하는 생쥐.">
+      <section class="question-nav" aria-label="문제 목록">
+        <h2>문제 목록</h2>
+        <div class="question-list" data-question-list></div>
+        <p class="nav-note">문제 번호를 누르면 해당 이미지로 이동합니다.</p>
+      </section>
+
+      <form class="word-checker" data-word-checker data-answer-words="파스타,생쥐,주방,요리" data-answer-sentence="주방에서 파스타를 요리하는 생쥐.">
         <h2>단어 입력</h2>
         <div class="word-grid">
           <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 1">
@@ -43,6 +49,46 @@
         <div class="check-result" data-check-result aria-live="polite"></div>
       </form>
     </aside>
+
+    <script type="application/json" data-prompt-questions>
+      [
+        {
+          "room": "교무실",
+          "image": "assets/prompts/mouse.jpg",
+          "alt": "주방에서 파스타를 요리하는 생쥐",
+          "answerWords": ["파스타", "생쥐", "주방", "요리"],
+          "answerSentence": "주방에서 파스타를 요리하는 생쥐."
+        },
+        {
+          "room": "체육관",
+          "image": "assets/prompts/alien.jpg",
+          "alt": "우주에서 농구공을 드리블하는 외계인",
+          "answerWords": ["외계인", "농구공", "우주", "드리블"],
+          "answerSentence": "우주에서 농구공을 드리블하는 외계인."
+        },
+        {
+          "room": "과학실",
+          "image": "assets/prompts/robot.jpg",
+          "alt": "가운을 입고 플라스크를 드는 로봇",
+          "answerWords": ["로봇", "가운", "플라스크", "실험실"],
+          "answerSentence": "가운을 입고 플라스크를 드는 로봇."
+        },
+        {
+          "room": "미술실",
+          "image": "assets/prompts/cat.jpg",
+          "alt": "캔버스에 자화상을 그리는 고양이 화가",
+          "answerWords": ["고양이", "화가", "캔버스", "자화상"],
+          "answerSentence": "캔버스에 자화상을 그리는 고양이 화가."
+        },
+        {
+          "room": "방송실",
+          "image": "assets/prompts/dog.jpg",
+          "alt": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지",
+          "answerWords": ["강아지", "헤드폰", "마이크", "노래"],
+          "answerSentence": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지."
+        }
+      ]
+    </script>
   </main>
   <script src="prompt-timer.js"></script>
   <script src="prompt-checker.js"></script>
