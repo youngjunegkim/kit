@@ -145,11 +145,11 @@
 
     pressureFill.style.width = `${Math.max(18, state.pressure)}%`;
     if (state.pressure >= 72) {
-      pressureLabel.textContent = "높음";
+      pressureLabel.textContent = "핵심 단서";
     } else if (state.pressure >= 42) {
-      pressureLabel.textContent = "중간";
+      pressureLabel.textContent = "단서 확보";
     } else {
-      pressureLabel.textContent = "낮음";
+      pressureLabel.textContent = "조사 시작";
     }
   }
 
@@ -583,7 +583,7 @@
     state.history = [{ role: "assistant", content: greeting }];
     state.waiting = false;
     pressureFill.style.width = "18%";
-    pressureLabel.textContent = "낮음";
+    pressureLabel.textContent = "조사 시작";
     messages.textContent = "";
     addMessage("bot", greeting);
     updateInputAvailability();
