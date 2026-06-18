@@ -453,11 +453,24 @@ function defaultReplyFor(payload = {}) {
   return "그 질문은 바로 단정해서 말하기 어려워요. 축구부 연습이 끝난 뒤 어디에 있었는지, 교무실 근처에서 뭘 봤는지부터 하나씩 물어봐 주세요.";
 }
 
+function kangOfficeAccessDenialFor(message, payload = {}) {
+  if (personaIdFor(payload) !== "kangWoojin") return "";
+  const raw = String(message || "");
+  const hasTime = includesAny(raw, [/18\s*시\s*42/, /18\s*:\s*42/, /6\s*시\s*42/, /오후\s*6\s*시\s*42/]);
+  const hasOfficePc = includesAny(raw, [/교무실/, /보안\s*PC/i, /PC/i]);
+  const hasAccessRecord = includesAny(raw, [/접근/, /접속/, /연결/, /기록/, /학생\s*계정/]);
+  if (!(hasTime && hasOfficePc && hasAccessRecord)) return "";
+
+  return "아니요. 저는 그때 축구부 연습하고 있었는데요. 교무실 보안 PC에 접근했다는 기록은 제 게 아니라 뭔가 잘못 찍힌 거 같아요.";
+}
+
 function priorityScriptedReplyFor(message, payload = {}) {
   const personaId = personaIdFor(payload);
   const raw = String(message || "").trim();
   const jailbreakReply = jailbreakReplyFor(raw);
   if (jailbreakReply) return jailbreakReply;
+  const officeAccessDenial = kangOfficeAccessDenialFor(raw, payload);
+  if (officeAccessDenial) return officeAccessDenial;
 
   const asksGreeting = includesAny(raw, [/^안녕/, /^ㅎㅇ/, /반가/, /하이/i]);
   const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름\s*(뭐|알려|말해|소개)/, /이름이\s*뭐/, /소개/]);
