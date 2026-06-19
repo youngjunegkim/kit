@@ -1,25 +1,15 @@
 (function () {
-  const scoreKey = "kit-student-question-credits";
+  const draftKey = "kit-student-question-credit-additions";
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
-  const baseScores = Object.fromEntries(teams.map((team) => [team, 0]));
+  const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
   const teacherCodeKey = "kit-teacher-access-code";
   let syncStatus = null;
-  let questionCounts = { ...baseScores };
+  let remainingCredits = { ...emptyByTeam };
+  let grantedCredits = { ...emptyByTeam };
+  let questionCounts = { ...emptyByTeam };
   let questionLogs = [];
-
-  function loadScores() {
-    try {
-      return { ...baseScores, ...JSON.parse(localStorage.getItem(scoreKey)) };
-    } catch {
-      return { ...baseScores };
-    }
-  }
-
-  function saveScores(scores) {
-    localStorage.setItem(scoreKey, JSON.stringify(scores));
-  }
 
   function cleanScore(value) {
     const number = Number(value);
@@ -27,7 +17,27 @@
     return Math.max(0, Math.round(number));
   }
 
-  let scores = loadScores();
+  function cleanTeamMap(map = {}) {
+    return Object.fromEntries(teams.map((team) => [team, cleanScore(map[team])]));
+  }
+
+  function loadDraftAdds() {
+    try {
+      return cleanTeamMap(JSON.parse(localStorage.getItem(draftKey)) || {});
+    } catch {
+      return { ...emptyByTeam };
+    }
+  }
+
+  function saveDraftAdds(additions) {
+    localStorage.setItem(draftKey, JSON.stringify(additions));
+  }
+
+  function totalAdditions(additions = pendingAdds) {
+    return Object.values(additions).reduce((sum, value) => sum + cleanScore(value), 0);
+  }
+
+  let pendingAdds = loadDraftAdds();
 
   function ensureSyncStatus() {
     if (syncStatus) return syncStatus;
@@ -35,7 +45,7 @@
     if (!scoreHead) return null;
     syncStatus = document.createElement("p");
     syncStatus.className = "score-sync-status";
-    syncStatus.textContent = "숫자를 입력한 뒤 질문권 주기를 누르세요.";
+    syncStatus.textContent = "추가할 질문권 수를 입력한 뒤 질문권 추가를 누르세요.";
     scoreHead.insertAdjacentElement("afterend", syncStatus);
     return syncStatus;
   }
@@ -85,12 +95,31 @@
     return { response, data };
   }
 
+  function applyCreditData(data = {}) {
+    remainingCredits = cleanTeamMap(data.credits || {});
+    questionCounts = cleanTeamMap(data.counts || {});
+    const fallbackGranted = Object.fromEntries(teams.map((team) => [
+      team,
+      cleanScore(remainingCredits[team] + questionCounts[team])
+    ]));
+    grantedCredits = cleanTeamMap({ ...fallbackGranted, ...(data.granted || {}) });
+  }
+
+  function setMetricText(attribute, team, text) {
+    document.querySelectorAll(`[${attribute}="${team}"]`).forEach((node) => {
+      node.textContent = text;
+    });
+  }
+
   function renderScores() {
     teams.forEach((team) => {
       const input = document.querySelector(`[data-score-input="${team}"]`);
       if (input && document.activeElement !== input) {
-        input.value = scores[team];
+        input.value = pendingAdds[team] || "";
       }
+      setMetricText("data-granted-count", team, `부여 ${grantedCredits[team] || 0}개`);
+      setMetricText("data-used-count", team, `사용 ${questionCounts[team] || 0}개`);
+      setMetricText("data-remaining-count", team, `남은 ${remainingCredits[team] || 0}개`);
     });
   }
 
@@ -112,9 +141,12 @@
         name.textContent = team;
 
         const count = document.createElement("strong");
-        count.textContent = `${questionCounts[team] || 0}회`;
+        count.textContent = `사용 ${questionCounts[team] || 0}개`;
 
-        row.append(name, count);
+        const detail = document.createElement("small");
+        detail.textContent = `부여 ${grantedCredits[team] || 0}개 · 남은 ${remainingCredits[team] || 0}개`;
+
+        row.append(name, count, detail);
         usage.append(row);
       });
     }
@@ -152,58 +184,42 @@
     if (!response.ok || !data.credits) {
       throw new Error(data.error || "질문권 현황 불러오기 실패");
     }
-    scores = { ...baseScores, ...data.credits };
-    questionCounts = { ...baseScores, ...(data.counts || {}) };
+    applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : [];
-    saveScores(scores);
     renderScores();
     renderQuestionStats();
     setSyncStatus(data.persistent ? "질문권 현황을 불러왔습니다." : "공유 저장소 미연결: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
-  async function updateScore(team, credits) {
-    const { response, data } = await requestCredits("/api/credits", {
-      method: "POST",
-      body: JSON.stringify({
-        action: "set",
-        team,
-        credits
-      })
-    });
-    if (!response.ok) {
-      throw new Error(data.error || "질문권 저장 실패");
-    }
-    scores = { ...baseScores, ...(data.allCredits || scores), [team]: data.credits };
-    questionCounts = { ...baseScores, ...(data.counts || questionCounts) };
-    questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
-    saveScores(scores);
-    renderScores();
-    renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 저장됨" : "임시 저장됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
-  }
-
   async function publishScores() {
-    setSyncStatus("질문권을 주는 중입니다...");
+    const amounts = cleanTeamMap(pendingAdds);
+    const total = totalAdditions(amounts);
+    if (!total) {
+      setSyncStatus("추가할 질문권 수를 입력하세요.");
+      return;
+    }
+
+    setSyncStatus("질문권을 추가하는 중입니다...");
     const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
       body: JSON.stringify({
-        action: "setAll",
-        credits: scores
+        action: "addAll",
+        amounts
       })
     });
     if (!response.ok) {
-      throw new Error(data.error || "질문권 지급 실패");
+      throw new Error(data.error || "질문권 추가 실패");
     }
-    scores = { ...baseScores, ...(data.credits || scores) };
-    questionCounts = { ...baseScores, ...(data.counts || questionCounts) };
+    applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
-    saveScores(scores);
+    pendingAdds = { ...emptyByTeam };
+    saveDraftAdds(pendingAdds);
     renderScores();
     renderQuestionStats();
     setSyncStatus(
       data.persistent
-        ? "질문권 지급 완료. 학생은 질문권 받기를 누르면 반영됩니다."
-        : "임시 지급 완료: 여러 기기 공유에는 Upstash 환경변수가 필요합니다.",
+        ? `질문권 ${total}개 추가 완료. 학생은 질문권 받기를 누르면 반영됩니다.`
+        : `임시 추가 완료(${total}개): 여러 기기 공유에는 Upstash 환경변수가 필요합니다.`,
       data.persistent ? "ok" : "bad"
     );
   }
@@ -216,13 +232,13 @@
     if (!response.ok) {
       throw new Error(data.error || "질문권 초기화 실패");
     }
-    scores = { ...baseScores, ...(data.credits || {}) };
-    questionCounts = { ...baseScores, ...(data.counts || questionCounts) };
+    applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
-    saveScores(scores);
+    pendingAdds = { ...emptyByTeam };
+    saveDraftAdds(pendingAdds);
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 초기화됨" : "임시 초기화됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "부여한 질문권과 남은 질문권이 초기화됨" : "임시 초기화됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function clearServerLogs() {
@@ -233,8 +249,9 @@
     if (!response.ok) {
       throw new Error(data.error || "로그 삭제 실패");
     }
-    questionCounts = { ...baseScores, ...(data.counts || {}) };
+    applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : [];
+    renderScores();
     renderQuestionStats();
     setSyncStatus(data.persistent ? "질문 로그 삭제됨" : "임시 로그 삭제됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
@@ -249,20 +266,22 @@
   document.querySelectorAll("[data-score-input]").forEach((input) => {
     input.addEventListener("input", () => {
       const team = input.dataset.scoreInput;
-      scores[team] = cleanScore(input.value);
-      saveScores(scores);
-      setSyncStatus("변경 대기 중. 질문권 주기를 누르면 학생에게 반영됩니다.");
+      pendingAdds[team] = cleanScore(input.value);
+      saveDraftAdds(pendingAdds);
+      setSyncStatus(totalAdditions() ? "추가 대기 중. 질문권 추가를 누르면 학생에게 더해집니다." : "추가할 질문권 수를 입력하세요.");
     });
 
     input.addEventListener("blur", () => {
-      input.value = scores[input.dataset.scoreInput];
+      input.value = pendingAdds[input.dataset.scoreInput] || "";
     });
   });
 
   document.getElementById("resetScores").addEventListener("click", () => {
     resetServerScores().catch((error) => {
-      scores = { ...baseScores };
-      saveScores(scores);
+      remainingCredits = { ...emptyByTeam };
+      grantedCredits = { ...emptyByTeam };
+      pendingAdds = { ...emptyByTeam };
+      saveDraftAdds(pendingAdds);
       renderScores();
       setSyncStatus(error.message || "질문권 초기화 실패", "bad");
     });
@@ -270,7 +289,7 @@
 
   document.getElementById("publishScores")?.addEventListener("click", () => {
     publishScores().catch((error) => {
-      setSyncStatus(error.message || "질문권 지급 실패", "bad");
+      setSyncStatus(error.message || "질문권 추가 실패", "bad");
     });
   });
 

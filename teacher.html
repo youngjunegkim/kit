@@ -457,7 +457,7 @@
       grid-template-columns: 36px 1fr;
       gap: 10px;
       align-items: center;
-      min-height: 52px;
+      min-height: 76px;
       padding: 9px;
       border: 1px solid #e1e6ee;
       border-radius: 8px;
@@ -492,16 +492,40 @@
 
     .team-score {
       min-width: 0;
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
       gap: 10px;
+    }
+
+    .team-info {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
     }
 
     .team-name {
       display: block;
-      color: var(--muted);
-      font-weight: 700;
+      color: #18202b;
+      font-weight: 950;
+    }
+
+    .team-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .team-meta span {
+      border-radius: 999px;
+      background: #f1f4f8;
+      color: #5b6878;
+      padding: 3px 6px;
+      font-size: 0.72rem;
+      line-height: 1.1;
+      font-weight: 900;
+      white-space: nowrap;
     }
 
     .score-input-wrap {
@@ -510,6 +534,7 @@
       gap: 6px;
       color: #344154;
       font-weight: 900;
+      white-space: nowrap;
     }
 
     .score-input {
@@ -562,9 +587,9 @@
     }
 
     .usage-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
       min-height: 34px;
       border-radius: 7px;
@@ -579,6 +604,14 @@
     .usage-row strong {
       color: #18202b;
       font-variant-numeric: tabular-nums;
+    }
+
+    .usage-row small {
+      grid-column: 1 / -1;
+      color: #657181;
+      font-size: 0.76rem;
+      line-height: 1.2;
+      font-weight: 850;
     }
 
     .log-list {
@@ -847,7 +880,7 @@
       <div class="score-head">
         <h2>학생별 질문권</h2>
         <div class="score-actions">
-          <button class="reset-btn" type="button" id="publishScores">질문권 주기</button>
+          <button class="reset-btn" type="button" id="publishScores">질문권 추가</button>
           <button class="reset-btn" type="button" id="resetScores">질문권 초기화</button>
         </div>
       </div>
@@ -856,9 +889,17 @@
         <div class="team-row">
           <div class="team-badge team-a">승</div>
           <div class="team-score">
-            <span class="team-name">승우</span>
+            <div class="team-info">
+              <span class="team-name">승우</span>
+              <div class="team-meta" aria-label="승우 질문권 현황">
+                <span data-granted-count="승우">부여 0개</span>
+                <span data-used-count="승우">사용 0개</span>
+                <span data-remaining-count="승우">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreSeungwoo" type="number" min="0" step="1" inputmode="numeric" data-score-input="승우" aria-label="승우 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreSeungwoo" type="number" min="0" step="1" inputmode="numeric" data-score-input="승우" aria-label="승우 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -867,9 +908,17 @@
         <div class="team-row">
           <div class="team-badge team-b">연</div>
           <div class="team-score">
-            <span class="team-name">연수</span>
+            <div class="team-info">
+              <span class="team-name">연수</span>
+              <div class="team-meta" aria-label="연수 질문권 현황">
+                <span data-granted-count="연수">부여 0개</span>
+                <span data-used-count="연수">사용 0개</span>
+                <span data-remaining-count="연수">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreYeonsu" type="number" min="0" step="1" inputmode="numeric" data-score-input="연수" aria-label="연수 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreYeonsu" type="number" min="0" step="1" inputmode="numeric" data-score-input="연수" aria-label="연수 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -878,9 +927,17 @@
         <div class="team-row">
           <div class="team-badge team-c">은</div>
           <div class="team-score">
-            <span class="team-name">은혁</span>
+            <div class="team-info">
+              <span class="team-name">은혁</span>
+              <div class="team-meta" aria-label="은혁 질문권 현황">
+                <span data-granted-count="은혁">부여 0개</span>
+                <span data-used-count="은혁">사용 0개</span>
+                <span data-remaining-count="은혁">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreEunhyeok" type="number" min="0" step="1" inputmode="numeric" data-score-input="은혁" aria-label="은혁 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreEunhyeok" type="number" min="0" step="1" inputmode="numeric" data-score-input="은혁" aria-label="은혁 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -889,9 +946,17 @@
         <div class="team-row">
           <div class="team-badge team-d">영</div>
           <div class="team-score">
-            <span class="team-name">영준</span>
+            <div class="team-info">
+              <span class="team-name">영준</span>
+              <div class="team-meta" aria-label="영준 질문권 현황">
+                <span data-granted-count="영준">부여 0개</span>
+                <span data-used-count="영준">사용 0개</span>
+                <span data-remaining-count="영준">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreYoungjun" type="number" min="0" step="1" inputmode="numeric" data-score-input="영준" aria-label="영준 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreYoungjun" type="number" min="0" step="1" inputmode="numeric" data-score-input="영준" aria-label="영준 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -900,9 +965,17 @@
         <div class="team-row">
           <div class="team-badge team-a">혜</div>
           <div class="team-score">
-            <span class="team-name">혜빈</span>
+            <div class="team-info">
+              <span class="team-name">혜빈</span>
+              <div class="team-meta" aria-label="혜빈 질문권 현황">
+                <span data-granted-count="혜빈">부여 0개</span>
+                <span data-used-count="혜빈">사용 0개</span>
+                <span data-remaining-count="혜빈">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreHyebin" type="number" min="0" step="1" inputmode="numeric" data-score-input="혜빈" aria-label="혜빈 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreHyebin" type="number" min="0" step="1" inputmode="numeric" data-score-input="혜빈" aria-label="혜빈 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -911,9 +984,17 @@
         <div class="team-row">
           <div class="team-badge team-b">윤</div>
           <div class="team-score">
-            <span class="team-name">윤지</span>
+            <div class="team-info">
+              <span class="team-name">윤지</span>
+              <div class="team-meta" aria-label="윤지 질문권 현황">
+                <span data-granted-count="윤지">부여 0개</span>
+                <span data-used-count="윤지">사용 0개</span>
+                <span data-remaining-count="윤지">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreYunji" type="number" min="0" step="1" inputmode="numeric" data-score-input="윤지" aria-label="윤지 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreYunji" type="number" min="0" step="1" inputmode="numeric" data-score-input="윤지" aria-label="윤지 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -922,9 +1003,17 @@
         <div class="team-row">
           <div class="team-badge team-c">가</div>
           <div class="team-score">
-            <span class="team-name">가빈</span>
+            <div class="team-info">
+              <span class="team-name">가빈</span>
+              <div class="team-meta" aria-label="가빈 질문권 현황">
+                <span data-granted-count="가빈">부여 0개</span>
+                <span data-used-count="가빈">사용 0개</span>
+                <span data-remaining-count="가빈">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreGabin" type="number" min="0" step="1" inputmode="numeric" data-score-input="가빈" aria-label="가빈 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreGabin" type="number" min="0" step="1" inputmode="numeric" data-score-input="가빈" aria-label="가빈 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -933,9 +1022,17 @@
         <div class="team-row">
           <div class="team-badge team-d">채</div>
           <div class="team-score">
-            <span class="team-name">채희</span>
+            <div class="team-info">
+              <span class="team-name">채희</span>
+              <div class="team-meta" aria-label="채희 질문권 현황">
+                <span data-granted-count="채희">부여 0개</span>
+                <span data-used-count="채희">사용 0개</span>
+                <span data-remaining-count="채희">남은 0개</span>
+              </div>
+            </div>
             <label class="score-input-wrap">
-              <input class="score-input" id="scoreChaehee" type="number" min="0" step="1" inputmode="numeric" data-score-input="채희" aria-label="채희 질문권">
+              <span>추가</span>
+              <input class="score-input" id="scoreChaehee" type="number" min="0" step="1" inputmode="numeric" data-score-input="채희" aria-label="채희 추가할 질문권">
               <span>개</span>
             </label>
           </div>
@@ -950,7 +1047,7 @@
             <button class="reset-btn" type="button" id="clearQuestionLogs">로그 지우기</button>
           </div>
         </div>
-        <div class="usage-grid" id="questionUsage" aria-label="학생별 질문 횟수"></div>
+        <div class="usage-grid" id="questionUsage" aria-label="학생별 사용한 질문권"></div>
         <div class="log-list" id="questionLogList" aria-label="최근 질문 로그"></div>
       </section>
 

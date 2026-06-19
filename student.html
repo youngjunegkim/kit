@@ -6,7 +6,7 @@
   <title>학생용 AI 심문실</title>
   <script src="auth.js" defer></script>
   <script src="presence.js?v=manual-presence-3" defer></script>
-  <script src="question-credits.js?v=header-fix-1" defer></script>
+  <script src="student-interrogation.js" defer></script>
   <script src="student-notes.js" defer></script>
   <style>
     * {
@@ -468,23 +468,411 @@
         grid-template-columns: 1fr;
       }
     }
+
+    body {
+      background:
+        radial-gradient(circle at 18% 12%, rgba(157, 47, 38, 0.24), transparent 28%),
+        linear-gradient(135deg, #120f0c 0%, #24180f 45%, #18202b 100%);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .page {
+      width: min(1760px, 100%);
+      padding: 18px;
+    }
+
+    .topbar {
+      margin-bottom: 14px;
+    }
+
+    .topbar h1 {
+      font-size: 1.45rem;
+      font-weight: 950;
+    }
+
+    .credit-pill {
+      min-height: 36px;
+      border-color: rgba(231, 189, 73, 0.42);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 7px 10px;
+    }
+
+    .credit-pill strong {
+      font-size: 0.92rem;
+    }
+
+    .status-ok {
+      color: #8ee0b2;
+    }
+
+    .status-bad {
+      color: #ffafa9;
+    }
+
+    .receive-credit-btn {
+      background: #b91f1f;
+      box-shadow: 0 10px 24px rgba(185, 31, 31, 0.24);
+    }
+
+    .receive-credit-btn:hover,
+    .receive-credit-btn:focus-visible {
+      background: #8f1717;
+      outline: none;
+    }
+
+    .presence-refresh-btn,
+    .logout-btn,
+    .clear-note {
+      background: #efe7d0;
+      color: #2c2114;
+    }
+
+    .presence-refresh-btn:hover,
+    .presence-refresh-btn:focus-visible,
+    .logout-btn:hover,
+    .logout-btn:focus-visible,
+    .clear-note:hover,
+    .clear-note:focus-visible {
+      background: #e1d2a9;
+      outline: none;
+    }
+
+    button:disabled,
+    input:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+
+    .suspect-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .suspect-column {
+      display: grid;
+      gap: 10px;
+    }
+
+    .suspect-card {
+      position: relative;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      height: clamp(300px, 41vh, 430px);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #1d1209;
+      border: 1px solid rgba(225, 174, 45, 0.58);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34);
+    }
+
+    .suspect-card img {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: 100%;
+      max-height: 100%;
+      aspect-ratio: auto;
+      object-fit: contain;
+      object-position: center;
+      background: #160e08;
+      padding: 0;
+    }
+
+    .chat-card,
+    .note-card,
+    .student-log-card {
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+      overflow: hidden;
+    }
+
+    .chat-card {
+      display: grid;
+      grid-template-rows: auto minmax(150px, 24vh) auto;
+    }
+
+    .chat-head,
+    .student-log-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border-bottom: 1px solid #e2d6b7;
+    }
+
+    .chat-head h2,
+    .student-log-head h2,
+    .note-card h3 {
+      margin: 0;
+      color: #2a1e13;
+      font-size: 1rem;
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .chat-state {
+      color: #8f1717;
+      font-size: 0.78rem;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .messages {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 9px;
+      overflow-y: auto;
+      padding: 12px;
+      background: #f6f0df;
+    }
+
+    .message {
+      max-width: 92%;
+      display: grid;
+      gap: 3px;
+    }
+
+    .message--user {
+      justify-self: end;
+    }
+
+    .message__name {
+      color: #786850;
+      font-size: 0.72rem;
+      font-weight: 950;
+    }
+
+    .message--user .message__name {
+      text-align: right;
+    }
+
+    .message__bubble {
+      border-radius: 8px;
+      background: #fff;
+      color: #201810;
+      padding: 9px 10px;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      font-weight: 750;
+      word-break: keep-all;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .message--user .message__bubble {
+      background: #8f1717;
+      color: #fff;
+    }
+
+    .chat-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid #e2d6b7;
+      background: #fffaf0;
+    }
+
+    .chat-input {
+      min-width: 0;
+      min-height: 40px;
+      border: 1px solid #d6c49b;
+      border-radius: 7px;
+      background: #fff;
+      color: #18202b;
+      padding: 8px 10px;
+      font-weight: 800;
+    }
+
+    .chat-input:focus,
+    .note-area:focus {
+      border-color: #a31616;
+      box-shadow: 0 0 0 3px rgba(163, 22, 22, 0.14);
+      outline: none;
+    }
+
+    .send-btn {
+      min-width: 58px;
+      min-height: 40px;
+      border-radius: 7px;
+      background: #2a1e13;
+      color: #fff;
+      padding: 8px 12px;
+      font-weight: 950;
+    }
+
+    .send-btn:hover,
+    .send-btn:focus-visible {
+      background: #8f1717;
+      outline: none;
+    }
+
+    .note-card {
+      padding: 12px;
+    }
+
+    .note-area {
+      min-height: 132px;
+      margin-top: 9px;
+      border-color: #d6c49b;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .student-log-card {
+      padding: 0;
+    }
+
+    .footer-grid .student-log-card {
+      margin-top: 0;
+    }
+
+    .student-log-list,
+    .presence-list {
+      display: grid;
+      gap: 8px;
+      max-height: 230px;
+      overflow-y: auto;
+      padding: 12px;
+      background: #fffaf0;
+    }
+
+    .student-log-entry,
+    .presence-row {
+      border-color: #e4d8bd;
+      background: #fff;
+    }
+
+    .science-link {
+      display: block;
+      margin-top: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.96);
+      color: #2a1e13;
+      padding: 14px 16px;
+      text-decoration: none;
+      font-weight: 950;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+    }
+
+    .science-link:hover,
+    .science-link:focus-visible {
+      outline: 3px solid rgba(225, 174, 45, 0.42);
+      outline-offset: 3px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1180px) {
+      .suspect-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .suspect-column {
+        grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1fr);
+        align-items: start;
+      }
+
+      .suspect-card,
+      .note-card {
+        grid-column: 1;
+      }
+
+      .chat-card {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        grid-template-rows: auto minmax(360px, 48vh) auto;
+      }
+
+      .suspect-card img {
+        max-height: 100%;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        padding: 12px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .student-tools {
+        justify-content: flex-start;
+      }
+
+      .suspect-column,
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chat-card,
+      .suspect-card,
+      .note-card {
+        grid-column: auto;
+        grid-row: auto;
+      }
+
+      .chat-card {
+        grid-template-rows: auto minmax(300px, 44vh) auto;
+      }
+
+      .suspect-card img {
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body data-auth="student">
   <main class="page">
     <header class="topbar">
-      <div>
-        <h1>AI 페르소나 심문실</h1>
-        <p>용의자를 심문하면서 각 인물별 노트에 단서를 적어두세요.</p>
-      </div>
+      <h1>AI 페르소나 심문실</h1>
       <div class="student-tools">
         <div class="credit-pill" aria-label="남은 질문권">
           <span data-team-label>학생</span>
           <strong data-credit-count>확인 중</strong>
         </div>
-        <div class="credit-pill" aria-label="질문 횟수">
-          <span>질문</span>
+        <div class="credit-pill" aria-label="사용한 질문권">
+          <span>사용</span>
           <strong data-log-count>0회</strong>
+        </div>
+        <div class="credit-pill" aria-label="AI 연결 상태">
+          <span>AI</span>
+          <strong data-api-status>확인 중</strong>
         </div>
         <div class="credit-pill" aria-label="접속 중 계정">
           <span>접속</span>
@@ -496,15 +884,25 @@
       </div>
     </header>
 
-    <section class="suspect-grid" aria-label="용의자 심문 및 노트">
-      <article class="suspect-column">
-        <a class="suspect-card" href="teacherroom.html" aria-label="강우진 조사 화면으로 이동">
-          <img src="assets/characters/kang-woojin.png" alt="축구부 학생 강우진">
-          <div class="suspect-info">
+    <section class="suspect-grid" aria-label="용의자 심문">
+      <article class="suspect-column" data-suspect-panel data-suspect="kangWoojin" data-suspect-name="강우진">
+        <figure class="suspect-card">
+          <img src="assets/suspect-card-kang.png" alt="강우진 용의자 카드">
+        </figure>
+
+        <section class="chat-card" aria-label="강우진 심문">
+          <div class="chat-head">
             <h2>강우진</h2>
-            <p>축구부 소속. 활발하고 말이 빠른 편.</p>
+            <span class="chat-state" data-chat-state>대기</span>
           </div>
-        </a>
+          <div class="messages" data-chat-messages aria-live="polite"></div>
+          <form class="chat-form" data-chat-form>
+            <label class="visually-hidden" for="chatKangWoojin">강우진 질문 입력</label>
+            <input class="chat-input" id="chatKangWoojin" type="text" autocomplete="off" data-chat-input placeholder="강우진에게 질문하기">
+            <button class="send-btn" type="submit" data-chat-submit>전송</button>
+          </form>
+        </section>
+
         <section class="note-card" aria-label="강우진 심문 노트">
           <h3>강우진 심문 노트</h3>
           <textarea class="note-area" data-note-key="kang-woojin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
@@ -515,14 +913,24 @@
         </section>
       </article>
 
-      <article class="suspect-column">
-        <a class="suspect-card" href="harinroom.html" aria-label="서하린 조사 화면으로 이동">
-          <img src="assets/characters/ai-tech-girl.png" alt="컴퓨터를 잘 다루는 서하린">
-          <div class="suspect-info">
+      <article class="suspect-column" data-suspect-panel data-suspect="seoHarin" data-suspect-name="서하린">
+        <figure class="suspect-card">
+          <img src="assets/suspect-card-harin.png" alt="서하린 용의자 카드">
+        </figure>
+
+        <section class="chat-card" aria-label="서하린 심문">
+          <div class="chat-head">
             <h2>서하린</h2>
-            <p>차분하고 꼼꼼함. 컴퓨터 사용에 익숙함.</p>
+            <span class="chat-state" data-chat-state>대기</span>
           </div>
-        </a>
+          <div class="messages" data-chat-messages aria-live="polite"></div>
+          <form class="chat-form" data-chat-form>
+            <label class="visually-hidden" for="chatSeoHarin">서하린 질문 입력</label>
+            <input class="chat-input" id="chatSeoHarin" type="text" autocomplete="off" data-chat-input placeholder="서하린에게 질문하기">
+            <button class="send-btn" type="submit" data-chat-submit>전송</button>
+          </form>
+        </section>
+
         <section class="note-card" aria-label="서하린 심문 노트">
           <h3>서하린 심문 노트</h3>
           <textarea class="note-area" data-note-key="seo-harin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
@@ -533,14 +941,24 @@
         </section>
       </article>
 
-      <article class="suspect-column">
-        <a class="suspect-card" href="danielroom.html" aria-label="최다니엘 조사 화면으로 이동">
-          <img src="assets/characters/alibi-black-boy.png" alt="조용한 학생 최다니엘">
-          <div class="suspect-info">
+      <article class="suspect-column" data-suspect-panel data-suspect="choiDaniel" data-suspect-name="최다니엘">
+        <figure class="suspect-card">
+          <img src="assets/suspect-card-daniel.png" alt="최다니엘 용의자 카드">
+        </figure>
+
+        <section class="chat-card" aria-label="최다니엘 심문">
+          <div class="chat-head">
             <h2>최다니엘</h2>
-            <p>조용하고 성실한 편. 관찰력이 좋음.</p>
+            <span class="chat-state" data-chat-state>대기</span>
           </div>
-        </a>
+          <div class="messages" data-chat-messages aria-live="polite"></div>
+          <form class="chat-form" data-chat-form>
+            <label class="visually-hidden" for="chatChoiDaniel">최다니엘 질문 입력</label>
+            <input class="chat-input" id="chatChoiDaniel" type="text" autocomplete="off" data-chat-input placeholder="최다니엘에게 질문하기">
+            <button class="send-btn" type="submit" data-chat-submit>전송</button>
+          </form>
+        </section>
+
         <section class="note-card" aria-label="최다니엘 심문 노트">
           <h3>최다니엘 심문 노트</h3>
           <textarea class="note-area" data-note-key="choi-daniel" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
@@ -552,32 +970,25 @@
       </article>
     </section>
 
-    <section class="student-log-card" aria-label="접속 중 계정">
-      <div class="student-log-head">
-        <h2>접속 중 계정</h2>
-        <div class="student-log-actions">
-          <strong data-presence-count>0명</strong>
+    <div class="footer-grid">
+      <section class="student-log-card" aria-label="접속 중 계정">
+        <div class="student-log-head">
+          <h2>접속 중 계정</h2>
           <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
         </div>
-      </div>
-      <div class="presence-list" data-presence-list></div>
-    </section>
+        <div class="presence-list" data-presence-list></div>
+      </section>
 
-    <section class="student-log-card" aria-label="내 질문 로그">
-      <div class="student-log-head">
-        <h2>내 질문 로그</h2>
-        <strong data-log-count>0회</strong>
-      </div>
-      <div class="student-log-list" data-student-log-list></div>
-    </section>
+      <section class="student-log-card" aria-label="내 질문 로그">
+        <div class="student-log-head">
+          <h2>내 질문 로그</h2>
+          <strong data-log-count>0회</strong>
+        </div>
+        <div class="student-log-list" data-student-log-list></div>
+      </section>
+    </div>
 
-    <a class="science-mission-card" href="science-search.html" aria-label="과학실 검색 화면으로 이동">
-      <img src="assets/science-lab.jpg" alt="실험 도구가 놓인 과학실">
-      <div class="science-mission-info">
-        <h2>과학실</h2>
-        <p>할루시네이션 근거 검색</p>
-      </div>
-    </a>
+    <a class="science-link" href="science-search.html" aria-label="과학실 검색 화면으로 이동">과학실</a>
   </main>
 </body>
 </html>

@@ -2,7 +2,9 @@ const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { URL } = require("node:url");
+const creditsHandler = require("./api/credits");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./api/personas");
+const presenceHandler = require("./api/presence");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 8123);
@@ -1220,6 +1222,13 @@ async function handleGenerateImage(request, response) {
   }
 }
 
+async function handleApiModule(request, response, handler) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    request.body = await readBody(request);
+  }
+  await handler(request, response);
+}
+
 async function handleStatic(request, response, url) {
   const pathname = decodeURIComponent(url.pathname === "/" ? "/teacherroom.html" : url.pathname);
   const safePath = path.normalize(path.join(rootDir, pathname));
@@ -1269,6 +1278,16 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "POST" && url.pathname === "/api/generate-image") {
     await handleGenerateImage(request, response);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/credits") {
+    await handleApiModule(request, response, creditsHandler);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST" || request.method === "DELETE") && url.pathname === "/api/presence") {
+    await handleApiModule(request, response, presenceHandler);
     return;
   }
 

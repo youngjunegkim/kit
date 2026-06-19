@@ -1,9 +1,11 @@
 const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
 const memoryStore = globalThis.__kitQuestionCreditStore || new Map();
+const memoryGrantStore = globalThis.__kitQuestionGrantStore || new Map();
 const memoryCountStore = globalThis.__kitQuestionCountStore || new Map();
 const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 globalThis.__kitQuestionCreditStore = memoryStore;
+globalThis.__kitQuestionGrantStore = memoryGrantStore;
 globalThis.__kitQuestionCountStore = memoryCountStore;
 globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
@@ -32,6 +34,10 @@ function keyFor(team) {
 
 function countKeyFor(team) {
   return `kit:${storeNamespace()}:question-count:${team}`;
+}
+
+function grantKeyFor(team) {
+  return `kit:${storeNamespace()}:question-granted:${team}`;
 }
 
 function logKey() {
@@ -84,6 +90,29 @@ async function getAllCredits() {
   return Object.fromEntries(entries);
 }
 
+async function getGrantedCredits(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return null;
+
+  if (!hasPersistentStore()) {
+    if (memoryGrantStore.has(normalized)) {
+      return cleanCredits(memoryGrantStore.get(normalized));
+    }
+    return cleanCredits(await getCredits(normalized)) + cleanCredits(await getQuestionCount(normalized));
+  }
+
+  const stored = await redisCommand(["GET", grantKeyFor(normalized)]);
+  if (stored !== null && stored !== undefined) {
+    return cleanCredits(stored);
+  }
+  return cleanCredits(await getCredits(normalized)) + cleanCredits(await getQuestionCount(normalized));
+}
+
+async function getAllGrantedCredits() {
+  const entries = await Promise.all(teams.map(async (team) => [team, await getGrantedCredits(team)]));
+  return Object.fromEntries(entries);
+}
+
 async function setCredits(team, value) {
   const normalized = normalizeTeam(team);
   if (!normalized) return null;
@@ -95,6 +124,20 @@ async function setCredits(team, value) {
   }
 
   await redisCommand(["SET", keyFor(normalized), String(credits)]);
+  return credits;
+}
+
+async function setGrantedCredits(team, value) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return null;
+  const credits = cleanCredits(value);
+
+  if (!hasPersistentStore()) {
+    memoryGrantStore.set(normalized, credits);
+    return credits;
+  }
+
+  await redisCommand(["SET", grantKeyFor(normalized), String(credits)]);
   return credits;
 }
 
@@ -112,8 +155,29 @@ async function addCredits(team, amount) {
   return cleanCredits(await redisCommand(["INCRBY", keyFor(normalized), String(delta)]));
 }
 
+async function addGrantedCredits(team, amount) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return null;
+  const delta = cleanCredits(amount);
+  const next = cleanCredits(await getGrantedCredits(normalized)) + delta;
+  return setGrantedCredits(normalized, next);
+}
+
+async function grantCredits(team, amount) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return { credits: null, granted: null };
+  const delta = cleanCredits(amount);
+  const previousGranted = cleanCredits(await getGrantedCredits(normalized));
+  const credits = await addCredits(normalized, delta);
+  const granted = await setGrantedCredits(normalized, previousGranted + delta);
+  return { credits, granted };
+}
+
 async function resetCredits() {
-  await Promise.all(teams.map((team) => setCredits(team, 0)));
+  await Promise.all(teams.map(async (team) => {
+    await setCredits(team, 0);
+    await setGrantedCredits(team, 0);
+  }));
   return getAllCredits();
 }
 
@@ -341,16 +405,20 @@ module.exports = {
   consumeCredit,
   clearQuestionLogs,
   getAllCredits,
+  getAllGrantedCredits,
   getAllQuestionCounts,
   getCredits,
+  getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
   getPresence,
+  grantCredits,
   hasPersistentStore,
   logQuestion,
   normalizeTeam,
   removePresence,
   resetCredits,
+  setGrantedCredits,
   setCredits,
   touchPresence,
   teams

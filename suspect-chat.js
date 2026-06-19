@@ -344,7 +344,7 @@
   }
 
   function setLogCount(count) {
-    if (logCount) logCount.textContent = `질문 ${Number(count || 0)}회`;
+    if (logCount) logCount.textContent = `사용 ${Number(count || 0)}회`;
   }
 
   function setRefreshBusy(isBusy) {

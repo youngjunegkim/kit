@@ -1,14 +1,17 @@
 const {
-  addCredits,
   clearQuestionLogs,
   getAllCredits,
+  getAllGrantedCredits,
   getAllQuestionCounts,
   getCredits,
+  getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
+  grantCredits,
   hasPersistentStore,
   normalizeTeam,
   resetCredits,
+  setGrantedCredits,
   setCredits,
   teams
 } = require("./_credits");
@@ -125,6 +128,7 @@ module.exports = async function handler(request, response) {
         sendJson(response, 200, {
           team,
           credits: await getCredits(team),
+          granted: await getGrantedCredits(team),
           count: await getQuestionCount(team),
           logs: await getQuestionLogs(team),
           persistent: hasPersistentStore()
@@ -140,6 +144,7 @@ module.exports = async function handler(request, response) {
 
       sendJson(response, 200, {
         credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
         persistent: hasPersistentStore(),
@@ -165,6 +170,7 @@ module.exports = async function handler(request, response) {
     if (action === "reset") {
       sendJson(response, 200, {
         credits: await resetCredits(),
+        granted: await getAllGrantedCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
         persistent: hasPersistentStore(),
@@ -177,6 +183,7 @@ module.exports = async function handler(request, response) {
       const result = await clearQuestionLogs();
       sendJson(response, 200, {
         credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
         counts: result.counts,
         logs: result.logs,
         persistent: hasPersistentStore(),
@@ -185,11 +192,30 @@ module.exports = async function handler(request, response) {
       return;
     }
 
-    if (action === "setall") {
-      const creditMap = body.credits && typeof body.credits === "object" ? body.credits : {};
-      await Promise.all(teams.map((team) => setCredits(team, creditMap[team] || 0)));
+    if (action === "addall") {
+      const amountMap = body.amounts && typeof body.amounts === "object" ? body.amounts : {};
+      await Promise.all(teams.map((team) => grantCredits(team, amountMap[team] || 0)));
       sendJson(response, 200, {
         credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
+        counts: await getAllQuestionCounts(),
+        logs: await getQuestionLogs(),
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
+      });
+      return;
+    }
+
+    if (action === "setall") {
+      const creditMap = body.credits && typeof body.credits === "object" ? body.credits : {};
+      await Promise.all(teams.map(async (team) => {
+        const credits = creditMap[team] || 0;
+        await setCredits(team, credits);
+        await setGrantedCredits(team, credits);
+      }));
+      sendJson(response, 200, {
+        credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
         persistent: hasPersistentStore(),
@@ -204,14 +230,16 @@ module.exports = async function handler(request, response) {
       return;
     }
 
-    const nextCredits = action === "add"
-      ? await addCredits(team, body.amount)
-      : await setCredits(team, body.credits);
+    const result = action === "add"
+      ? await grantCredits(team, body.amount)
+      : { credits: await setCredits(team, body.credits), granted: await getGrantedCredits(team) };
 
     sendJson(response, 200, {
       team,
-      credits: nextCredits,
+      credits: result.credits,
+      granted: result.granted,
       allCredits: await getAllCredits(),
+      allGranted: await getAllGrantedCredits(),
       counts: await getAllQuestionCounts(),
       logs: await getQuestionLogs(),
       persistent: hasPersistentStore(),
