@@ -500,11 +500,58 @@
       font-weight: 950;
     }
 
+    .student-workspace {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .student-menu {
+      position: sticky;
+      top: 18px;
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid rgba(225, 174, 45, 0.58);
+      border-radius: 8px;
+      background: rgba(19, 12, 7, 0.86);
+      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+      color: #fff;
+    }
+
+    .student-menu-title {
+      color: #e1ae2d;
+      font-size: 0.82rem;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .student-main {
+      min-width: 0;
+    }
+
     .credit-pill {
       min-height: 36px;
       border-color: rgba(231, 189, 73, 0.42);
       background: rgba(255, 255, 255, 0.1);
       padding: 7px 10px;
+    }
+
+    .student-tools {
+      display: grid;
+      gap: 9px;
+      align-items: stretch;
+    }
+
+    .student-tools .credit-pill {
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .student-tools button {
+      width: 100%;
+      justify-content: center;
     }
 
     .credit-pill strong {
@@ -853,6 +900,22 @@
     }
 
     @media (max-width: 1180px) {
+      .student-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .student-menu {
+        position: static;
+      }
+
+      .student-tools {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .student-tools button {
+        min-width: 0;
+      }
+
       .suspect-grid {
         grid-template-columns: 1fr;
       }
@@ -889,7 +952,7 @@
       }
 
       .student-tools {
-        justify-content: flex-start;
+        grid-template-columns: 1fr;
       }
 
       .suspect-column,
@@ -927,34 +990,40 @@
   <main class="page">
     <header class="topbar">
       <h1>AI 페르소나 심문실</h1>
-      <div class="student-tools">
-        <div class="credit-pill" aria-label="남은 질문권">
-          <span data-team-label>학생</span>
-          <strong data-credit-count>확인 중</strong>
-        </div>
-        <div class="credit-pill" aria-label="사용한 질문권">
-          <span>사용</span>
-          <strong data-log-count>0회</strong>
-        </div>
-        <div class="credit-pill" aria-label="AI 연결 상태">
-          <span>AI</span>
-          <strong data-api-status>확인 중</strong>
-        </div>
-        <div class="credit-pill" aria-label="접속 중 계정">
-          <span>접속</span>
-          <strong data-presence-count>0명</strong>
-        </div>
-        <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
-        <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
-        <button class="logout-btn" type="button" data-logout>로그아웃</button>
-      </div>
     </header>
 
-    <section class="suspect-grid" aria-label="용의자 심문">
-      <article class="suspect-column" data-suspect-panel data-suspect="kangWoojin" data-suspect-name="강우진">
-        <figure class="suspect-card">
-          <img src="assets/suspect-card-kang.png" alt="강우진 용의자 카드">
-        </figure>
+    <div class="student-workspace">
+      <aside class="student-menu" aria-label="질문권 메뉴">
+        <strong class="student-menu-title">MENU</strong>
+        <div class="student-tools">
+          <div class="credit-pill" aria-label="남은 질문권">
+            <span data-team-label>학생</span>
+            <strong data-credit-count>확인 중</strong>
+          </div>
+          <div class="credit-pill" aria-label="사용한 질문권">
+            <span>사용</span>
+            <strong data-log-count>0회</strong>
+          </div>
+          <div class="credit-pill" aria-label="AI 연결 상태">
+            <span>AI</span>
+            <strong data-api-status>확인 중</strong>
+          </div>
+          <div class="credit-pill" aria-label="접속 중 계정">
+            <span>접속</span>
+            <strong data-presence-count>0명</strong>
+          </div>
+          <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
+          <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
+          <button class="logout-btn" type="button" data-logout>로그아웃</button>
+        </div>
+      </aside>
+
+      <div class="student-main">
+        <section class="suspect-grid" aria-label="용의자 심문">
+          <article class="suspect-column" data-suspect-panel data-suspect="kangWoojin" data-suspect-name="강우진">
+            <figure class="suspect-card">
+              <img src="assets/suspect-card-kang.png" alt="강우진 용의자 카드">
+            </figure>
 
         <section class="chat-card" aria-label="강우진 심문">
           <div class="chat-head">
@@ -1054,7 +1123,9 @@
       </section>
     </div>
 
-    <a class="science-link" href="science-search.html" aria-label="과학실 검색 화면으로 이동">과학실</a>
+        <a class="science-link" href="science-search.html" aria-label="과학실 검색 화면으로 이동">과학실</a>
+      </div>
+    </div>
   </main>
   <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="Suspect card">
     <button class="card-lightbox__close" type="button" data-close-card aria-label="Close">X</button>
