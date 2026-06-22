@@ -568,12 +568,16 @@
       display: grid;
       place-items: center;
       margin: 0;
-      height: clamp(300px, 41vh, 430px);
+      width: 100%;
+      min-height: 430px;
+      height: auto;
+      aspect-ratio: 1 / 1.22;
       border-radius: 8px;
       overflow: hidden;
-      background: #1d1209;
+      background: #000;
       border: 1px solid rgba(225, 174, 45, 0.58);
       box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34);
+      cursor: zoom-in;
     }
 
     .suspect-card img {
@@ -585,10 +589,71 @@
       height: 100%;
       max-height: 100%;
       aspect-ratio: auto;
-      object-fit: contain;
-      object-position: center;
-      background: #160e08;
+      object-fit: cover;
+      object-position: top center;
+      background: #000;
       padding: 0;
+      transform: scale(1.02);
+    }
+
+    .suspect-card::after {
+      content: "";
+      position: absolute;
+      inset: 82% 0 0;
+      background: #000;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .lightbox-open {
+      overflow: hidden;
+    }
+
+    .card-lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #000;
+    }
+
+    .card-lightbox[hidden] {
+      display: none;
+    }
+
+    .card-lightbox__image {
+      display: block;
+      max-width: min(96vw, 720px);
+      max-height: 94vh;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+    }
+
+    .card-lightbox__close {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 1.25rem;
+      font-weight: 950;
+      line-height: 1;
+    }
+
+    .card-lightbox__close:hover,
+    .card-lightbox__close:focus-visible {
+      background: rgba(255, 255, 255, 0.22);
+      outline: 3px solid rgba(255, 255, 255, 0.36);
+      outline-offset: 2px;
     }
 
     .chat-card,
@@ -854,6 +919,15 @@
       .suspect-card img {
         max-height: none;
       }
+
+      .card-lightbox {
+        padding: 12px;
+      }
+
+      .card-lightbox__image {
+        max-width: 100%;
+        max-height: 92vh;
+      }
     }
   </style>
 </head>
@@ -990,5 +1064,9 @@
 
     <a class="science-link" href="science-search.html" aria-label="과학실 검색 화면으로 이동">과학실</a>
   </main>
+  <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="Suspect card">
+    <button class="card-lightbox__close" type="button" data-close-card aria-label="Close">X</button>
+    <img class="card-lightbox__image" data-card-lightbox-image alt="">
+  </div>
 </body>
 </html>

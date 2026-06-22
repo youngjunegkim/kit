@@ -14,6 +14,10 @@
 
   if (!panels.length) return;
 
+  const cardLightbox = document.querySelector("[data-card-lightbox]");
+  const cardLightboxImage = document.querySelector("[data-card-lightbox-image]");
+  const closeCardButton = document.querySelector("[data-close-card]");
+
   const greetings = {
     kangWoojin: "안녕하세요. 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요. 어떤 걸 확인하면 될까요?",
     seoHarin: "안녕하세요. 서하린입니다. 제가 시스템 로그를 본 건 맞지만, 시험지를 유출했다는 뜻은 아니에요. 어떤 기록부터 확인할까요?",
@@ -108,6 +112,50 @@
 
   function setPanelState(panel, text) {
     if (panel.state) panel.state.textContent = text;
+  }
+
+  function openCardLightbox(image) {
+    if (!cardLightbox || !cardLightboxImage || !image) return;
+    cardLightboxImage.src = image.currentSrc || image.src;
+    cardLightboxImage.alt = image.alt || "";
+    cardLightbox.hidden = false;
+    document.body.classList.add("lightbox-open");
+    closeCardButton?.focus({ preventScroll: true });
+  }
+
+  function closeCardLightbox() {
+    if (!cardLightbox || !cardLightboxImage) return;
+    cardLightbox.hidden = true;
+    cardLightboxImage.removeAttribute("src");
+    document.body.classList.remove("lightbox-open");
+  }
+
+  function setupCardLightbox() {
+    if (!cardLightbox || !cardLightboxImage) return;
+
+    panels.forEach((panel) => {
+      const card = panel.root.querySelector(".suspect-card");
+      const image = card?.querySelector("img");
+      if (!card || !image) return;
+
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", "Open suspect card");
+      card.addEventListener("click", () => openCardLightbox(image));
+      card.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openCardLightbox(image);
+      });
+    });
+
+    closeCardButton?.addEventListener("click", closeCardLightbox);
+    cardLightbox.addEventListener("click", (event) => {
+      if (event.target === cardLightbox) closeCardLightbox();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !cardLightbox.hidden) closeCardLightbox();
+    });
   }
 
   function updateControls() {
@@ -367,6 +415,8 @@
       submitQuestion(panel);
     });
   });
+
+  setupCardLightbox();
 
   refreshButtons.forEach((button) => {
     button.addEventListener("click", refreshCredits);
