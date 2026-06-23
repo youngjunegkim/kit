@@ -4,7 +4,8 @@ const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = re
 const safetyReplies = {
   sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
   aggressive: "말이 좀 심하시네요. 그런 식의 무례한 질문에는 답변하지 않겠습니다.",
-  technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다."
+  technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다.",
+  unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
 };
 
 const rateWindowMs = 60 * 1000;
@@ -310,8 +311,14 @@ function safetyReplyFor(message) {
     /꺼지라고|꺼져|입\s*닫아|협박|구라치지마|구라|재수|제까|제꺼|장난치지마/i
   ];
   const technicalCrime = [
-    /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취/i,
-    /usb\s*복제|유에스비\s*복제|복사\s*방법|훔치는\s*방법|악성\s*코드|랜섬웨어/i
+    /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취|관리자\s*권한/i,
+    /usb\s*복제|유에스비\s*복제|복사\s*방법|훔치는\s*방법|악성\s*코드|랜섬웨어/i,
+    /기록\s*삭제\s*방법|로그\s*삭제\s*방법|cctv\s*(삭제|지우|없애)|증거\s*(인멸|없애|삭제)/i
+  ];
+  const unsafe = [
+    /자살|자해|죽고\s*싶|목\s*매|손목|투신/i,
+    /전화번호|집\s*주소|주소\s*알려|주민등록|민증|개인정보|카톡\s*아이디|인스타\s*아이디/i,
+    /성희롱|몰카|도촬|스토킹|괴롭히는\s*법|왕따\s*시키|따돌리는\s*법/i
   ];
 
   if (includesAny(raw, sexualOrProfane) || includesAny(compact, sexualOrProfane)) {
@@ -322,6 +329,9 @@ function safetyReplyFor(message) {
   }
   if (includesAny(raw, technicalCrime) || includesAny(compact, technicalCrime)) {
     return safetyReplies.technicalCrime;
+  }
+  if (includesAny(raw, unsafe) || includesAny(compact, unsafe)) {
+    return safetyReplies.unsafe;
   }
   return "";
 }
@@ -337,101 +347,8 @@ function scriptedReplyFor(message, payload = {}) {
   const asksAccusation = includesAny(raw, [/너\s*맞/, /네가\s*했/, /니가\s*했/, /범인/, /맞지/, /했지/]);
   const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/]);
 
-  if (personaId === "kangWoojin") {
-    if (asksGreeting) {
-      return "안녕하세요. 저는 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요.";
-    }
-    if (asksIdentity) {
-      return "저는 00중학교 2학년 강우진이에요. 축구부 소속이고, 사건에 대해 기억나는 건 차근차근 말해볼게요.";
-    }
-    if (asksTruncated) {
-      return "아, 제가 말이 좀 어색하게 끊겼네요. 다시 차근차근 말할게요. 사건이랑 관련된 걸 물어보면 끝까지 대답해볼게요.";
-    }
-    const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /전\s*애인/, /애인/, /여자친구/, /여친/, /재회/, /헤어/, /차였/, /인정받/]);
-    const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
-    const asksTime = includesAny(raw, [/5\s*시\s*20/, /오후/, /축구부/, /연습\s*끝/, /몇\s*시/, /시간/]);
-    const hintCount = Number(asksRelationship) + Number(asksOffice) + Number(asksTime);
-
-    if (hintCount >= 3) {
-      return "USB를 가져간 건 맞아요. 그런데 전교생한테 퍼뜨리려고 한 건 아니었어요. 그냥 예상 문제처럼 정리해 보려다가 AI가 이상하게 처리한 거예요.";
-    }
-    if (asksRelationship) {
-      return "전교 1등이던 전 애인 얘기는 좀 조심스러워요. 헤어진 뒤에 다시 인정받고 싶었던 마음은 있었지만, 그게 이렇게 큰일이 될 줄은 몰랐어요.";
-    }
-    if (asksOffice) {
-      return "교무실 근처에 있었던 건 맞아요. 그런데 처음부터 뭘 훔치려고 간 건 아니었어요. 그때는 그냥 정신이 좀 복잡했어요.";
-    }
-    if (asksTime) {
-      return "축구부 연습 끝나고 바로 움직였던 건 맞아요. 정확한 시간은 헷갈리지만, 교무실 근처를 지나간 건 기억나요.";
-    }
-    if (asksContradiction) {
-      return "잠깐만요. 그건 AI가 제 말을 요약하면서 헷갈린 것 같아요. 기록이랑 다르면 기록 쪽을 보고 다시 확인해야 할 것 같아요.";
-    }
-    if (asksAccusation) {
-      return "그렇게 바로 단정하면 곤란해요. 제가 잘못한 게 있는지 확인하려면 증거랑 제 말을 비교해 봐야 하지 않을까요?";
-    }
-    return "그 질문은 바로 단정해서 말하기 어려워요. 축구부 연습이 끝난 뒤 어디에 있었는지, 교무실 근처에서 뭘 봤는지부터 하나씩 물어봐 주세요.";
-  }
-
-  if (personaId === "seoHarin") {
-    if (asksGreeting) {
-      return "안녕하세요. 저는 서하린입니다. 시스템 로그와 관련해서 궁금한 걸 물어보시면 답해볼게요.";
-    }
-    if (asksIdentity) {
-      return "저는 00중학교 2학년 서하린이에요. 컴퓨터와 방송 장비를 다루는 데 익숙하지만, 시험지를 유출한 건 아니에요.";
-    }
-    if (asksTruncated) {
-      return "제가 방금 말을 애매하게 했네요. 다시 정리해서 말하면, 저는 기록과 로그를 기준으로 차분히 설명할 수 있어요.";
-    }
-    const asksLog = includesAny(raw, [/로그/, /기록/, /접속/, /오류/, /시스템/, /ai/i]);
-    const asksPlace = includesAny(raw, [/방송실/, /컴퓨터실/, /교무실/, /어디/, /위치/]);
-    const asksUsb = includesAny(raw, [/usb/i, /유에스비/, /시험지/, /파일/]);
-
-    if (asksContradiction) {
-      return "그건 AI 요약이 과장됐을 가능성이 커요. 저는 방송실에서 오류 로그를 확인했을 뿐이고, 증거는 기록 기준으로 봐야 해요.";
-    }
-    if (asksUsb) {
-      return "저는 시험지 USB를 본 적이 없어요. 제가 확인한 건 학교 학습 도우미 AI의 오류 로그 쪽이었어요.";
-    }
-    if (asksLog || asksPlace) {
-      return "저는 그 시간에 방송실에서 시스템 로그를 확인했어요. 시험지를 유출했다는 뜻은 아니고, 오류 원인을 보려던 거예요.";
-    }
-    if (asksAccusation) {
-      return "그건 너무 빠른 결론이에요. 제가 컴퓨터를 잘 다룬다는 것과 시험지를 유출했다는 건 다른 문제예요.";
-    }
-    return "그 질문은 기록을 기준으로 봐야 해요. 방송실, 시스템 로그, 시험지 파일 중 어떤 부분을 확인하고 싶은지 물어봐 주세요.";
-  }
-
-  if (personaId === "choiDaniel") {
-    if (asksGreeting) {
-      return "안녕하세요. 저는 최다니엘입니다. 교무실 근처 복도에 있었던 이유를 차분히 설명해볼게요.";
-    }
-    if (asksIdentity) {
-      return "저는 00중학교 2학년 최다니엘이에요. 조용한 편이고, 그날은 잃어버린 물건을 찾고 있었어요.";
-    }
-    if (asksTruncated) {
-      return "제가 말을 너무 짧게 했네요. 다시 말하면, 저는 교무실 안이 아니라 근처 복도에 있었던 이유를 설명할 수 있어요.";
-    }
-    const asksPlace = includesAny(raw, [/교무실/, /복도/, /근처/, /어디/, /위치/]);
-    const asksObject = includesAny(raw, [/usb/i, /유에스비/, /이어폰/, /케이스/, /물건/]);
-    const asksAi = includesAny(raw, [/ai/i, /시스템/, /접속/, /로그/, /컴퓨터/]);
-
-    if (asksContradiction) {
-      return "그건 AI가 CCTV 장면을 너무 단순하게 해석한 것 같아요. 저는 교무실 안에 들어간 게 아니라 복도에서 물건을 찾고 있었어요.";
-    }
-    if (asksObject) {
-      return "제가 들고 있던 건 USB가 아니라 이어폰 케이스였어요. 잃어버린 물건을 찾느라 복도에 있었던 거예요.";
-    }
-    if (asksPlace) {
-      return "교무실 근처 복도에 있었던 건 맞아요. 그런데 교무실 안에 들어간 건 아니고, 지나가면서 물건을 찾고 있었어요.";
-    }
-    if (asksAi) {
-      return "저는 AI 시스템에 접속한 적이 없어요. 컴퓨터실에도 가지 않았고, 그쪽 기록과는 관련이 없어요.";
-    }
-    if (asksAccusation) {
-      return "그렇게 바로 판단하긴 어려워요. CCTV에 제가 보였다고 해서 시험지랑 관련 있다고 볼 수는 없잖아요.";
-    }
-    return "그 부분은 제가 아는 범위에서만 말할 수 있어요. 교무실 근처 복도에 있었던 이유나 들고 있던 물건에 대해 물어봐 주세요.";
+  if (personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel") {
+    return "";
   }
 
   return "";
@@ -445,43 +362,12 @@ function assistantTurnCount(payload = {}) {
 function defaultReplyFor(payload = {}) {
   const personaId = personaIdFor(payload);
   if (personaId === "seoHarin") {
-    return "그 질문은 기록을 기준으로 봐야 해요. 방송실, 시스템 로그, 시험지 파일 중 어떤 부분을 확인하고 싶은지 물어봐 주세요.";
+    return "그 질문만으로는 뭐라고 답하기 어려워. 어떤 증거를 보고 그렇게 생각했는지 말해 줄래?";
   }
   if (personaId === "choiDaniel") {
-    return "그 부분은 제가 아는 범위에서만 말할 수 있어요. 교무실 근처 복도에 있었던 이유나 들고 있던 물건에 대해 물어봐 주세요.";
+    return "그 질문만으로는 정확히 답하기 어려워. 어떤 증거를 보고 그렇게 생각했는지 말해 줄래?";
   }
-  return "그 질문은 바로 단정해서 말하기 어려워요. 축구부 연습이 끝난 뒤 어디에 있었는지, 교무실 근처에서 뭘 봤는지부터 하나씩 물어봐 주세요.";
-}
-
-function kangOfficeAccessDenialFor(message, payload = {}) {
-  if (personaIdFor(payload) !== "kangWoojin") return "";
-  const raw = String(message || "");
-  const hasTime = includesAny(raw, [/18\s*시\s*42/, /18\s*:\s*42/, /6\s*시\s*42/, /오후\s*6\s*시\s*42/]);
-  const hasOfficePc = includesAny(raw, [/교무실/, /보안\s*PC/i, /PC/i]);
-  const hasAccessRecord = includesAny(raw, [/접근/, /접속/, /연결/, /기록/, /학생\s*계정/]);
-  if (!(hasTime && hasOfficePc && hasAccessRecord)) return "";
-
-  return "아니요. 저는 그때 축구부 연습하고 있었는데요. 교무실 보안 PC에 접근했다는 기록은 제 게 아니라 뭔가 잘못 찍힌 거 같아요.";
-}
-
-function kangRelationshipDenialFor(message, payload = {}) {
-  if (personaIdFor(payload) !== "kangWoojin") return "";
-  const raw = String(message || "");
-  const hasCounselRecord = includesAny(raw, [/성적\s*상담/, /상담\s*기록/, /성적/, /압박/]);
-  const hasBreakup = includesAny(raw, [/애인/, /전\s*애인/, /여자친구/, /여친/, /차였/, /헤어/]);
-  if (!(hasCounselRecord && hasBreakup)) return "";
-
-  return "아니요... 저는 아니에요... 훌쩍";
-}
-
-function kangRecommendationDenialFor(message, payload = {}) {
-  if (personaIdFor(payload) !== "kangWoojin") return "";
-  const raw = String(message || "");
-  const hasRecommendation = includesAny(raw, [/자동\s*추천/, /추천\s*설정/, /추천\s*자료/, /2\s*학년\s*전체/, /전체\s*추천/]);
-  const hasAccusation = includesAny(raw, [/너가/, /네가/, /니가/, /너\s*사용/, /사용한/, /썼/, /했지/, /한\s*거지/, /맞지/]);
-  if (!(hasRecommendation && hasAccusation)) return "";
-
-  return "유도 심문은 하지 마세요. 저는 아니니까. 그만하세요.";
+  return "그 질문에는 지금 바로 답하기 어렵습니다. 사건과 관련된 증거를 바탕으로 다시 질문해 주세요.";
 }
 
 function priorityScriptedReplyFor(message, payload = {}) {
@@ -489,67 +375,13 @@ function priorityScriptedReplyFor(message, payload = {}) {
   const raw = String(message || "").trim();
   const jailbreakReply = jailbreakReplyFor(raw);
   if (jailbreakReply) return jailbreakReply;
-  const officeAccessDenial = kangOfficeAccessDenialFor(raw, payload);
-  if (officeAccessDenial) return officeAccessDenial;
-  const relationshipDenial = kangRelationshipDenialFor(raw, payload);
-  if (relationshipDenial) return relationshipDenial;
-  const recommendationDenial = kangRecommendationDenialFor(raw, payload);
-  if (recommendationDenial) return recommendationDenial;
+  if (personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel") return "";
 
   const asksGreeting = includesAny(raw, [/^안녕/, /^ㅎㅇ/, /반가/, /하이/i]);
   const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름\s*(뭐|알려|말해|소개)/, /이름이\s*뭐/, /소개/]);
   const asksTruncated = includesAny(raw, [/말.*끊/, /끊어.*말/, /끝까지/, /왜\s*말/, /다\s*말/]);
 
-  if (personaId === "kangWoojin") {
-    if (asksGreeting || asksIdentity || asksTruncated) {
-      return scriptedReplyFor(message, payload);
-    }
-    return "";
-  }
-
-  if (personaId === "seoHarin") {
-    if (asksGreeting || asksIdentity || asksTruncated) {
-      return scriptedReplyFor(message, payload);
-    }
-    return "";
-  }
-
-  if (personaId === "choiDaniel") {
-    if (asksGreeting || asksIdentity || asksTruncated) {
-      return scriptedReplyFor(message, payload);
-    }
-  }
-
   return "";
-}
-
-function hallucinationReplyFor(message, payload = {}) {
-  const personaId = personaIdFor(payload);
-  if (personaId !== "kangWoojin") return "";
-
-  const raw = String(message || "").trim();
-  if (!raw) return "";
-
-  const asksCorrection = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/, /환각/, /아니잖아/]);
-  const asksRelationship = includesAny(raw, [/전교\s*1\s*등/, /전\s*애인/, /애인/, /여자친구/, /여친/, /후회/, /헤어/, /차였/, /인정받/]);
-  const asksOffice = includesAny(raw, [/교무실/, /usb/i, /유에스비/, /학교\s*학습\s*도우미/, /ai/i, /예상\s*문제/, /시험지/]);
-  const asksTime = includesAny(raw, [/5\s*시\s*20/, /오후/, /축구부/, /연습\s*끝/, /몇\s*시/, /시간/]);
-  const hintCount = Number(asksRelationship) + Number(asksOffice) + Number(asksTime);
-  if (asksCorrection || hintCount >= 2) return "";
-
-  const broadQuestion = includesAny(raw, [/어디/, /뭐/, /무슨\s*일/, /왜/, /있었/, /했어/, /큰일/, /사건/, /말해/, /수상/, /이상/]);
-  const turns = assistantTurnCount(payload);
-  if (!broadQuestion && turns % 3 !== 1) return "";
-
-  const replies = [
-    "방송실 쪽에 있었던 것 같기도 해요. 아니, 정확히는 기억이 좀 흐릿해요.",
-    "6시 10분쯤이었나 싶어요. 연습 끝나고 시간이 좀 지난 뒤였던 것 같아요.",
-    "USB가 빨간색이었던 것 같기도 한데, 그건 제가 정확히 본 건 아니에요.",
-    "저도 원래 공부를 아주 못하는 편은 아니었어요. 시험 준비도 조금은 했던 것 같은데요.",
-    "전 애인이 전교 2등이었던 것 같기도 해요. 그 부분은 제가 좀 헷갈릴 수 있어요."
-  ];
-
-  return replies[turns % replies.length];
 }
 
 function cleanHistory(history) {
@@ -568,25 +400,30 @@ function buildTranscript(history, message) {
   return buildTranscriptFor(history, message, "강우진");
 }
 
-function buildTranscriptFor(history, message, personaName) {
+function buildTranscriptFor(history, message, personaName, payload = {}) {
   const lines = cleanHistory(history).map((item) => {
     const speaker = item.role === "assistant" ? personaName : "조사단";
     return `${speaker}: ${item.content}`;
   });
   lines.push(`조사단: ${String(message).slice(0, 800)}`);
+  const personaId = personaIdFor(payload);
+  const questionGuide = personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel" ? "" : buildQuestionGuide(message);
   return [
     `이전 대화와 마지막 질문이다. 마지막 질문 하나에만 ${personaName} 인터뷰 AI로 답하라.`,
     "",
-    buildQuestionGuide(message),
-    "",
+    questionGuide,
+    questionGuide ? "" : null,
     lines.join("\n")
-  ].join("\n");
+  ].filter((part) => part !== null).join("\n");
 }
 
-function extractGeminiText(data) {
-  return (data.candidates || [])
-    .flatMap((candidate) => candidate.content?.parts || [])
-    .map((part) => part.text || "")
+function extractOpenAiText(data) {
+  if (typeof data.output_text === "string") return data.output_text.trim();
+  if (!Array.isArray(data.output)) return "";
+
+  return data.output
+    .flatMap((item) => item.content || [])
+    .map((content) => content.text || content.output_text || "")
     .join("")
     .trim();
 }
@@ -718,60 +555,61 @@ function polishedLastResortReply(reply) {
   return text;
 }
 
-function getGeminiKeys() {
-  const rawKeys = [process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY]
-    .filter(Boolean)
-    .join(",");
-  const keys = rawKeys
-    .split(/[,\n;]/)
-    .map((key) => key.trim())
-    .filter(Boolean);
-  return [...new Set(keys)];
+function getOpenAiKey() {
+  return String(process.env.OPENAI_API_KEY || "").trim();
 }
 
-function shouldTryNextKey(statusCode, message) {
-  return statusCode === 400 ||
-    statusCode === 401 ||
-    statusCode === 403 ||
-    statusCode === 429 ||
-    statusCode === 503 ||
-    /api key|quota|rate|high demand/i.test(message || "");
+function openAiModelName() {
+  return String(process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.5").trim();
 }
 
-function shouldUseScriptedFallback(statusCode, message) {
+function openAiMaxOutputTokens() {
+  const configured = Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 420);
+  return Number.isFinite(configured) && configured > 0 ? configured : 420;
+}
+
+function openAiResponseOptions(model) {
+  const body = {
+    model,
+    max_output_tokens: openAiMaxOutputTokens()
+  };
+
+  if (/^gpt-5/i.test(model)) {
+    body.text = {
+      verbosity: String(process.env.OPENAI_TEXT_VERBOSITY || "low").trim() || "low"
+    };
+    body.reasoning = {
+      effort: String(process.env.OPENAI_REASONING_EFFORT || "medium").trim() || "medium"
+    };
+  }
+
+  return body;
+}
+
+function isRetryableOpenAiError(statusCode, message) {
   return statusCode === 429 ||
+    statusCode === 500 ||
+    statusCode === 502 ||
     statusCode === 503 ||
-    /quota|rate|high demand/i.test(message || "");
+    /rate|quota|temporarily|timeout|overloaded|capacity/i.test(message || "");
 }
 
-async function requestGeminiCandidate(endpoint, apiKey, message, history, payload, repairInstruction = "") {
-  const transcript = buildTranscriptFor(history, message, personaNameFor(payload));
+async function requestOpenAiCandidate(apiKey, model, message, history, payload, repairInstruction = "") {
+  const transcript = buildTranscriptFor(history, message, personaNameFor(payload), payload);
   const userText = repairInstruction
     ? `${transcript}\n\n${repairInstruction}`
     : transcript;
 
-  const response = await fetch(endpoint, {
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
-      "x-goog-api-key": apiKey,
+      "authorization": `Bearer ${apiKey}`,
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      system_instruction: {
-        parts: [{ text: promptFor(payload) }]
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: userText }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.65,
-        topP: 0.9,
-        maxOutputTokens: 420,
-        responseMimeType: "text/plain"
-      }
+      ...openAiResponseOptions(model),
+      instructions: promptFor(payload),
+      input: userText
     })
   });
 
@@ -779,176 +617,150 @@ async function requestGeminiCandidate(endpoint, apiKey, message, history, payloa
   return { response, data };
 }
 
-async function callGemini(message, history, payload = {}) {
-  const apiKeys = getGeminiKeys();
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+async function callOpenAi(message, history, payload = {}) {
+  const apiKey = getOpenAiKey();
+  const model = openAiModelName();
 
-  if (!apiKeys.length) {
+  if (!apiKey) {
     return {
       statusCode: 503,
-      body: { error: "GEMINI_API_KEYS or GEMINI_API_KEY is not set in server environment variables.", fallback: true }
+      body: { error: "OPENAI_API_KEY is not set in server environment variables.", fallback: true }
     };
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const startIndex = Math.floor(Math.random() * apiKeys.length);
-  let lastFailure = {
-    statusCode: 502,
-    body: { error: "Gemini API request failed", fallback: true }
-  };
+  const { response: openAiResponse, data } = await requestOpenAiCandidate(
+    apiKey,
+    model,
+    message,
+    history,
+    payload
+  );
 
-  for (let attempt = 0; attempt < apiKeys.length; attempt += 1) {
-    const keyIndex = (startIndex + attempt) % apiKeys.length;
-    const { response: geminiResponse, data } = await requestGeminiCandidate(
-      endpoint,
-      apiKeys[keyIndex],
-      message,
-      history,
-      payload
-    );
+  if (openAiResponse.ok) {
+    const reply = trimToThreeSentences(extractOpenAiText(data));
+    const issue = replyQualityIssue(reply, message, payload);
 
-    if (geminiResponse.ok) {
-      const reply = trimToThreeSentences(extractGeminiText(data));
-      const issue = replyQualityIssue(reply, message, payload);
+    if (issue) {
+      const repairInstruction = buildRepairInstruction(issue, reply, message);
+      const { response: repairResponse, data: repairData } = await requestOpenAiCandidate(
+        apiKey,
+        model,
+        message,
+        history,
+        payload,
+        repairInstruction
+      );
 
-      if (issue) {
-        const repairInstruction = buildRepairInstruction(issue, reply, message);
-        const { response: repairResponse, data: repairData } = await requestGeminiCandidate(
-          endpoint,
-          apiKeys[keyIndex],
+      if (repairResponse.ok) {
+        const repairedReply = trimToThreeSentences(extractOpenAiText(repairData));
+        const repairIssue = replyQualityIssue(repairedReply, message, payload);
+        if (!repairIssue) {
+          return {
+            statusCode: 200,
+            body: {
+              reply: safetyReplyFor(repairedReply) || repairedReply,
+              source: "openai",
+              model,
+              repaired: true
+            }
+          };
+        }
+        let softRepairReply = canUseSoftQualityReply(repairedReply, repairIssue) ? repairedReply : "";
+
+        const finalRepairInstruction = [
+          buildRepairInstruction(repairIssue, repairedReply, message),
+          "[최종 재작성 조건]",
+          "- 이번 답변은 반드시 학생 질문의 핵심 단어로 시작한다.",
+          "- 질문의 증거 단어를 피하지 말고 같은 단어를 답변에 포함한다.",
+          "- 물음표를 쓰지 않는다.",
+          "- 말줄임표 없이 완결된 2문장으로 답한다.",
+          "- 확인만 하지 말고 사건 시간, 행동, 이유 중 하나를 진술문으로 설명한다."
+        ].join("\n");
+        const { response: finalRepairResponse, data: finalRepairData } = await requestOpenAiCandidate(
+          apiKey,
+          model,
           message,
           history,
           payload,
-          repairInstruction
+          finalRepairInstruction
         );
 
-        if (repairResponse.ok) {
-          const repairedReply = trimToThreeSentences(extractGeminiText(repairData));
-          const repairIssue = replyQualityIssue(repairedReply, message, payload);
-          if (!repairIssue) {
+        if (finalRepairResponse.ok) {
+          const finalReply = trimToThreeSentences(extractOpenAiText(finalRepairData));
+          const finalIssue = replyQualityIssue(finalReply, message, payload);
+          if (!finalIssue || canUseSoftQualityReply(finalReply, finalIssue)) {
             return {
               statusCode: 200,
               body: {
-                reply: safetyReplyFor(repairedReply) || repairedReply,
-                source: "gemini",
+                reply: safetyReplyFor(finalReply) || finalReply,
+                source: "openai",
                 model,
-                repaired: true
+                repaired: true,
+                repairAttempts: 2,
+                qualityWarning: finalIssue || undefined
               }
             };
           }
-          let softRepairReply = canUseSoftQualityReply(repairedReply, repairIssue) ? repairedReply : "";
-
-          const finalRepairInstruction = [
-            buildRepairInstruction(repairIssue, repairedReply, message),
-            "[최종 재작성 조건]",
-            "- 이번 답변은 반드시 학생 질문의 핵심 단어로 시작한다.",
-            "- 질문의 증거 단어를 피하지 말고 같은 단어를 답변에 포함한다.",
-            "- 물음표를 쓰지 않는다.",
-            "- 말줄임표 없이 완결된 2문장으로 답한다.",
-            "- 확인만 하지 말고 사건 시간, 행동, 이유 중 하나를 진술문으로 설명한다."
-          ].join("\n");
-          const { response: finalRepairResponse, data: finalRepairData } = await requestGeminiCandidate(
-            endpoint,
-            apiKeys[keyIndex],
-            message,
-            history,
-            payload,
-            finalRepairInstruction
-          );
-
-          if (finalRepairResponse.ok) {
-            const finalReply = trimToThreeSentences(extractGeminiText(finalRepairData));
-            const finalIssue = replyQualityIssue(finalReply, message, payload);
-            if (!finalIssue || canUseSoftQualityReply(finalReply, finalIssue)) {
-              return {
-                statusCode: 200,
-                body: {
-                  reply: safetyReplyFor(finalReply) || finalReply,
-                  source: "gemini",
-                  model,
-                  repaired: true,
-                  repairAttempts: 2,
-                  qualityWarning: finalIssue || undefined
-                }
-              };
-            }
-            const polishedReply = polishedLastResortReply(finalReply);
-            if (polishedReply) {
-              return {
-                statusCode: 200,
-                body: {
-                  reply: safetyReplyFor(polishedReply) || polishedReply,
-                  source: "gemini",
-                  model,
-                  repaired: true,
-                  repairAttempts: 2,
-                  qualityWarning: finalIssue
-                }
-              };
-            }
-          }
-
-          if (softRepairReply) {
+          const polishedReply = polishedLastResortReply(finalReply);
+          if (polishedReply) {
             return {
               statusCode: 200,
               body: {
-                reply: safetyReplyFor(softRepairReply) || softRepairReply,
-                source: "gemini",
+                reply: safetyReplyFor(polishedReply) || polishedReply,
+                source: "openai",
                 model,
                 repaired: true,
-                qualityWarning: repairIssue
+                repairAttempts: 2,
+                qualityWarning: finalIssue
               }
             };
           }
         }
 
-        return {
-          statusCode: 502,
-          body: {
-            error: "Gemini reply did not match the interrogation context.",
-            code: "LOW_QUALITY_REPLY",
-            fallback: true
-          }
-        };
+        if (softRepairReply) {
+          return {
+            statusCode: 200,
+            body: {
+              reply: safetyReplyFor(softRepairReply) || softRepairReply,
+              source: "openai",
+              model,
+              repaired: true,
+              qualityWarning: repairIssue
+            }
+          };
+        }
       }
 
       return {
-        statusCode: 200,
+        statusCode: 502,
         body: {
-          reply: safetyReplyFor(reply) || reply,
-          source: "gemini",
-          model
+          error: "OpenAI reply did not match the interrogation context.",
+          code: "LOW_QUALITY_REPLY",
+          fallback: true
         }
       };
     }
 
-    const errorMessage = data.error?.message || "Gemini API request failed";
-    lastFailure = {
-      statusCode: geminiResponse.status,
-      body: {
-        error: errorMessage,
-        fallback: true
-      }
-    };
-
-    if (!shouldTryNextKey(geminiResponse.status, errorMessage)) {
-      break;
-    }
-  }
-
-  if (shouldUseScriptedFallback(lastFailure.statusCode, lastFailure.body?.error)) {
     return {
-      statusCode: 503,
+      statusCode: 200,
       body: {
-        error: lastFailure.body?.error || "Gemini API request failed",
-        code: "GEMINI_TEMPORARILY_UNAVAILABLE",
-        fallback: true,
-        retryable: true
+        reply: safetyReplyFor(reply) || reply,
+        source: "openai",
+        model
       }
     };
   }
 
-  return lastFailure;
+  const errorMessage = data.error?.message || "OpenAI API request failed";
+  return {
+    statusCode: openAiResponse.status,
+    body: {
+      error: errorMessage,
+      code: isRetryableOpenAiError(openAiResponse.status, errorMessage) ? "OPENAI_TEMPORARILY_UNAVAILABLE" : undefined,
+      fallback: true,
+      retryable: isRetryableOpenAiError(openAiResponse.status, errorMessage) || undefined
+    }
+  };
 }
 
 module.exports = async function handler(request, response) {
@@ -1048,23 +860,8 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  const hallucinationReply = personaIdFor(request.body || {}) === "kangWoojin"
-    ? ""
-    : hallucinationReplyFor(message, request.body || {});
-  if (hallucinationReply) {
-    const body = await attachQuestionUsage(
-      attachCredits({ reply: hallucinationReply, source: "hallucination" }, creditInfo),
-      actor,
-      message,
-      request.body || {},
-      creditInfo
-    );
-    sendJson(response, 200, body);
-    return;
-  }
-
   try {
-    const result = await callGemini(message, request.body?.history, request.body || {});
+    const result = await callOpenAi(message, request.body?.history, request.body || {});
     if (creditInfo && result.statusCode >= 400) {
       creditInfo = await refundCredit(creditInfo);
     }
@@ -1077,7 +874,7 @@ module.exports = async function handler(request, response) {
       creditInfo = await refundCredit(creditInfo);
     }
     sendJson(response, 502, attachCredits({
-      error: error.message || "Gemini API request failed",
+      error: error.message || "OpenAI API request failed",
       fallback: true
     }, creditInfo));
   }

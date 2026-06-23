@@ -1,6 +1,6 @@
 param(
   [int]$Port = 8126,
-  [string]$Model = "gemini-2.5-flash"
+  [string]$Model = "gpt-5.5"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +10,7 @@ if (-not (Test-Path -LiteralPath $nodePath)) {
   $nodePath = "node"
 }
 
-$secureKey = Read-Host "Paste Gemini API key, or press Enter to enter it in the browser" -AsSecureString
+$secureKey = Read-Host "Paste OpenAI API key" -AsSecureString
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
 try {
   $plainKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
@@ -18,21 +18,18 @@ try {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
 
-$env:AI_PROVIDER = "gemini"
-$env:ALLOW_RUNTIME_API_KEY = "1"
 if (-not [string]::IsNullOrWhiteSpace($plainKey)) {
-  $env:GEMINI_API_KEY = $plainKey
-  $env:GEMINI_IMAGE_API_KEY = $plainKey
+  $env:OPENAI_API_KEY = $plainKey
 } else {
-  Remove-Item Env:\GEMINI_API_KEY -ErrorAction SilentlyContinue
-  Remove-Item Env:\GEMINI_IMAGE_API_KEY -ErrorAction SilentlyContinue
+  Remove-Item Env:\OPENAI_API_KEY -ErrorAction SilentlyContinue
 }
-$env:GEMINI_MODEL = $Model
+$env:OPENAI_MODEL = $Model
 $env:PORT = [string]$Port
 
-Write-Host "Starting Gemini local test server..."
+Write-Host "Starting ChatGPT local test server..."
 Write-Host "Model: $Model"
-Write-Host "Key page: http://127.0.0.1:$Port/local-api-key.html"
+Write-Host "Student page: http://127.0.0.1:$Port/student.html"
+Write-Host "Teacher room: http://127.0.0.1:$Port/teacherroom.html"
 Write-Host "Art room: http://127.0.0.1:$Port/game-art.html"
 Write-Host "Broadcast room: http://127.0.0.1:$Port/game-broadcast.html"
 Write-Host "Press Ctrl+C to stop."

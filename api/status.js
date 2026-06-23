@@ -22,6 +22,14 @@ function getGeminiKeys() {
   return uniqueKeysFrom(process.env.GEMINI_API_KEYS, process.env.GEMINI_API_KEY);
 }
 
+function getOpenAiKey() {
+  return String(process.env.OPENAI_API_KEY || "").trim();
+}
+
+function openAiModelName() {
+  return String(process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.5").trim();
+}
+
 function getGeminiImageKeys() {
   return uniqueKeysFrom(
     process.env.GEMINI_IMAGE_API_KEYS,
@@ -148,8 +156,10 @@ module.exports = async function handler(request, response) {
     ]
     : [];
   sendJson(response, 200, {
-    provider: "gemini",
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    provider: "openai",
+    chatProvider: "openai",
+    model: openAiModelName(),
+    hasOpenAiKey: Boolean(getOpenAiKey()),
     imageModel: imageModelName(),
     hasGeminiKey: getGeminiKeys().length > 0,
     hasGeminiImageKey: getGeminiImageKeys().length > 0,

@@ -17,25 +17,21 @@ Vercel 프로젝트의 `Settings` -> `Environment Variables`에서 아래 값을
 
 API 키는 Production/Preview 환경에서 `Sensitive` 옵션을 켜고 저장하세요.
 
-키를 1개만 쓸 때:
+페르소나 AI 채팅용 OpenAI 키:
 
 ```text
-GEMINI_API_KEY=본인 Gemini API 키
-GEMINI_MODEL=gemini-2.5-flash
+OPENAI_API_KEY=본인 OpenAI API 키
+OPENAI_MODEL=gpt-5.5
 ```
 
-3팀이 나눠 쓸 때는 키 3개를 한 변수에 넣는 것을 추천합니다.
+수업 링크를 공개할 때는 입장 코드와 선생용 보안 코드를 함께 넣는 것을 권장합니다.
 
 ```text
-GEMINI_API_KEYS=키1,키2,키3
-GEMINI_MODEL=gemini-2.5-flash
 CLASS_ACCESS_CODE=수업용입장코드
 TEACHER_ACCESS_CODE=선생용보안코드
 ```
 
-`GEMINI_API_KEYS`는 쉼표, 세미콜론, 줄바꿈으로 구분해도 됩니다. 서버가 요청마다 키를 무작위 시작점으로 돌려 쓰고, 한 키가 제한이나 혼잡 오류를 내면 다른 키로 다시 시도합니다.
-
-`CLASS_ACCESS_CODE`를 넣으면 학생이 처음 질문할 때 입장 코드를 입력해야 합니다. 코드가 틀리면 Gemini API를 호출하지 않습니다.
+`CLASS_ACCESS_CODE`를 넣으면 학생이 처음 질문할 때 입장 코드를 입력해야 합니다. 코드가 틀리면 OpenAI API를 호출하지 않습니다.
 `TEACHER_ACCESS_CODE`를 넣으면 선생용 질문권 추가/초기화/로그 확인 API와 선생용 AI 채팅 우회 권한을 서버에서 한 번 더 잠급니다. 공개 링크로 수업할 때는 반드시 설정하세요.
 
 질문권과 학생별 질문 로그를 선생님/학생 노트북 사이에서 공유하려면 Upstash Redis 환경 변수도 추가하세요.
@@ -72,23 +68,22 @@ CHAT_MAX_REQUEST_BYTES=25000
 배포된 주소에서 상단 `AI 연결` 상태가 아래처럼 보이면 키가 서버에 잡힌 상태입니다.
 
 ```text
-Gemini 준비됨 (gemini-2.5-flash)
+ChatGPT 준비됨 (gpt-5.5)
 ```
 
 채팅을 보낸 뒤 브라우저 개발자도구 `Network` -> `chat` -> `Response`에 아래 값이 보이면 성공입니다.
 
 ```json
 {
-  "source": "gemini"
+  "source": "openai"
 }
 ```
 
 ## 보안 주의
 
-무료 API 키여도 공개 웹 코드에 넣으면 안 됩니다. 유출되면 쿼터가 소진되거나 키가 정지될 수 있고, 나중에 결제를 연결하면 비용 문제가 생길 수 있습니다.
+API 키는 공개 웹 코드에 넣으면 안 됩니다. 유출되면 사용량이 발생하거나 키가 정지될 수 있습니다.
 
-Gemini API 키는 브라우저 코드에 넣지 말고 Vercel 환경 변수에만 저장하세요.
-Google AI Studio 또는 Google Cloud Console에서 Gemini API에만 쓸 수 있게 키 제한을 걸어두세요.
+OpenAI API 키는 브라우저 코드에 넣지 말고 Vercel 환경 변수에만 저장하세요.
 수업 링크를 공개할 때는 `CLASS_ACCESS_CODE`를 함께 설정하는 것을 강하게 권장합니다.
 로그인 계정은 아래처럼 준비되어 있습니다.
 

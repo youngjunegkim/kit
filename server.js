@@ -8,11 +8,11 @@ const presenceHandler = require("./api/presence");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 8123);
-const provider = String(process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "openai")).toLowerCase();
+const provider = "openai";
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const geminiImageApiKey = process.env.GEMINI_IMAGE_API_KEY;
-const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.2";
+const openaiModel = process.env.OPENAI_MODEL || process.env.AI_MODEL || "gpt-5.5";
 const geminiModel = process.env.GEMINI_MODEL || process.env.AI_MODEL || "gemini-2.5-flash";
 const freeImageProvider = String(process.env.FREE_IMAGE_PROVIDER || "pollinations").trim().toLowerCase();
 const freeImageFallbackSetting = String(process.env.FREE_IMAGE_FALLBACK || "1").trim().toLowerCase();
@@ -187,14 +187,6 @@ function extractOpenAiText(data) {
     .trim();
 }
 
-function extractGeminiText(data) {
-  return (data.candidates || [])
-    .flatMap((candidate) => candidate.content?.parts || [])
-    .map((part) => part.text || "")
-    .join("")
-    .trim();
-}
-
 function trimToThreeSentences(text) {
   const cleaned = String(text || "").replace(/\s+/g, " ").trim();
   if (!cleaned) return "저 지금 뭐라고 답해야 할지 모르겠는데요. 제대로 다시 물어봐 주세요.";
@@ -253,58 +245,6 @@ async function callOpenAi(payload, message) {
   };
 }
 
-async function callGemini(payload, message) {
-  if (!runtimeGeminiApiKey) {
-    return {
-      statusCode: 503,
-      body: { error: "GEMINI_API_KEY is not set", fallback: true }
-    };
-  }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`;
-  const geminiResponse = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": runtimeGeminiApiKey,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      system_instruction: {
-        parts: [{ text: promptFor(payload) }]
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: buildTranscriptFor(payload.history, message, personaNameFor(payload)) }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.9,
-        maxOutputTokens: 180,
-        responseMimeType: "text/plain"
-      }
-    })
-  });
-
-  const data = await geminiResponse.json();
-  if (!geminiResponse.ok) {
-    return {
-      statusCode: geminiResponse.status,
-      body: {
-        error: data.error?.message || "Gemini API request failed",
-        fallback: true
-      }
-    };
-  }
-
-  const reply = trimToThreeSentences(extractGeminiText(data));
-  return {
-    statusCode: 200,
-    body: { reply: safetyReplyFor(reply) || reply, source: "gemini", model: geminiModel }
-  };
-}
-
 async function handleApiKey(request, response) {
   if (process.env.ALLOW_RUNTIME_API_KEY !== "1") {
     sendJson(response, 404, { error: "Not found" });
@@ -326,11 +266,10 @@ async function handleApiKey(request, response) {
   }
 
   runtimeGeminiApiKey = apiKey;
-  activeProvider = "gemini";
   sendJson(response, 200, {
     ok: true,
     provider: activeProvider,
-    model: geminiModel,
+    model: openaiModel,
     hasGeminiKey: true
   });
 }
@@ -357,7 +296,7 @@ async function handleStatus(response) {
 
   sendJson(response, 200, {
     provider: activeProvider,
-    model: activeProvider === "gemini" ? geminiModel : openaiModel,
+    model: openaiModel,
     imageModel: geminiImageModel,
     hasGeminiKey: Boolean(runtimeGeminiApiKey),
     hasGeminiImageKey: activeGeminiImageApiKeys.length > 0 || Boolean(runtimeGeminiApiKey),
@@ -397,9 +336,7 @@ async function handleChat(request, response) {
   }
 
   try {
-    const result = activeProvider === "gemini"
-      ? await callGemini(payload, message)
-      : await callOpenAi(payload, message);
+    const result = await callOpenAi(payload, message);
     sendJson(response, result.statusCode, result.body);
   } catch (error) {
     sendJson(response, 502, {

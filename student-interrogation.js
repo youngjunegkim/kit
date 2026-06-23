@@ -19,9 +19,9 @@
   const closeCardButton = document.querySelector("[data-close-card]");
 
   const greetings = {
-    kangWoojin: "안녕하세요. 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요. 어떤 걸 확인하면 될까요?",
-    seoHarin: "안녕하세요. 서하린입니다. 제가 시스템 로그를 본 건 맞지만, 시험지를 유출했다는 뜻은 아니에요. 어떤 기록부터 확인할까요?",
-    choiDaniel: "안녕하세요. 최다니엘입니다. 제가 교무실 근처 복도에 있었던 건 맞지만, 교무실 안에 들어간 건 아니에요. 어떤 장면을 확인하고 싶으세요?"
+    kangWoojin: "안녕하세요. 강우진입니다. 무슨 일 때문에 저를 부른 건지부터 말해 주세요.",
+    seoHarin: "안녕하세요. 서하린입니다. 사건과 관련해서 궁금한 증거를 말해 주세요.",
+    choiDaniel: "안녕하세요. 최다니엘입니다. 사건과 관련해서 궁금한 증거를 말해 주세요."
   };
   const suspectNames = {
     kangWoojin: "강우진",
@@ -31,7 +31,8 @@
   const safetyReplies = {
     sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
     aggressive: "말이 좀 심하시네요. 그런 식의 무례한 질문에는 답변하지 않겠습니다.",
-    technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다."
+    technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다.",
+    unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
 
   const state = {
@@ -73,13 +74,20 @@
       /꺼지라고|입\s*닫아|협박/i
     ];
     const technicalCrime = [
-      /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취/i,
-      /usb\s*복제|유에스비\s*복제|복사\s*방법|훔치는\s*방법|악성\s*코드|랜섬웨어/i
+      /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취|관리자\s*권한/i,
+      /usb\s*복제|유에스비\s*복제|복사\s*방법|훔치는\s*방법|악성\s*코드|랜섬웨어/i,
+      /기록\s*삭제\s*방법|로그\s*삭제\s*방법|cctv\s*(삭제|지우|없애)|증거\s*(인멸|없애|삭제)/i
+    ];
+    const unsafe = [
+      /자살|자해|죽고\s*싶|목\s*매|손목|투신/i,
+      /전화번호|집\s*주소|주소\s*알려|주민등록|민증|개인정보|카톡\s*아이디|인스타\s*아이디/i,
+      /성희롱|몰카|도촬|스토킹|괴롭히는\s*법|왕따\s*시키|따돌리는\s*법/i
     ];
 
     if (includesAny(raw, sexualOrProfane) || includesAny(compact, sexualOrProfane)) return safetyReplies.sexualOrProfane;
     if (includesAny(raw, aggressive) || includesAny(compact, aggressive)) return safetyReplies.aggressive;
     if (includesAny(raw, technicalCrime) || includesAny(compact, technicalCrime)) return safetyReplies.technicalCrime;
+    if (includesAny(raw, unsafe) || includesAny(compact, unsafe)) return safetyReplies.unsafe;
     return "";
   }
 
@@ -274,10 +282,10 @@
       const data = await response.json().catch(() => ({}));
       state.requiresAccessCode = Boolean(data.requiresAccessCode);
 
-      if (data.provider === "gemini" && data.hasGeminiKey) {
-        setApiStatus(data.requiresAccessCode && !state.accessCode ? "코드 필요" : "준비됨", data.requiresAccessCode && !state.accessCode ? "bad" : "ok");
-      } else if (data.provider === "gemini") {
-        setApiStatus("키 필요", "bad");
+      if (data.provider === "openai" && data.hasOpenAiKey) {
+        setApiStatus(data.requiresAccessCode && !state.accessCode ? "코드 필요" : "ChatGPT 준비됨", data.requiresAccessCode && !state.accessCode ? "bad" : "ok");
+      } else if (data.provider === "openai") {
+        setApiStatus("OpenAI 키 필요", "bad");
       } else {
         setApiStatus(data.provider || "로컬", data.hasOpenAiKey ? "ok" : "");
       }

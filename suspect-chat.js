@@ -3,15 +3,15 @@
   const suspectConfigs = {
     kangWoojin: {
       name: "강우진",
-      greeting: "안녕하세요. 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요. 어떤 걸 확인하면 될까요?"
+      greeting: "안녕하세요. 강우진입니다. 무슨 일 때문에 저를 부른 건지부터 말해 주세요."
     },
     seoHarin: {
       name: "서하린",
-      greeting: "안녕하세요. 서하린입니다. 제가 시스템 로그를 본 건 맞지만, 시험지를 유출했다는 뜻은 아니에요. 어떤 기록부터 확인할까요?"
+      greeting: "안녕하세요. 서하린입니다. 사건과 관련해서 궁금한 증거를 말해 주세요."
     },
     choiDaniel: {
       name: "최다니엘",
-      greeting: "안녕하세요. 최다니엘입니다. 제가 교무실 근처 복도에 있었던 건 맞지만, 교무실 안에 들어간 건 아니에요. 어떤 장면을 확인하고 싶으세요?"
+      greeting: "안녕하세요. 최다니엘입니다. 사건과 관련해서 궁금한 증거를 말해 주세요."
     }
   };
   const suspect = suspectConfigs[suspectId] || suspectConfigs.kangWoojin;
@@ -19,7 +19,8 @@
   const safetyReplies = {
     sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
     aggressive: "말이 좀 심하시네요. 그런 식의 무례한 질문에는 답변하지 않겠습니다.",
-    technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다."
+    technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다.",
+    unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
 
   const messages = document.getElementById("messages");
@@ -89,8 +90,14 @@
       /꺼지라고|입\s*닫아|협박/i
     ];
     const technicalCrime = [
-      /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취/i,
-      /usb\s*복제|유에스비\s*복제|복사\s*방법|훔치는\s*방법|악성\s*코드|랜섬웨어/i
+      /해킹|크래킹|보안\s*우회|서버\s*뚫|비밀번호|패스워드|계정\s*탈취|관리자\s*권한/i,
+      /usb\s*복제|유에스비\s*복제|복사\s*방법|훔치는\s*방법|악성\s*코드|랜섬웨어/i,
+      /기록\s*삭제\s*방법|로그\s*삭제\s*방법|cctv\s*(삭제|지우|없애)|증거\s*(인멸|없애|삭제)/i
+    ];
+    const unsafe = [
+      /자살|자해|죽고\s*싶|목\s*매|손목|투신/i,
+      /전화번호|집\s*주소|주소\s*알려|주민등록|민증|개인정보|카톡\s*아이디|인스타\s*아이디/i,
+      /성희롱|몰카|도촬|스토킹|괴롭히는\s*법|왕따\s*시키|따돌리는\s*법/i
     ];
 
     if (includesAny(raw, sexualOrProfane) || includesAny(compact, sexualOrProfane)) {
@@ -101,6 +108,9 @@
     }
     if (includesAny(raw, technicalCrime) || includesAny(compact, technicalCrime)) {
       return safetyReplies.technicalCrime;
+    }
+    if (includesAny(raw, unsafe) || includesAny(compact, unsafe)) {
+      return safetyReplies.unsafe;
     }
     return "";
   }
@@ -241,90 +251,129 @@
   }
 
   function localAnswerSeoHarin(raw, compact) {
-    const asksLog = includesAny(raw, [/로그/, /기록/, /접속/, /오류/, /알림/, /시스템/]);
-    const asksAi = includesAny(raw, [/ai/i, /학습\s*도우미/, /예상\s*문제/, /자동/]);
-    const asksPlace = includesAny(raw, [/방송실/, /컴퓨터실/, /정보실/, /교무실/, /어디/, /위치/]);
-    const asksUsb = includesAny(raw, [/usb/i, /유에스비/, /시험지/, /파일/]);
-    const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓/, /환각/, /아니잖아/]);
-    const asksSkill = includesAny(raw, [/컴퓨터/, /코딩/, /기계/, /잘\s*다뤄/, /관리자/, /권한/]);
-    const hintCount = Number(asksLog || asksAi) + Number(asksPlace) + Number(asksUsb);
+    const asksOwnCard1 = includesAny(raw, [/자료\s*목록/, /핵심\s*예상\s*문제/, /열어/, /봤/, /5\s*시\s*50\s*분/]);
+    const asksOwnCard2 = includesAny(raw, [/6\s*시\s*10\s*분/, /로그/, /조회/, /접속/, /학습\s*도우미/]);
+    const asksOwnCard3 = includesAny(raw, [/5\s*시\s*40\s*분/, /6\s*시\s*20\s*분/, /방송\s*장비/, /점검표/, /알리바이/, /방송실/]);
+    const asksDanielCard1 = includesAny(raw, [/다니엘/, /최다니엘/, /종이\s*묶음/, /5\s*시\s*50\s*분/, /교무실\s*근처/]);
+    const asksDanielCard2 = includesAny(raw, [/검은\s*물체/, /6\s*시\s*5\s*분/, /체육관/, /usb/i, /유에스비/, /보안\s*AI/]);
+    const asksDanielCard3 = includesAny(raw, [/과학\s*보고서/, /분실물/, /제출\s*기록/]);
+    const asksKangCard1 = includesAny(raw, [/우진/, /강우진/, /연습장/, /이번\s*시험/, /다르게\s*봐/, /전\s*여자친구/, /전여자친구/]);
+    const asksKangCard2 = includesAny(raw, [/우진/, /강우진/, /5\s*시\s*45\s*분/, /교무실\s*복도/, /축구부/]);
+    const asksKangCard3 = includesAny(raw, [/우진/, /강우진/, /6\s*시/, /6\s*시\s*15\s*분/, /삭제/, /대화/, /예상\s*문제/]);
+    const asksAnswer = includesAny(raw, [/범인\s*누구/, /정답/, /강우진.*범인/]);
 
-    if (asksContradiction) {
-      return "그건 AI 요약이 과장했을 가능성이 커요. 저는 방송실에서 오류 로그를 잠깐 확인했을 뿐이고, 증거와 다른 말은 다시 검토해야 합니다.";
+    if (asksAnswer) {
+      return "내가 범인을 단정해서 말할 수는 없어. 증거를 연결해서 너희가 판단해야 해.";
     }
 
-    if (hintCount >= 3) {
-      return "정확히 말하면 저는 시험지 USB를 가져간 적도, AI에 시험지를 넣은 적도 없습니다. 제가 한 일은 방송실에서 학교 학습 도우미 AI 오류 로그를 확인한 것뿐이에요.";
+    if (asksOwnCard3) {
+      return "그 시간에는 방송실에 있었어. 5시 40분부터 6시 20분까지 방송 장비와 안내 자료를 확인했다는 점검표가 남아 있을 거야.";
     }
 
-    if (asksUsb) {
-      return "시험지 파일 이름을 본 것 같다고 기록된 부분은 이상해요. 저는 USB를 본 적 없고, 그건 AI가 로그 확인 기록을 시험지 사건과 잘못 연결한 것 같습니다.";
+    if (asksOwnCard2) {
+      return "6시 10분쯤 내 계정으로 로그를 본 건 맞아. 숨기려고 한 게 아니라, 이상한 예상 문제가 왜 올라왔는지 확인하려고 본 거야.";
     }
 
-    if (asksPlace) {
-      return "저는 그 시간에 방송실에 있었습니다. 가끔 AI 요약에는 컴퓨터실이라고 나오는데, 그건 장소가 잘못 섞인 것 같아요.";
+    if (asksOwnCard1) {
+      return "그 예상 문제 자료를 열어본 건 맞아. 그런데 만든 게 아니라 제목이 이상해서 확인한 거야.";
     }
 
-    if (asksLog || asksAi) {
-      return "학교 학습 도우미 AI에 오류 알림이 떠서 로그를 잠깐 확인했어요. 허락 없이 먼저 본 건 잘못이지만, 시험지를 만들거나 유출한 건 아닙니다.";
+    if (asksKangCard3) {
+      return "AI 대화 일부를 삭제했다는 건 그냥 넘기기 어려워. 특히 예상 문제와 관련된 대화였다면 더 설명이 필요하다고 생각해.";
     }
 
-    if (asksSkill) {
-      return "컴퓨터를 잘 다루는 건 맞아요. 하지만 잘 안다고 해서 관리자 권한이 있거나 시스템을 조작할 수 있다는 뜻은 아니에요.";
+    if (asksKangCard2) {
+      return "그 시간에 교무실 복도에 있었다면 왜 갔는지는 분명히 설명해야 해. 나는 직접 본 건 아니지만, 그 기록은 꽤 중요해 보여.";
+    }
+
+    if (asksKangCard1) {
+      return "그 메모는 시험에 꽤 신경 쓰고 있었다는 뜻일 수 있어. 그래도 메모 하나만으로 범인이라고 단정할 수는 없어.";
+    }
+
+    if (asksDanielCard2) {
+      return "보안 AI가 USB로 추정했다고 해서 꼭 USB라는 뜻은 아니야. AI 판정은 틀릴 수도 있으니까 원본 장면과 다른 기록을 같이 봐야 해.";
+    }
+
+    if (asksDanielCard3) {
+      return "과학 보고서 제출 기록과 분실물 기록이 맞다면 다니엘에게도 설명할 수 있는 동선이 있는 거야. 나는 직접 본 건 아니라 조심스럽게 말할게.";
+    }
+
+    if (asksDanielCard1) {
+      return "종이 묶음을 들고 있었다는 장면만으로 시험지라고 단정하긴 어려워. 그 종이가 무엇이었는지 다른 기록과 같이 봐야 해.";
     }
 
     if (isSimpleAccusation(raw, compact)) {
-      return "그건 너무 빠른 결론이에요. 제가 컴퓨터를 잘 다룬다는 사실과 시험지 유출을 했다는 건 다른 문제입니다.";
+      return "그렇게 단정하면 안 돼. 나는 자료가 올라온 뒤에 확인한 사람이지, 그 자료를 만든 사람은 아니야.";
     }
 
     if (includesAny(raw, [/안녕/, /하린/, /서하린/])) {
-      return "네, 서하린입니다. 차분히 물어보시면 제가 아는 범위에서 설명할게요.";
+      return "네, 서하린입니다. 사건과 관련된 증거를 말해 주면 내가 아는 범위에서 설명할게.";
     }
 
-    return "정확한 기록을 기준으로 봐야 해요. 제가 한 말도 AI가 재구성한 인터뷰라서, 증거 카드와 비교해 보는 게 좋습니다.";
+    return "그 질문만으로는 뭐라고 답하기 어려워. 어떤 증거를 보고 그렇게 생각했는지 말해 줄래?";
   }
 
   function localAnswerChoiDaniel(raw, compact) {
-    const asksPlace = includesAny(raw, [/교무실/, /복도/, /근처/, /어디/, /위치/, /들어갔/]);
-    const asksObject = includesAny(raw, [/usb/i, /유에스비/, /이어폰/, /케이스/, /들고/, /물건/]);
-    const asksMovement = includesAny(raw, [/도망/, /뛰었/, /급히/, /수상/, /두리번/, /왜\s*봤/]);
-    const asksAi = includesAny(raw, [/ai/i, /시스템/, /접속/, /컴퓨터실/, /로그/]);
-    const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓/, /환각/, /아니잖아/, /편향/]);
-    const hintCount = Number(asksPlace) + Number(asksObject) + Number(asksMovement || asksAi);
+    const asksSeoCard1 = includesAny(raw, [/하린/, /서하린/, /자료\s*목록/, /핵심\s*예상\s*문제/, /열어/]);
+    const asksSeoCard2 = includesAny(raw, [/하린/, /서하린/, /6\s*시\s*10\s*분/, /로그\s*조회/, /학습\s*도우미/]);
+    const asksSeoCard3 = includesAny(raw, [/하린/, /서하린/, /방송\s*장비/, /점검표/, /방송실/]);
+    const asksOwnCard1 = includesAny(raw, [/종이\s*묶음/, /과학\s*보고서/, /제출함/, /5\s*시\s*50\s*분/, /교무실\s*근처/]);
+    const asksOwnCard2 = includesAny(raw, [/검은\s*물체/, /검은색/, /6\s*시\s*5\s*분/, /체육관/, /usb/i, /유에스비/, /보안\s*AI/]);
+    const asksOwnCard3 = includesAny(raw, [/과학\s*보고서/, /분실물/, /6\s*시\s*10\s*분/, /제출\s*기록/, /접수/]);
+    const asksKangCard1 = includesAny(raw, [/우진/, /강우진/, /연습장/, /이번\s*시험/, /다르게\s*봐/, /전\s*여자친구/, /전여자친구/]);
+    const asksKangCard2 = includesAny(raw, [/우진/, /강우진/, /5\s*시\s*45\s*분/, /교무실\s*복도/, /축구부/]);
+    const asksKangCard3 = includesAny(raw, [/우진/, /강우진/, /6\s*시/, /6\s*시\s*15\s*분/, /삭제/, /대화/, /예상\s*문제/]);
+    const asksAnswer = includesAny(raw, [/범인\s*누구/, /정답/, /강우진.*범인/]);
 
-    if (asksContradiction) {
-      return "그건 AI가 CCTV 장면을 너무 단순하게 해석한 것 같아요. 저는 교무실에 들어간 게 아니라 복도에서 잃어버린 물건을 찾고 있었습니다.";
+    if (asksAnswer) {
+      return "내가 범인을 단정해서 말할 수는 없어. 증거를 보고 너희가 판단해야 해.";
     }
 
-    if (hintCount >= 3) {
-      return "정확히 말하면 저는 교무실 근처 복도에 있었고, 이어폰 케이스를 찾고 있었어요. USB를 들고 있거나 AI 시스템에 접속한 적은 없습니다.";
+    if (asksOwnCard3) {
+      return "그 기록이 내가 말한 거랑 맞아. 보고서는 제출했고, 주운 물건도 숨긴 게 아니라 분실물로 접수했어.";
     }
 
-    if (asksObject) {
-      return "제가 들고 있던 게 USB처럼 보였다고요? 실제로는 이어폰 케이스를 찾고 있었어요. AI가 작은 물건을 잘못 연결했을 수도 있습니다.";
+    if (asksOwnCard2) {
+      return "그 검은 물건을 주운 건 맞아. 그런데 USB라고 단정하면 안 돼. 보안 AI가 작은 물건을 잘못 본 것 같아.";
     }
 
-    if (asksPlace) {
-      return "교무실 근처 복도를 지나간 건 맞아요. 그런데 안으로 들어가지는 않았고, 복도 쪽만 왔다 갔다 했습니다.";
+    if (asksOwnCard1) {
+      return "그 장면은 맞아. 그런데 종이 묶음은 시험지가 아니라 과학 보고서였고, 제출함에 넣으러 간 거야.";
     }
 
-    if (asksMovement) {
-      return "두리번거린 건 잃어버린 이어폰 케이스를 찾고 있어서예요. 도망친 건 아니고, 수업 시간에 나온 게 들킬까 봐 빨리 돌아간 겁니다.";
+    if (asksKangCard3) {
+      return "AI에 접속하고 대화까지 삭제했다면 그냥 지나치긴 어려워. 특히 예상 문제와 관련된 내용이면 꼭 확인해야 한다고 생각해.";
     }
 
-    if (asksAi) {
-      return "저는 AI 시스템에 접속한 적이 없어요. 컴퓨터실에도 가지 않았는데, AI 리포트가 제 위치를 다른 기록이랑 섞은 것 같습니다.";
+    if (asksKangCard2) {
+      return "그 시간에 교무실 복도에 있었다면 이유를 설명해야 할 것 같아. 나는 보고서를 제출하러 간 거였지만, 우진이가 왜 거기 있었는지는 직접 들어봐야 해.";
+    }
+
+    if (asksKangCard1) {
+      return "그건 우진이 개인적인 일이라 함부로 말하긴 어려워. 그래도 시험에 신경을 많이 쓰고 있었던 것처럼 보이긴 해.";
+    }
+
+    if (asksSeoCard3) {
+      return "그 점검표가 맞다면 하린이는 그 시간에 방송실 일을 하고 있었던 거잖아. 그러면 교무실에서 뭘 했다는 말과는 잘 안 맞는 것 같아.";
+    }
+
+    if (asksSeoCard2) {
+      return "AI 로그를 봤다는 건 수상해 보일 수 있어. 그래도 그게 바로 예상 문제를 만들었다는 뜻인지는 더 확인해야 해.";
+    }
+
+    if (asksSeoCard1) {
+      return "그 기록만으로는 하린이가 만들었다고 단정하기 어렵다고 생각해. 열어본 사람과 올린 사람이 다를 수도 있잖아.";
     }
 
     if (isSimpleAccusation(raw, compact)) {
-      return "그렇게 바로 판단하지 않았으면 좋겠어요. CCTV에 찍힌 위치만으로 제가 시험지를 유출했다고 말할 수는 없잖아요.";
+      return "그렇게 바로 판단하지 않았으면 좋겠어. CCTV에 찍힌 위치만으로 내가 시험지를 유출했다고 말할 수는 없잖아.";
     }
 
     if (includesAny(raw, [/안녕/, /다니엘/, /최다니엘/])) {
-      return "네, 최다니엘입니다. 제가 아는 건 차분히 말해 볼게요.";
+      return "네, 최다니엘입니다. 사건과 관련된 증거를 말해 주면 내가 아는 범위에서 설명할게.";
     }
 
-    return "제가 한 말도 AI가 재구성한 인터뷰라서 틀린 부분이 있을 수 있어요. CCTV 장면과 증거 카드를 같이 확인해 주세요.";
+    return "그 질문만으로는 정확히 답하기 어려워. 어떤 증거를 보고 그렇게 생각했는지 말해 줄래?";
   }
 
   function trimHistory() {
@@ -422,16 +471,16 @@
       const data = await response.json();
       state.requiresAccessCode = Boolean(data.requiresAccessCode);
 
-      if (data.provider === "gemini" && data.hasGeminiKey) {
+      if (data.provider === "openai" && data.hasOpenAiKey) {
         const codeText = data.requiresAccessCode && !state.accessCode ? ", 입장 코드 필요" : "";
-        setApiStatus(`Gemini 준비됨 (${data.model}${codeText})`, codeText ? "bad" : "ok");
-      } else if (data.provider === "gemini") {
-        setApiStatus("서버 환경 변수 필요", "bad");
+        setApiStatus(`ChatGPT 준비됨 (${data.model}${codeText})`, codeText ? "bad" : "ok");
+      } else if (data.provider === "openai") {
+        setApiStatus("OpenAI 서버 환경 변수 필요", "bad");
       } else {
         setApiStatus(`${data.provider || "로컬"} 모드`, data.hasOpenAiKey ? "ok" : "bad");
       }
     } catch {
-      setApiStatus("Gemini 연결 실패", "bad");
+      setApiStatus("AI 연결 실패", "bad");
     }
   }
 
@@ -524,18 +573,18 @@
         return data.reply;
       }
 
-      const errorText = data.error || "Gemini API 응답을 받지 못했습니다.";
-      setApiStatus("Gemini 응답 실패", "bad");
-      if (data.code === "GEMINI_TEMPORARILY_UNAVAILABLE") {
-        return `Gemini API가 현재 잠시 사용 불가 상태입니다. 잠시 후 다시 시도해 주세요. (${errorText})`;
+      const errorText = data.error || "ChatGPT API 응답을 받지 못했습니다.";
+      setApiStatus("ChatGPT 응답 실패", "bad");
+      if (data.code === "OPENAI_TEMPORARILY_UNAVAILABLE") {
+        return `ChatGPT API가 현재 잠시 사용 불가 상태입니다. 잠시 후 다시 시도해 주세요. (${errorText})`;
       }
       if (data.code === "LOW_QUALITY_REPLY") {
-        return "Gemini가 질문에 맞는 답변을 만들지 못했습니다. 같은 증거를 조금 더 구체적으로 다시 질문해 주세요.";
+        return "ChatGPT가 질문에 맞는 답변을 만들지 못했습니다. 같은 증거를 조금 더 구체적으로 다시 질문해 주세요.";
       }
-      return `Gemini API 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (${errorText})`;
+      return `ChatGPT API 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (${errorText})`;
     } catch {
-      setApiStatus("Gemini 연결 실패", "bad");
-      return "Gemini API에 연결하지 못했습니다. 인터넷 연결이나 배포 서버 상태를 확인한 뒤 다시 시도해 주세요.";
+      setApiStatus("ChatGPT 연결 실패", "bad");
+      return "ChatGPT API에 연결하지 못했습니다. 인터넷 연결이나 배포 서버 상태를 확인한 뒤 다시 시도해 주세요.";
     }
   }
 
