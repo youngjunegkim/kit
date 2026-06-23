@@ -214,7 +214,7 @@
               <input class="team-name-input" type="text" value="${escapeHtml(team.name)}" aria-label="${index + 1}번째 팀 이름" data-team-name>
               <button class="remove-team-btn" type="button" data-remove-team>삭제</button>
             </div>
-            <textarea class="team-note-input" aria-label="${escapeHtml(team.name)} 사건노트" placeholder="예: 범인은 강우진이고, 시험지 내용을 AI에 입력해 예상 문제가 퍼졌다..." data-team-note>${escapeHtml(team.note)}</textarea>
+            <textarea class="team-note-input" aria-label="${escapeHtml(team.name)} 사건노트" placeholder="예: 범인은 OOO이라고 생각합니다. 시험지 내용을 AI에 입력해 예상 문제가 퍼졌다..." data-team-note>${escapeHtml(team.note)}</textarea>
           </div>
           <div class="team-card__score">
             <div class="score-badge">
