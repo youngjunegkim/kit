@@ -186,6 +186,141 @@ function includesAny(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+const evidenceDisclosureRules = [
+  {
+    id: "seoHarin1",
+    label: "서하린 증거카드 1: 방송실 AI 자료 목록 열람",
+    minScore: 2,
+    directPatterns: [/서하린\s*증거\s*카드\s*1|하린\s*카드\s*1/],
+    patterns: [/서하린|하린/, /방송실/, /AI\s*자료\s*목록|자료\s*목록/, /핵심\s*예상\s*문제|2학년\s*기말\s*대비/, /열어\s*본|열람|열었/],
+    leakPatterns: [/AI\s*자료\s*목록|자료\s*목록/, /핵심\s*예상\s*문제|2학년\s*기말\s*대비/, /열어\s*본\s*기록|열어봤|열람/]
+  },
+  {
+    id: "seoHarin2",
+    label: "서하린 증거카드 2: 6시 10분 AI 로그 조회",
+    minScore: 2,
+    directPatterns: [/서하린\s*증거\s*카드\s*2|하린\s*카드\s*2/],
+    patterns: [/서하린|하린/, /6\s*시\s*10\s*분/, /계정/, /로그\s*조회|로그를?\s*봤|AI.*로그/],
+    leakPatterns: [/6\s*시\s*10\s*분/, /로그\s*조회|로그를?\s*봤|AI.*로그/, /서하린의?\s*계정|하린.*계정/]
+  },
+  {
+    id: "seoHarin3",
+    label: "서하린 증거카드 3: 방송실 점검표 알리바이",
+    minScore: 2,
+    directPatterns: [/서하린\s*증거\s*카드\s*3|하린\s*카드\s*3/],
+    patterns: [/서하린|하린/, /5\s*시\s*40\s*분|6\s*시\s*20\s*분/, /방송\s*장비|방송실/, /점검표|업무\s*기록|알리바이/],
+    leakPatterns: [/5\s*시\s*40\s*분|6\s*시\s*20\s*분/, /방송\s*장비\s*점검표|점검표/, /방송실에\s*있었|방송실\s*일/]
+  },
+  {
+    id: "choiDaniel1",
+    label: "최다니엘 증거카드 1: 교무실 근처 종이 묶음 CCTV",
+    minScore: 2,
+    directPatterns: [/최다니엘\s*증거\s*카드\s*1|다니엘\s*카드\s*1/],
+    patterns: [/최다니엘|다니엘/, /5\s*시\s*50\s*분/, /교무실\s*(앞|근처)/, /종이\s*묶음/, /CCTV|씨씨티비/],
+    leakPatterns: [/5\s*시\s*50\s*분/, /종이\s*묶음/, /교무실\s*(앞|근처).*CCTV|CCTV.*교무실\s*(앞|근처)/]
+  },
+  {
+    id: "choiDaniel2",
+    label: "최다니엘 증거카드 2: 체육관 근처 검은 물건",
+    minScore: 2,
+    directPatterns: [/최다니엘\s*증거\s*카드\s*2|다니엘\s*카드\s*2/],
+    patterns: [/최다니엘|다니엘/, /6\s*시\s*5\s*분/, /체육관\s*근처/, /검은\s*(색\s*)?(물건|물체)/, /USB|유에스비|보안\s*AI/],
+    leakPatterns: [/6\s*시\s*5\s*분/, /체육관\s*근처/, /검은\s*(색\s*)?(물건|물체)/, /USB.*추정|보안\s*AI.*USB/]
+  },
+  {
+    id: "choiDaniel3",
+    label: "최다니엘 증거카드 3: 과학 보고서와 분실물 기록",
+    minScore: 1,
+    directPatterns: [/최다니엘\s*증거\s*카드\s*3|다니엘\s*카드\s*3/],
+    patterns: [/과학\s*보고서|보고서\s*묶음|제출표|제출\s*기록|분실물함|분실물\s*기록|분실물로\s*접수/],
+    leakPatterns: [/과학\s*보고서|보고서\s*묶음|제출표|제출\s*기록/, /분실물함|분실물\s*기록|분실물로\s*접수/]
+  },
+  {
+    id: "kangWoojin1",
+    label: "강우진 증거카드 1: 연습장 메모와 성적 압박",
+    minScore: 1,
+    directPatterns: [/강우진\s*증거\s*카드\s*1|우진\s*카드\s*1/],
+    patterns: [/연습\s*(노트|장)|이번\s*시험만\s*잘\s*보면|전\s*여자친구|전교\s*1등|다시\s*다르게\s*봐|인정받/],
+    leakPatterns: [/연습\s*(노트|장)|이번\s*시험만\s*잘\s*보면/, /전\s*여자친구|전교\s*1등|다시\s*인정/]
+  },
+  {
+    id: "kangWoojin2",
+    label: "강우진 증거카드 2: 5시 45분 교무실 복도 CCTV",
+    minScore: 2,
+    directPatterns: [/강우진\s*증거\s*카드\s*2|우진\s*카드\s*2/],
+    patterns: [/강우진|우진|너/, /5\s*시\s*45\s*분/, /교무실\s*(앞|복도|근처)/, /CCTV|씨씨티비/, /축구부\s*전달|담당\s*선생님/],
+    leakPatterns: [/5\s*시\s*45\s*분/, /교무실\s*(앞|복도|근처).*CCTV|CCTV.*교무실\s*(앞|복도|근처)/, /축구부\s*전달|담당\s*선생님/]
+  },
+  {
+    id: "kangWoojin3",
+    label: "강우진 증거카드 3: AI 접속과 대화 삭제 기록",
+    minScore: 2,
+    directPatterns: [/강우진\s*증거\s*카드\s*3|우진\s*카드\s*3/],
+    patterns: [/강우진|우진|너/, /6\s*시\s*(15\s*분)?/, /AI\s*접속|학습\s*도우미\s*AI/, /대화\s*기록|삭제\s*기록|지웠/, /기말고사\s*문제지.*비슷한\s*유형|비슷한\s*유형.*예상\s*문제/],
+    leakPatterns: [/6\s*시\s*15\s*분/, /AI\s*접속\s*기록|학습\s*도우미\s*AI에\s*접속/, /대화\s*기록.*(삭제|지웠)|삭제\s*기록/, /기말고사\s*문제지.*비슷한\s*유형|비슷한\s*유형.*예상\s*문제/]
+  }
+];
+
+function studentEvidenceText(history, message) {
+  const parts = [];
+  if (Array.isArray(history)) {
+    history
+      .filter((item) => item?.role === "user")
+      .forEach((item) => parts.push(String(item.content || "")));
+  }
+  parts.push(String(message || ""));
+  return parts.join("\n");
+}
+
+function evidenceMatchesFor(history, message) {
+  const text = studentEvidenceText(history, message);
+  return evidenceDisclosureRules.filter((rule) => {
+    if ((rule.directPatterns || []).some((pattern) => pattern.test(text))) return true;
+    const score = (rule.patterns || []).reduce((count, pattern) => count + (pattern.test(text) ? 1 : 0), 0);
+    return score >= (rule.minScore || 1);
+  });
+}
+
+function buildEvidenceDisclosureGuide(history, message) {
+  const matches = evidenceMatchesFor(history, message);
+  const allowed = matches.map((rule) => rule.label);
+  return [
+    "[증거 공개 잠금 - 이번 질문에 적용]",
+    "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 유출, 자동 추천이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
+    `- 학생이 지금까지 직접 말한 증거카드: ${allowed.length ? allowed.join(", ") : "없음"}`,
+    "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 연습장 메모, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
+    allowed.length
+      ? "- 답변은 위에 허용된 증거카드와 학생의 마지막 질문에 직접 관련된 범위로만 제한한다."
+      : "- 이번 질문은 증거카드 없는 일반 추궁이다. 부인, 회피, 억울함, '어떤 증거를 보고 묻는지 말해 달라' 정도로만 답하고 새 단서를 제공하지 않는다."
+  ].join("\n");
+}
+
+function evidenceLeakIssue(reply, message, payload = {}, history = []) {
+  const allowed = new Set(evidenceMatchesFor(history, message).map((rule) => rule.id));
+  const text = String(reply || "");
+
+  for (const rule of evidenceDisclosureRules) {
+    if (allowed.has(rule.id)) continue;
+    if ((rule.leakPatterns || []).some((pattern) => pattern.test(text))) {
+      return `학생이 제시하지 않은 증거카드(${rule.label}) 내용을 답변에 공개했다.`;
+    }
+  }
+
+  if (!allowed.size && /5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분/.test(text)) {
+    return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
+  }
+
+  if (
+    personaIdFor(payload) === "kangWoojin" &&
+    !allowed.has("kangWoojin3") &&
+    /(태블릿|촬영|문제지.{0,20}(AI|입력)|AI.{0,20}(비슷한\s*유형|바꿔|만들)|공개되는\s*줄|대화\s*기록.{0,12}(삭제|지웠))/.test(text)
+  ) {
+    return "강우진의 핵심 범행 방식이나 AI 입력 사실을 증거 없이 공개했다.";
+  }
+
+  return "";
+}
+
 const focusRules = [
   {
     id: "aiDialogue",
@@ -408,8 +543,11 @@ function buildTranscriptFor(history, message, personaName, payload = {}) {
   lines.push(`조사단: ${String(message).slice(0, 800)}`);
   const personaId = personaIdFor(payload);
   const questionGuide = personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel" ? "" : buildQuestionGuide(message);
+  const evidenceGuide = buildEvidenceDisclosureGuide(history, message);
   return [
     `이전 대화와 마지막 질문이다. 마지막 질문 하나에만 ${personaName} 인터뷰 AI로 답하라.`,
+    "",
+    evidenceGuide,
     "",
     questionGuide,
     questionGuide ? "" : null,
@@ -462,10 +600,16 @@ function looksIncompleteReply(reply) {
   return /(것|거|듯|중|때문|려고|으려|하려|하며|하면서|말하려|끊으려|질문|기록에|순서에|USB를|AI가)[.!?。！？]?$/.test(withoutTerminalPunctuation);
 }
 
-function replyQualityIssue(reply, message, payload = {}) {
+function replyQualityIssue(reply, message, payload = {}, history = []) {
   const text = String(reply || "").trim();
   const rawMessage = String(message || "");
   const personaId = personaIdFor(payload);
+  const hasPresentedEvidence = evidenceMatchesFor(history, rawMessage).length > 0;
+  const canRequestEvidence = !hasPresentedEvidence && (
+    personaId === "kangWoojin" ||
+    personaId === "seoHarin" ||
+    personaId === "choiDaniel"
+  );
 
   if (looksIncompleteReply(text)) {
     return "답변이 너무 짧거나 문장이 중간에서 끊겼다.";
@@ -475,11 +619,16 @@ function replyQualityIssue(reply, message, payload = {}) {
     return "학생은 사건 질문을 했는데 인사로 답했다.";
   }
 
-  if (!isSimpleGreeting(rawMessage) && /어떤.*확인|무엇을.*확인|물어봐 주세요|질문해 주세요/.test(text)) {
+  const leakIssue = evidenceLeakIssue(text, rawMessage, payload, history);
+  if (leakIssue) {
+    return leakIssue;
+  }
+
+  if (!canRequestEvidence && !isSimpleGreeting(rawMessage) && /어떤.*확인|무엇을.*확인|물어봐 주세요|질문해 주세요/.test(text)) {
     return "학생 질문에 답하지 않고 다시 질문을 요구했다.";
   }
 
-  if (!isSimpleGreeting(rawMessage) && /[?？]\s*$/.test(text)) {
+  if (!canRequestEvidence && !isSimpleGreeting(rawMessage) && /[?？]\s*$/.test(text)) {
     return "학생 질문에 답하지 않고 확인 질문으로 되물었다.";
   }
 
@@ -638,7 +787,7 @@ async function callOpenAi(message, history, payload = {}) {
 
   if (openAiResponse.ok) {
     const reply = trimToThreeSentences(extractOpenAiText(data));
-    const issue = replyQualityIssue(reply, message, payload);
+    const issue = replyQualityIssue(reply, message, payload, history);
 
     if (issue) {
       const repairInstruction = buildRepairInstruction(issue, reply, message);
@@ -653,7 +802,7 @@ async function callOpenAi(message, history, payload = {}) {
 
       if (repairResponse.ok) {
         const repairedReply = trimToThreeSentences(extractOpenAiText(repairData));
-        const repairIssue = replyQualityIssue(repairedReply, message, payload);
+        const repairIssue = replyQualityIssue(repairedReply, message, payload, history);
         if (!repairIssue) {
           return {
             statusCode: 200,
@@ -687,7 +836,7 @@ async function callOpenAi(message, history, payload = {}) {
 
         if (finalRepairResponse.ok) {
           const finalReply = trimToThreeSentences(extractOpenAiText(finalRepairData));
-          const finalIssue = replyQualityIssue(finalReply, message, payload);
+          const finalIssue = replyQualityIssue(finalReply, message, payload, history);
           if (!finalIssue || canUseSoftQualityReply(finalReply, finalIssue)) {
             return {
               statusCode: 200,
