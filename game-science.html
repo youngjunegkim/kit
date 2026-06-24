@@ -3,48 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>과학실 프롬프트 미션</title>
+  <title>과학실 AI로 말해요</title>
   <script src="auth.js" defer></script>
-  <link rel="stylesheet" href="clock.css">
-  <link rel="stylesheet" href="prompt-mission.css">
+  <link rel="stylesheet" href="ai-say-game.css">
 </head>
-<body class="game-page" data-auth="teacher">
-  <main class="mission-page">
-    <section class="mission-main" aria-label="과학실 프롬프트 역추적 이미지">
-      <header class="mission-head">
-        <div class="mission-title">
-          <h1>과학실</h1>
-          <p>프롬프트 역추적 미션</p>
-        </div>
-        <a class="back-link" href="teacher.html">학교 지도로</a>
-      </header>
-      <div class="mission-image-wrap">
-        <img class="mission-image" src="assets/prompts/robot.jpg" alt="가운을 입고 플라스크를 드는 로봇">
+<body class="ai-say-page" data-auth="teacher" data-room-name="과학실" data-room-theme="broadcast">
+  <main class="game-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">AI 수사단 미니게임</p>
+        <h1>과학실 AI로 말해요</h1>
       </div>
+      <a class="back-link" href="teacher.html">학교 지도로</a>
+    </header>
+
+    <section class="play-grid">
+      <section class="image-panel" aria-labelledby="image-title">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">생성 결과</p>
+            <h2 id="image-title">AI 이미지</h2>
+          </div>
+          <span class="status-pill" data-api-status>확인 중</span>
+        </div>
+
+        <div class="image-stage" data-image-stage>
+          <div class="empty-state" data-empty-state>
+            <strong>프롬프트를 입력하면 그림이 생성됩니다.</strong>
+            <span>자동 영어 보강과 무료 이미지 모델을 사용합니다.</span>
+          </div>
+          <img data-generated-image alt="생성된 AI 이미지" hidden>
+        </div>
+
+        <div class="result-caption" data-result-caption aria-live="polite"></div>
+      </section>
+
+      <aside class="control-panel" aria-labelledby="control-title">
+        <div class="timer-card" data-countdown="30">
+          <p class="eyebrow">제한 시간</p>
+          <div class="timer-display" data-countdown-display>00:30</div>
+          <div class="timer-actions">
+            <button class="ghost-btn" type="button" data-countdown-toggle>시작</button>
+            <button class="ghost-btn" type="button" data-countdown-reset>초기화</button>
+          </div>
+        </div>
+
+        <form class="prompt-form" data-prompt-form>
+          <label for="prompt-input" id="control-title">프롬프트</label>
+          <textarea id="prompt-input" data-prompt-input rows="7" maxlength="900" placeholder="정답 단어 없이 장면을 설명하세요."></textarea>
+          <div class="form-meta">
+            <span data-prompt-count>0/900</span>
+            <span data-warning></span>
+          </div>
+          <button class="primary-btn generate-btn" type="submit" data-generate-button disabled>이미지 생성</button>
+        </form>
+
+        <div class="rules-box">
+          <p class="box-label">실물 카드</p>
+          <p>뽑은 카드의 정답 단어는 프롬프트에 쓰지 않습니다.</p>
+        </div>
+
+        <div class="rules-box">
+          <p class="box-label">보상</p>
+          <p>먼저 맞힌 팀: 질문권 5개 + 증거카드</p>
+          <p>못 맞힌 팀: 질문권 1개</p>
+        </div>
+      </aside>
     </section>
-
-    <aside class="mission-timer" data-countdown="30" aria-label="30초 타이머">
-      <p class="timer-label">제한 시간</p>
-      <div class="timer-display" data-countdown-display>00:30</div>
-      <div class="timer-actions">
-        <button type="button" data-countdown-toggle>시작</button>
-        <button type="button" data-countdown-reset>초기화</button>
-      </div>
-
-      <form class="word-checker" data-word-checker data-answer-words="로봇,가운,플라스크,실험실" data-answer-sentence="가운을 입고 플라스크를 드는 로봇.">
-        <h2>단어 입력</h2>
-        <div class="word-grid">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 1">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 2">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 3">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 4">
-        </div>
-        <button class="check-btn" type="submit">채점</button>
-        <div class="check-result" data-check-result aria-live="polite"></div>
-      </form>
-    </aside>
   </main>
-  <script src="prompt-timer.js"></script>
-  <script src="prompt-checker.js"></script>
+
+  <script src="ai-say-game.js"></script>
 </body>
 </html>
