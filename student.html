@@ -92,6 +92,7 @@
       padding: 8px 12px;
       font: inherit;
       font-weight: 950;
+      white-space: nowrap;
     }
 
     .presence-refresh-btn:hover,
@@ -839,9 +840,13 @@
 
     .footer-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 14px;
       margin-top: 16px;
+    }
+
+    .student-log-head .presence-refresh-btn {
+      min-width: 170px;
     }
 
     .student-log-card {
@@ -866,25 +871,6 @@
     .presence-row {
       border-color: #e4d8bd;
       background: #fff;
-    }
-
-    .science-link {
-      display: block;
-      margin-top: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.62);
-      border-radius: 8px;
-      background: rgba(255, 250, 240, 0.96);
-      color: #2a1e13;
-      padding: 14px 16px;
-      text-decoration: none;
-      font-weight: 950;
-      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
-    }
-
-    .science-link:hover,
-    .science-link:focus-visible {
-      outline: 3px solid rgba(225, 174, 45, 0.42);
-      outline-offset: 3px;
     }
 
     .visually-hidden {
@@ -1012,7 +998,7 @@
             <span>접속</span>
             <strong data-presence-count>0명</strong>
           </div>
-          <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
+          <button class="presence-refresh-btn" type="button" data-refresh-presence>접속 중 인원 보기</button>
           <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
           <button class="logout-btn" type="button" data-logout>로그아웃</button>
         </div>
@@ -1109,21 +1095,11 @@
       <section class="student-log-card" aria-label="접속 중 계정">
         <div class="student-log-head">
           <h2>접속 중 계정</h2>
-          <button class="presence-refresh-btn" type="button" data-refresh-presence>접속중 인원 보기</button>
+          <button class="presence-refresh-btn" type="button" data-refresh-presence>접속 중 인원 보기</button>
         </div>
         <div class="presence-list" data-presence-list></div>
       </section>
-
-      <section class="student-log-card" aria-label="내 질문 로그">
-        <div class="student-log-head">
-          <h2>내 질문 로그</h2>
-          <strong data-log-count>0회</strong>
-        </div>
-        <div class="student-log-list" data-student-log-list></div>
-      </section>
     </div>
-
-        <a class="science-link" href="science-search.html" aria-label="과학실 검색 화면으로 이동">과학실</a>
       </div>
     </div>
   </main>
