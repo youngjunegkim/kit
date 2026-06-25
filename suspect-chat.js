@@ -504,6 +504,11 @@
     sessionStorage.removeItem("class-access-code");
   }
 
+  function safeHeaderValue(value) {
+    const text = String(value || "").trim().replace(/[\r\n]/g, "");
+    return /[^\u0000-\u00ff]/.test(text) ? encodeURIComponent(text) : text;
+  }
+
   function ensureTeacherCode() {
     if (state.role !== "teacher" || state.teacherCode) return true;
 
@@ -528,10 +533,10 @@
         "content-type": "application/json",
         "x-kit-role": state.role
       };
-      if (state.accessCode) headers["x-class-code"] = state.accessCode;
+      if (state.accessCode) headers["x-class-code"] = safeHeaderValue(state.accessCode);
       if (state.role === "teacher") {
         if (!ensureTeacherCode()) return "선생용 보안 코드가 필요합니다.";
-        headers["x-teacher-code"] = state.teacherCode;
+        headers["x-teacher-code"] = safeHeaderValue(state.teacherCode);
       }
 
       const response = await fetch("/api/chat", {

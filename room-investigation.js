@@ -60,6 +60,11 @@
     return encodeURIComponent(String(value || ""));
   }
 
+  function safeHeaderValue(value) {
+    const text = String(value || "").trim().replace(/[\r\n]/g, "");
+    return /[^\u0000-\u00ff]/.test(text) ? encodeURIComponent(text) : text;
+  }
+
   function cleanCode(value) {
     return String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
   }
@@ -100,7 +105,7 @@
 
   function withTeacherCode(headers) {
     if (state.role === "teacher" && state.teacherCode) {
-      headers["x-teacher-code"] = state.teacherCode;
+      headers["x-teacher-code"] = safeHeaderValue(state.teacherCode);
     }
     return headers;
   }
@@ -360,7 +365,7 @@
           "x-kit-role": state.role,
           "x-kit-team": encoded(state.team),
           "x-kit-user": encoded(state.user),
-          "x-class-code": state.accessCode
+          "x-class-code": safeHeaderValue(state.accessCode)
         }),
         body: JSON.stringify({
           suspect: suspectId,

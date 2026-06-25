@@ -44,13 +44,18 @@
     accessCode: sessionStorage.getItem("class-access-code") || "",
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
-    team: sessionStorage.getItem("kit-auth-team") || ""
+    team: sessionStorage.getItem("kit-auth-team") || "",
+    redeeming: false
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
   const teamLabels = [...document.querySelectorAll("[data-team-label]")];
   const logCounts = [...document.querySelectorAll("[data-log-count]")];
   const refreshButtons = [...document.querySelectorAll("[data-refresh-credits]")];
+  const evidenceForm = document.querySelector("[data-evidence-form]");
+  const evidenceInput = document.querySelector("[data-evidence-code]");
+  const evidenceSubmit = document.querySelector("[data-evidence-submit]");
+  const evidenceMessage = document.querySelector("[data-evidence-message]");
   const studentLogList = document.querySelector("[data-student-log-list]");
   const apiStatus = document.querySelector("[data-api-status]");
 
@@ -111,9 +116,34 @@
     apiStatus.classList.toggle("status-bad", type === "bad");
   }
 
+  function cleanCode(value) {
+    return String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
+  }
+
+  function safeHeaderValue(value) {
+    const text = String(value || "").trim().replace(/[\r\n]/g, "");
+    return /[^\u0000-\u00ff]/.test(text) ? encodeURIComponent(text) : text;
+  }
+
+  function setEvidenceMessage(text, type = "") {
+    if (!evidenceMessage) return;
+    evidenceMessage.textContent = text;
+    evidenceMessage.classList.toggle("is-ok", type === "ok");
+    evidenceMessage.classList.toggle("is-bad", type === "bad");
+  }
+
+  function updateEvidenceControls() {
+    const disabled = state.redeeming || !state.team;
+    if (evidenceInput) evidenceInput.disabled = disabled;
+    if (evidenceSubmit) {
+      evidenceSubmit.disabled = disabled;
+      evidenceSubmit.textContent = state.redeeming ? "확인 중" : "입력";
+    }
+  }
+
   function setRefreshBusy(isBusy) {
     refreshButtons.forEach((button) => {
-      button.disabled = isBusy || state.requesting;
+      button.disabled = isBusy || state.requesting || state.redeeming;
       button.textContent = isBusy ? "받는 중..." : "질문권 받기";
     });
   }
@@ -175,6 +205,7 @@
       panel.input.placeholder = locked ? "질문권 받기를 눌러 확인하세요" : `${panel.name}에게 질문하기`;
     });
     setRefreshBusy(false);
+    updateEvidenceControls();
   }
 
   function addMessage(panel, role, text, options = {}) {
@@ -276,6 +307,64 @@
     }
   }
 
+  async function submitEvidenceCode(event) {
+    event.preventDefault();
+    const code = cleanCode(evidenceInput?.value);
+    if (evidenceInput) evidenceInput.value = code;
+
+    if (!state.team) {
+      setEvidenceMessage("학생 팀 정보가 없습니다.", "bad");
+      updateEvidenceControls();
+      return;
+    }
+    if (!code) {
+      setEvidenceMessage("증거 코드를 입력하세요.", "bad");
+      return;
+    }
+
+    state.redeeming = true;
+    setEvidenceMessage("증거 코드 확인 중...", "");
+    updateControls();
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          code,
+          role: "student",
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const message = data.code === "ALREADY_REDEEMED"
+          ? "이미 사용한 증거 코드입니다."
+          : data.code === "INVALID_EVIDENCE_CODE"
+            ? "증거 코드가 맞지 않습니다."
+            : data.error || "증거 코드를 확인하지 못했습니다.";
+        throw new Error(message);
+      }
+
+      applyCredits(data.credits);
+      setEvidenceMessage(`${state.team}팀 질문권 ${Number(data.added || 3)}개 추가`, "ok");
+      if (evidenceInput) evidenceInput.value = "";
+    } catch (error) {
+      setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");
+      await refreshCredits();
+    } finally {
+      state.redeeming = false;
+      updateControls();
+    }
+  }
+
   async function refreshApiStatus() {
     try {
       const response = await fetch("/api/status");
@@ -324,7 +413,7 @@
         "content-type": "application/json",
         "x-kit-role": state.role
       };
-      if (state.accessCode) headers["x-class-code"] = state.accessCode;
+      if (state.accessCode) headers["x-class-code"] = safeHeaderValue(state.accessCode);
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -425,6 +514,11 @@
   });
 
   setupCardLightbox();
+
+  evidenceInput?.addEventListener("input", () => {
+    evidenceInput.value = cleanCode(evidenceInput.value);
+  });
+  evidenceForm?.addEventListener("submit", submitEvidenceCode);
 
   refreshButtons.forEach((button) => {
     button.addEventListener("click", refreshCredits);

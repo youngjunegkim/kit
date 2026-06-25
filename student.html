@@ -76,6 +76,48 @@
       box-shadow: 0 10px 24px rgba(220, 52, 47, 0.24);
     }
 
+    .evidence-code-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .evidence-code-input {
+      min-width: 0;
+      min-height: 38px;
+      border: 1px solid rgba(231, 189, 73, 0.42);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #18202b;
+      padding: 8px 10px;
+      font: inherit;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .evidence-code-input:focus {
+      border-color: #e1ae2d;
+      box-shadow: 0 0 0 3px rgba(225, 174, 45, 0.16);
+      outline: none;
+    }
+
+    .evidence-code-message {
+      min-height: 18px;
+      margin: -3px 0 0;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.78rem;
+      line-height: 1.35;
+      font-weight: 850;
+    }
+
+    .evidence-code-message.is-ok {
+      color: #8ee0b2;
+    }
+
+    .evidence-code-message.is-bad {
+      color: #ffafa9;
+    }
+
     .receive-credit-btn:hover,
     .receive-credit-btn:focus-visible {
       background: #b82924;
@@ -998,6 +1040,12 @@
             <span>접속</span>
             <strong data-presence-count>0명</strong>
           </div>
+          <form class="evidence-code-form" data-evidence-form>
+            <label class="visually-hidden" for="studentEvidenceCode">증거 코드 입력</label>
+            <input class="evidence-code-input" id="studentEvidenceCode" data-evidence-code type="text" autocomplete="off" maxlength="12" placeholder="증거 코드">
+            <button class="receive-credit-btn" type="submit" data-evidence-submit>입력</button>
+          </form>
+          <p class="evidence-code-message" data-evidence-message></p>
           <button class="presence-refresh-btn" type="button" data-refresh-presence>접속 중 인원 보기</button>
           <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
           <button class="logout-btn" type="button" data-logout>로그아웃</button>
