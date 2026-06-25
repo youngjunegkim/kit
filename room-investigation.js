@@ -17,6 +17,8 @@
     }
   };
 
+  const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+
   const state = {
     roomId: page.dataset.roomId || "",
     roomName: page.dataset.roomName || "교실",
@@ -27,6 +29,7 @@
     credits: 0,
     count: 0,
     requesting: false,
+    evidenceTeam: "",
     histories: {},
     messages: {},
     currentSuspect: "kangWoojin"
@@ -41,6 +44,7 @@
     evidenceForm: document.querySelector("[data-evidence-form]"),
     evidenceInput: document.querySelector("[data-evidence-code]"),
     evidenceMessage: document.querySelector("[data-evidence-message]"),
+    evidenceTeamSelect: null,
     suspectSelect: document.querySelector("[data-suspect-select]"),
     chatState: document.querySelector("[data-chat-state]"),
     messages: document.querySelector("[data-chat-messages]"),
@@ -137,6 +141,7 @@
     const noStudentTeam = isStudent && !state.team;
     const noCredits = isStudent && state.credits <= 0;
     const chatLocked = state.requesting || noStudentTeam || noCredits;
+    const canRedeemCode = (isStudent && state.team) || (state.role === "teacher" && state.evidenceTeam);
 
     if (nodes.chatInput) {
       nodes.chatInput.disabled = chatLocked;
@@ -149,10 +154,15 @@
     if (nodes.chatSubmit) nodes.chatSubmit.disabled = chatLocked;
     if (nodes.suspectSelect) nodes.suspectSelect.disabled = state.requesting;
 
-    const codeLocked = state.requesting || !isStudent || noStudentTeam;
+    const codeLocked = state.requesting || !canRedeemCode;
     if (nodes.evidenceInput) nodes.evidenceInput.disabled = codeLocked;
+    if (nodes.evidenceTeamSelect) nodes.evidenceTeamSelect.disabled = state.requesting;
     const codeButton = nodes.evidenceForm?.querySelector("button");
     if (codeButton) codeButton.disabled = codeLocked;
+  }
+
+  function evidenceTeam() {
+    return state.role === "teacher" ? state.evidenceTeam : state.team;
   }
 
   async function refreshCredits() {
@@ -203,22 +213,23 @@
     state.requesting = true;
     updateControls();
     setEvidenceMessage("증거 코드 확인 중...", "");
+    const targetTeam = evidenceTeam();
 
     try {
       const response = await fetch("/api/evidence-code", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-kit-role": state.role,
-          "x-kit-team": encoded(state.team),
+          "x-kit-role": "student",
+          "x-kit-team": encoded(targetTeam),
           "x-kit-user": encoded(state.user)
         },
         body: JSON.stringify({
           code,
           room: state.roomId,
           roomName: state.roomName,
-          role: state.role,
-          team: state.team,
+          role: "student",
+          team: targetTeam,
           user: state.user
         })
       });
@@ -233,12 +244,14 @@
         throw new Error(message);
       }
 
-      setEvidenceMessage(`${data.evidence.room} - ${data.evidence.evidence}: 질문권 3개 추가`, "ok");
+      setEvidenceMessage(`${targetTeam}팀 질문권 3개 추가: ${data.evidence.evidence}`, "ok");
       if (nodes.evidenceInput) nodes.evidenceInput.value = "";
-      applyCredits({ credits: data.credits, count: state.count });
+      if (state.role === "student") {
+        applyCredits({ credits: data.credits, count: state.count });
+      }
     } catch (error) {
       setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");
-      await refreshCredits();
+      if (state.role === "student") await refreshCredits();
     } finally {
       state.requesting = false;
       updateControls();
@@ -316,9 +329,32 @@
   }
 
   function setup() {
-    setText(nodes.teamLabel, state.team ? `${state.team}팀` : "학생");
+    state.evidenceTeam = state.team || sessionStorage.getItem("kit-evidence-target-team") || teams[0];
+    setText(nodes.teamLabel, state.team ? `${state.team}팀` : state.role === "teacher" ? "선생님" : "학생");
     setText(nodes.roomLabel, state.roomName);
     state.currentSuspect = ensureSuspect(nodes.suspectSelect?.value || "kangWoojin");
+
+    if (state.role === "teacher" && nodes.evidenceForm && !state.team) {
+      const select = document.createElement("select");
+      select.className = "team-select";
+      select.setAttribute("aria-label", "질문권 적립 대상");
+      teams.forEach((team) => {
+        const option = document.createElement("option");
+        option.value = team;
+        option.textContent = `${team}팀`;
+        select.append(option);
+      });
+      select.value = teams.includes(state.evidenceTeam) ? state.evidenceTeam : teams[0];
+      state.evidenceTeam = select.value;
+      select.addEventListener("change", () => {
+        state.evidenceTeam = select.value;
+        sessionStorage.setItem("kit-evidence-target-team", state.evidenceTeam);
+      });
+      nodes.evidenceTeamSelect = select;
+      nodes.evidenceForm.classList.add("code-form--teacher");
+      nodes.evidenceForm.prepend(select);
+      setEvidenceMessage("선생님 계정은 적립할 팀을 먼저 선택하세요.", "");
+    }
 
     nodes.suspectSelect?.addEventListener("change", () => {
       state.currentSuspect = ensureSuspect(nodes.suspectSelect.value);
