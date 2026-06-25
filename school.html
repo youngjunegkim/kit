@@ -54,15 +54,67 @@
     }
 
     .brief-panel {
-      display: grid;
-      align-content: space-between;
-      min-height: 560px;
+      position: relative;
+      align-self: start;
+      display: block;
+      min-height: 0;
       color: #f7fafc;
-      background:
-        linear-gradient(135deg, rgba(16, 24, 38, 0.86), rgba(22, 32, 48, 0.64)),
-        url("assets/학교사진.jpg") center / cover;
+      background: #080d15;
       border-color: rgba(255, 255, 255, 0.24);
-      padding: 28px;
+      padding: 0;
+    }
+
+    .school-hub {
+      position: relative;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      overflow: hidden;
+      background: #080d15;
+    }
+
+    .school-hub img {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      object-fit: contain;
+      object-position: center;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .room-hotspot {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      border: 2px solid transparent;
+      border-radius: 14px;
+      background: rgba(255, 93, 72, 0.01);
+      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .room-hotspot:hover,
+    .room-hotspot:focus-visible {
+      border-color: rgba(255, 104, 81, 0.92);
+      background: rgba(255, 104, 81, 0.1);
+      box-shadow: 0 0 24px rgba(255, 85, 66, 0.68);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     .brief-badge {
@@ -586,7 +638,7 @@
       }
 
       .brief-panel {
-        min-height: 360px;
+        min-height: 0;
       }
     }
 
@@ -598,6 +650,10 @@
       .brief-panel,
       .login-panel {
         padding: 18px;
+      }
+
+      .brief-panel {
+        padding: 0;
       }
 
       .ready-list,
@@ -645,28 +701,24 @@
 </head>
 <body>
   <main class="login-shell">
-    <section class="brief-panel" aria-label="AI 수사단 안내">
-      <div>
-        <div class="brief-badge">AI 수사단 사건 파일</div>
-        <div class="brief-title">
-          <h1>수사본부 입장</h1>
-          <p>계정 권한을 확인하고 선생용 진행 화면 또는 학생용 AI 심문실로 이동합니다.</p>
-        </div>
-      </div>
-
-      <div class="ready-list" aria-label="수업 준비 상태">
-        <div class="ready-item">
-          <span>READY</span>
-          <strong>AI 심문실</strong>
-        </div>
-        <div class="ready-item">
-          <span>READY</span>
-          <strong>심문 노트</strong>
-        </div>
-        <div class="ready-item">
-          <span>READY</span>
-          <strong>권한 분리</strong>
-        </div>
+    <section class="brief-panel" aria-label="키트중학교 지도">
+      <div class="school-hub">
+        <img src="assets/키트중학교.png" alt="키트중학교 교실 선택 지도">
+        <a class="room-hotspot" style="--x: 10.85%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-art.html" aria-label="미술실로 이동">
+          <span class="visually-hidden">미술실</span>
+        </a>
+        <a class="room-hotspot" style="--x: 37.15%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-science.html" aria-label="과학실로 이동">
+          <span class="visually-hidden">과학실</span>
+        </a>
+        <a class="room-hotspot" style="--x: 63.45%; --y: 21.2%; --w: 24.7%; --h: 31.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
+          <span class="visually-hidden">방송실</span>
+        </a>
+        <a class="room-hotspot" style="--x: 22.7%; --y: 56.4%; --w: 24.8%; --h: 31.7%;" href="game-office.html" aria-label="교무실로 이동">
+          <span class="visually-hidden">교무실</span>
+        </a>
+        <a class="room-hotspot" style="--x: 49.55%; --y: 56.4%; --w: 25.9%; --h: 31.7%;" href="game-gym.html" aria-label="체육관으로 이동">
+          <span class="visually-hidden">체육관</span>
+        </a>
       </div>
     </section>
 
@@ -677,7 +729,7 @@
 
       <button class="board-action-btn" type="button" data-board-open>
         <span class="board-action-icon" aria-hidden="true">▦</span>
-        보드게임판
+        학교 지도
       </button>
 
       <div class="role-picker" aria-label="역할 빠른 선택">
@@ -723,37 +775,54 @@
     </section>
   </main>
 
-  <section class="board-viewer" data-board-viewer hidden aria-label="보드게임판 보기">
+  <section class="board-viewer" data-board-viewer hidden aria-label="학교 지도 보기">
     <div class="board-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="boardViewerTitle">
       <div class="board-viewer-toolbar">
-        <div class="board-viewer-title" id="boardViewerTitle">보드게임판</div>
-        <button class="board-close-btn" type="button" data-board-close aria-label="보드게임판 닫기">닫기</button>
+        <div class="board-viewer-title" id="boardViewerTitle">학교 지도</div>
+        <button class="board-close-btn" type="button" data-board-close aria-label="학교 지도 닫기">닫기</button>
       </div>
       <div class="board-viewer-frame">
-        <aside class="board-rule-panel" aria-label="보드게임 칸 설명">
-          <div class="board-rule-kicker">칸 안내</div>
-          <h3>보드게임판 칸 설명</h3>
+        <aside class="board-rule-panel" aria-label="장소 이동 안내">
+          <div class="board-rule-kicker">장소 안내</div>
+          <h3>교실을 눌러 증거 조사로 이동</h3>
           <div class="board-rule-list">
             <div class="board-rule-item">
-              <strong>교실칸</strong>
-              <span>해당 교실의 미니게임을 수행합니다.</span>
+              <strong>미술실</strong>
+              <span>미술실 증거 사진과 심문 패널로 이동합니다.</span>
             </div>
             <div class="board-rule-item">
-              <strong>윤리퀴즈칸</strong>
-              <span>AI 윤리퀴즈 카드를 뽑고 답합니다.</span>
+              <strong>과학실</strong>
+              <span>과학실 증거 사진과 심문 패널로 이동합니다.</span>
             </div>
             <div class="board-rule-item">
-              <strong>주사위 한 번 더 칸</strong>
-              <span>주사위를 한 번 더 굴려 이동합니다.</span>
+              <strong>방송실</strong>
+              <span>방송실 증거 사진과 심문 패널로 이동합니다.</span>
             </div>
             <div class="board-rule-item">
-              <strong>START/원하는 장소 이동 칸</strong>
-              <span>원하는 칸으로 이동할 수 있습니다.</span>
+              <strong>교무실 · 체육관</strong>
+              <span>교무실과 체육관 증거 사진, 심문 패널로 이동합니다.</span>
             </div>
           </div>
         </aside>
         <div class="board-image-wrap">
-          <img src="assets/보드게임판.jpg" alt="AI 수사단 보드게임판">
+          <div class="school-hub">
+            <img src="assets/키트중학교.png" alt="키트중학교 교실 선택 지도">
+            <a class="room-hotspot" style="--x: 10.85%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-art.html" aria-label="미술실로 이동">
+              <span class="visually-hidden">미술실</span>
+            </a>
+            <a class="room-hotspot" style="--x: 37.15%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-science.html" aria-label="과학실로 이동">
+              <span class="visually-hidden">과학실</span>
+            </a>
+            <a class="room-hotspot" style="--x: 63.45%; --y: 21.2%; --w: 24.7%; --h: 31.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
+              <span class="visually-hidden">방송실</span>
+            </a>
+            <a class="room-hotspot" style="--x: 22.7%; --y: 56.4%; --w: 24.8%; --h: 31.7%;" href="game-office.html" aria-label="교무실로 이동">
+              <span class="visually-hidden">교무실</span>
+            </a>
+            <a class="room-hotspot" style="--x: 49.55%; --y: 56.4%; --w: 25.9%; --h: 31.7%;" href="game-gym.html" aria-label="체육관으로 이동">
+              <span class="visually-hidden">체육관</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>

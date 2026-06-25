@@ -3,164 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>프롬프트 역추적 미션</title>
+  <title>교무실 증거 조사</title>
   <script src="auth.js" defer></script>
-  <link rel="stylesheet" href="clock.css">
-  <link rel="stylesheet" href="prompt-mission.css">
+  <link rel="stylesheet" href="room-investigation.css">
+  <script src="room-investigation.js" defer></script>
 </head>
-<body class="game-page" data-auth="teacher">
-  <main class="mission-page mission-page--with-list" data-prompt-mission>
-    <section class="mission-main" aria-label="프롬프트 역추적 이미지">
-      <header class="mission-head">
-        <div class="mission-title">
-          <h1>프롬프트 역추적 미션</h1>
-          <p data-question-title>문제 1</p>
+<body class="room-page" data-auth="student" data-room-id="office" data-room-name="교무실">
+  <main class="room-shell">
+    <section class="room-main">
+      <header class="room-topbar">
+        <div class="room-title">
+          <p>AI 수사단 증거 조사</p>
+          <h1>교무실</h1>
         </div>
-        <a class="back-link" href="teacher.html">학교 지도로</a>
+        <a class="back-link" href="school.html">학교 지도로</a>
       </header>
-      <div class="mission-image-wrap">
-        <img class="mission-image" data-mission-image src="assets/prompts/mouse.jpg" alt="주방에서 파스타를 요리하는 생쥐">
-      </div>
-    </section>
 
-    <aside class="mission-timer" data-countdown="30" aria-label="30초 타이머">
-      <p class="timer-label">제한 시간</p>
-      <div class="timer-display" data-countdown-display>00:30</div>
-      <div class="timer-actions">
-        <button type="button" data-countdown-toggle>시작</button>
-        <button type="button" data-countdown-reset>초기화</button>
-      </div>
-
-      <section class="question-nav" aria-label="문제 목록">
-        <h2>문제 목록</h2>
-        <div class="question-list" data-question-list></div>
-        <p class="nav-note">문제 번호를 누르면 해당 이미지로 이동합니다.</p>
+      <section class="scene-frame" aria-label="교무실 증거 사진">
+        <img class="room-image" src="assets/evidence-rooms/office.png" alt="교무실 증거 사진">
       </section>
 
-      <form class="word-checker" data-word-checker data-answer-words="파스타,생쥐,주방,요리" data-answer-sentence="주방에서 파스타를 요리하는 생쥐.">
-        <h2>단어 입력</h2>
-        <div class="word-grid">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 1">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 2">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 3">
-          <input class="word-input" data-word-input type="text" autocomplete="off" placeholder="단어 4">
+      <section class="evidence-panel" aria-label="교무실 증거 카드">
+        <h2>증거 카드</h2>
+        <div class="evidence-grid">
+          <article class="evidence-card">
+            <span>증거 1</span>
+            <strong>교무실 앞 CCTV</strong>
+          </article>
+          <article class="evidence-card">
+            <span>증거 2</span>
+            <strong>책상 위 기말고사 문제지</strong>
+          </article>
         </div>
-        <button class="check-btn" type="submit">채점</button>
-        <div class="check-result" data-check-result aria-live="polite"></div>
-      </form>
-    </aside>
+      </section>
+    </section>
 
-    <script type="application/json" data-prompt-questions>
-      [
-        {
-          "room": "교무실",
-          "image": "assets/prompts/mouse.jpg",
-          "alt": "주방에서 파스타를 요리하는 생쥐",
-          "answerWords": ["파스타", "생쥐", "주방", "요리"],
-          "answerSentence": "주방에서 파스타를 요리하는 생쥐."
-        },
-        {
-          "room": "체육관",
-          "image": "assets/prompts/alien.jpg",
-          "alt": "우주에서 농구공을 드리블하는 외계인",
-          "answerWords": ["외계인", "농구공", "우주", "드리블"],
-          "answerSentence": "우주에서 농구공을 드리블하는 외계인."
-        },
-        {
-          "room": "과학실",
-          "image": "assets/prompts/robot.jpg",
-          "alt": "가운을 입고 플라스크를 드는 로봇",
-          "answerWords": ["로봇", "가운", "플라스크", "실험실"],
-          "answerSentence": "가운을 입고 플라스크를 드는 로봇."
-        },
-        {
-          "room": "미술실",
-          "image": "assets/prompts/cat.jpg",
-          "alt": "캔버스에 자화상을 그리는 고양이 화가",
-          "answerWords": ["고양이", "화가", "캔버스", "자화상"],
-          "answerSentence": "캔버스에 자화상을 그리는 고양이 화가."
-        },
-        {
-          "room": "방송실",
-          "image": "assets/prompts/dog.jpg",
-          "alt": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지",
-          "answerWords": ["강아지", "헤드폰", "마이크", "노래"],
-          "answerSentence": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지."
-        },
-        {
-          "room": "교무실",
-          "image": "assets/prompts/mouse.jpg",
-          "alt": "주방에서 파스타를 요리하는 생쥐",
-          "answerWords": ["파스타", "생쥐", "주방", "요리"],
-          "answerSentence": "주방에서 파스타를 요리하는 생쥐."
-        },
-        {
-          "room": "체육관",
-          "image": "assets/prompts/alien.jpg",
-          "alt": "우주에서 농구공을 드리블하는 외계인",
-          "answerWords": ["외계인", "농구공", "우주", "드리블"],
-          "answerSentence": "우주에서 농구공을 드리블하는 외계인."
-        },
-        {
-          "room": "과학실",
-          "image": "assets/prompts/robot.jpg",
-          "alt": "가운을 입고 플라스크를 드는 로봇",
-          "answerWords": ["로봇", "가운", "플라스크", "실험실"],
-          "answerSentence": "가운을 입고 플라스크를 드는 로봇."
-        },
-        {
-          "room": "미술실",
-          "image": "assets/prompts/cat.jpg",
-          "alt": "캔버스에 자화상을 그리는 고양이 화가",
-          "answerWords": ["고양이", "화가", "캔버스", "자화상"],
-          "answerSentence": "캔버스에 자화상을 그리는 고양이 화가."
-        },
-        {
-          "room": "방송실",
-          "image": "assets/prompts/dog.jpg",
-          "alt": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지",
-          "answerWords": ["강아지", "헤드폰", "마이크", "노래"],
-          "answerSentence": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지."
-        },
-        {
-          "room": "교무실",
-          "image": "assets/prompts/mouse.jpg",
-          "alt": "주방에서 파스타를 요리하는 생쥐",
-          "answerWords": ["파스타", "생쥐", "주방", "요리"],
-          "answerSentence": "주방에서 파스타를 요리하는 생쥐."
-        },
-        {
-          "room": "체육관",
-          "image": "assets/prompts/alien.jpg",
-          "alt": "우주에서 농구공을 드리블하는 외계인",
-          "answerWords": ["외계인", "농구공", "우주", "드리블"],
-          "answerSentence": "우주에서 농구공을 드리블하는 외계인."
-        },
-        {
-          "room": "과학실",
-          "image": "assets/prompts/robot.jpg",
-          "alt": "가운을 입고 플라스크를 드는 로봇",
-          "answerWords": ["로봇", "가운", "플라스크", "실험실"],
-          "answerSentence": "가운을 입고 플라스크를 드는 로봇."
-        },
-        {
-          "room": "미술실",
-          "image": "assets/prompts/cat.jpg",
-          "alt": "캔버스에 자화상을 그리는 고양이 화가",
-          "answerWords": ["고양이", "화가", "캔버스", "자화상"],
-          "answerSentence": "캔버스에 자화상을 그리는 고양이 화가."
-        },
-        {
-          "room": "방송실",
-          "image": "assets/prompts/dog.jpg",
-          "alt": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지",
-          "answerWords": ["강아지", "헤드폰", "마이크", "노래"],
-          "answerSentence": "헤드폰을 쓰고 마이크 앞에서 노래를 부르는 강아지."
-        }
-      ]
-    </script>
+    <aside class="interrogation-panel" aria-label="AI 심문">
+      <div class="side-head">
+        <h2>AI 심문</h2>
+        <button class="logout-btn" type="button" data-logout>로그아웃</button>
+      </div>
+
+      <section class="side-section" aria-label="질문권 상태">
+        <div class="status-grid">
+          <div class="status-pill"><span data-team-label>학생</span><strong data-credit-count>확인 중</strong></div>
+          <div class="status-pill"><span>사용</span><strong data-log-count>0회</strong></div>
+          <div class="status-pill"><span>AI</span><strong data-api-status>확인 중</strong></div>
+          <div class="status-pill"><span>장소</span><strong data-room-label>교무실</strong></div>
+        </div>
+      </section>
+
+      <section class="side-section" aria-label="증거 코드 입력">
+        <h2>증거 코드</h2>
+        <form class="code-form" data-evidence-form>
+          <label class="visually-hidden" for="evidenceCode">증거 코드 입력</label>
+          <input class="code-input" id="evidenceCode" data-evidence-code type="text" autocomplete="off" maxlength="12" placeholder="증거 코드 입력">
+          <button class="primary-btn" type="submit">확인</button>
+        </form>
+        <p class="code-message" data-evidence-message></p>
+      </section>
+
+      <section class="chat-card" aria-label="선택 인물 심문">
+        <div class="chat-head">
+          <label class="visually-hidden" for="suspectSelect">심문 대상</label>
+          <select class="suspect-select" id="suspectSelect" data-suspect-select>
+            <option value="kangWoojin">강우진</option>
+            <option value="seoHarin">서하린</option>
+            <option value="choiDaniel">최다니엘</option>
+          </select>
+          <div class="chat-meta"><span data-chat-state>대기</span></div>
+        </div>
+        <div class="messages" data-chat-messages aria-live="polite"></div>
+        <form class="chat-form" data-chat-form>
+          <label class="visually-hidden" for="chatInput">질문 입력</label>
+          <input class="chat-input" id="chatInput" data-chat-input type="text" autocomplete="off" placeholder="질문권 확인 중">
+          <button class="send-btn" type="submit" data-chat-submit>전송</button>
+        </form>
+      </section>
+    </aside>
   </main>
-  <script src="prompt-timer.js"></script>
-  <script src="prompt-checker.js"></script>
+
+  <script type="application/json" data-room-evidence>
+    [
+      { "index": 1, "name": "교무실 앞 CCTV" },
+      { "index": 2, "name": "책상 위 기말고사 문제지" }
+    ]
+  </script>
 </body>
 </html>

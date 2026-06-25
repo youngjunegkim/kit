@@ -125,18 +125,6 @@
       -webkit-user-drag: none;
     }
 
-    .watermark-cover-character {
-      position: absolute;
-      right: 0.6%;
-      bottom: 0.8%;
-      z-index: 3;
-      width: 10%;
-      height: auto;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-drag: none;
-    }
-
     .school-name-overlay {
       position: absolute;
       z-index: 2;
@@ -177,21 +165,17 @@
       top: var(--y);
       width: var(--w);
       height: var(--h);
-      border: 3px solid rgba(243, 52, 47, 0.9);
-      border-radius: 4px;
-      background: rgba(243, 52, 47, 0.03);
-      box-shadow:
-        0 0 0 1px rgba(255, 226, 224, 0.55) inset,
-        0 0 16px rgba(243, 52, 47, 0.28);
-      transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+      border: 2px solid transparent;
+      border-radius: 14px;
+      background: rgba(255, 93, 72, 0.01);
+      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
     }
 
     .hotspot:hover,
     .hotspot:focus-visible {
-      background: var(--red-soft);
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.74) inset,
-        0 0 24px rgba(243, 52, 47, 0.58);
+      border-color: rgba(255, 104, 81, 0.92);
+      background: rgba(255, 104, 81, 0.1);
+      box-shadow: 0 0 24px rgba(255, 85, 66, 0.68);
       outline: none;
       transform: translateY(-1px);
     }
@@ -949,26 +933,25 @@
       </div>
 
       <div class="map-frame">
-        <img class="school-map" src="assets/학교사진.jpg" alt="키트중학교 단면 지도">
-        <img class="watermark-cover-character" src="assets/watermark-cover-character.png" alt="" aria-hidden="true">
+        <img class="school-map" src="assets/키트중학교.png" alt="키트중학교 교실 선택 지도">
 
-        <a class="hotspot" style="--x: 79.59%; --y: 13.42%; --w: 12.70%; --h: 18.43%;" href="game-office.html" aria-label="교무실로 이동">
-          <span class="visually-hidden">교무실</span>
-        </a>
-
-        <a class="hotspot" style="--x: 10.35%; --y: 32.20%; --w: 12.30%; --h: 18.07%;" href="game-art.html" aria-label="미술실로 이동">
+        <a class="hotspot" style="--x: 10.85%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-art.html" aria-label="미술실로 이동">
           <span class="visually-hidden">미술실</span>
         </a>
 
-        <a class="hotspot" style="--x: 57.03%; --y: 32.02%; --w: 7.42%; --h: 18.43%;" href="game-broadcast.html" aria-label="방송실로 이동">
-          <span class="visually-hidden">방송실</span>
-        </a>
-
-        <a class="hotspot" style="--x: 10.25%; --y: 50.05%; --w: 25.15%; --h: 17.60%;" href="game-science.html" aria-label="과학실로 이동">
+        <a class="hotspot" style="--x: 37.15%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-science.html" aria-label="과학실로 이동">
           <span class="visually-hidden">과학실</span>
         </a>
 
-        <a class="hotspot" style="--x: 64.75%; --y: 69.59%; --w: 27.44%; --h: 18.78%;" href="game-gym.html" aria-label="체육관으로 이동">
+        <a class="hotspot" style="--x: 63.45%; --y: 21.2%; --w: 24.7%; --h: 31.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
+          <span class="visually-hidden">방송실</span>
+        </a>
+
+        <a class="hotspot" style="--x: 22.7%; --y: 56.4%; --w: 24.8%; --h: 31.7%;" href="game-office.html" aria-label="교무실로 이동">
+          <span class="visually-hidden">교무실</span>
+        </a>
+
+        <a class="hotspot" style="--x: 49.55%; --y: 56.4%; --w: 25.9%; --h: 31.7%;" href="game-gym.html" aria-label="체육관으로 이동">
           <span class="visually-hidden">체육관</span>
         </a>
       </div>

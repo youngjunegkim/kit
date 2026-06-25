@@ -4,11 +4,13 @@ const memoryGrantStore = globalThis.__kitQuestionGrantStore || new Map();
 const memoryCountStore = globalThis.__kitQuestionCountStore || new Map();
 const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
+const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
 globalThis.__kitQuestionCountStore = memoryCountStore;
 globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
+globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
@@ -46,6 +48,10 @@ function logKey() {
 
 function presenceKey() {
   return `kit:${storeNamespace()}:presence`;
+}
+
+function evidenceRedeemKeyFor(team) {
+  return `kit:${storeNamespace()}:evidence-redeemed:${team}`;
 }
 
 function hasPersistentStore() {
@@ -171,6 +177,23 @@ async function grantCredits(team, amount) {
   const credits = await addCredits(normalized, delta);
   const granted = await setGrantedCredits(normalized, previousGranted + delta);
   return { credits, granted };
+}
+
+async function redeemEvidenceCode(team, code) {
+  const normalized = normalizeTeam(team);
+  const normalizedCode = String(code || "").trim().toUpperCase();
+  if (!normalized || !normalizedCode) return false;
+
+  if (!hasPersistentStore()) {
+    const redeemed = memoryEvidenceRedeemStore.get(normalized) || new Set();
+    if (redeemed.has(normalizedCode)) return false;
+    redeemed.add(normalizedCode);
+    memoryEvidenceRedeemStore.set(normalized, redeemed);
+    return true;
+  }
+
+  const added = Number(await redisCommand(["SADD", evidenceRedeemKeyFor(normalized), normalizedCode]));
+  return added === 1;
 }
 
 async function resetCredits() {
@@ -417,6 +440,7 @@ module.exports = {
   logQuestion,
   normalizeTeam,
   removePresence,
+  redeemEvidenceCode,
   resetCredits,
   setGrantedCredits,
   setCredits,

@@ -3,6 +3,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { URL } = require("node:url");
 const creditsHandler = require("./api/credits");
+const evidenceCodeHandler = require("./api/evidence-code");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./api/personas");
 const presenceHandler = require("./api/presence");
 
@@ -1220,6 +1221,11 @@ const server = http.createServer(async (request, response) => {
 
   if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/credits") {
     await handleApiModule(request, response, creditsHandler);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/evidence-code") {
+    await handleApiModule(request, response, evidenceCodeHandler);
     return;
   }
 
