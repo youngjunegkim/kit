@@ -1021,15 +1021,6 @@ async function handleChat(request, response) {
   }
 
   const actor = actorFor(request);
-  if (actor.role === "teacher" && !isTeacherAuthorized(request)) {
-    sendJson(response, 401, {
-      error: "Teacher access code is required.",
-      code: "TEACHER_CODE_REQUIRED",
-      fallback: true
-    });
-    return;
-  }
-
   let creditInfo = null;
   if (actor.role === "student") {
     if (!actor.team) {

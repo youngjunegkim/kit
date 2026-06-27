@@ -31,7 +31,7 @@ button {
   min-height: 0;
   height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(420px, 0.86fr) clamp(430px, 28vw, 540px);
   gap: 12px;
   padding: 10px;
 }
@@ -40,7 +40,8 @@ button {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: start;
   gap: 8px;
 }
 
@@ -91,6 +92,8 @@ button {
   position: relative;
   overflow: hidden;
   min-height: 0;
+  max-height: min(70vh, 760px);
+  aspect-ratio: 16 / 9;
   display: grid;
   place-items: center;
   border: 1px solid rgba(225, 174, 45, 0.5);
@@ -170,6 +173,7 @@ button {
   position: sticky;
   top: 10px;
   align-self: start;
+  height: calc(100vh - 20px);
   max-height: calc(100vh - 20px);
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
@@ -206,7 +210,7 @@ button {
 .side-section {
   display: grid;
   gap: 8px;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid #e2d6b7;
 }
 
@@ -330,7 +334,7 @@ button {
 .obtained-evidence {
   display: grid;
   gap: 7px;
-  max-height: 176px;
+  max-height: 126px;
   overflow-y: auto;
 }
 
@@ -360,7 +364,7 @@ button {
 
 .obtained-evidence-card {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-columns: 66px minmax(0, 1fr);
   gap: 9px;
   align-items: center;
   border: 1px solid #d6c49b;
@@ -370,7 +374,7 @@ button {
 }
 
 .obtained-evidence-card img {
-  width: 78px;
+  width: 66px;
   aspect-ratio: 1 / 0.86;
   object-fit: cover;
   border-radius: 6px;
@@ -430,7 +434,7 @@ button {
 .chat-head {
   display: grid;
   gap: 6px;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid #e2d6b7;
   background: #fffaf0;
 }
@@ -448,8 +452,8 @@ button {
 .suspect-preview {
   margin: 0;
   display: grid;
-  gap: 6px;
-  padding: 10px;
+  gap: 5px;
+  padding: 8px 10px;
   border-bottom: 1px solid #e2d6b7;
   background: #160f0a;
 }
@@ -457,9 +461,9 @@ button {
 .suspect-preview img {
   display: block;
   width: 100%;
-  height: clamp(188px, 30vh, 270px);
+  height: clamp(140px, 17vh, 190px);
   object-fit: cover;
-  object-position: center 32%;
+  object-position: center 40%;
   border: 1px solid rgba(225, 174, 45, 0.58);
   border-radius: 7px;
   background: #000;
@@ -561,16 +565,17 @@ input:disabled {
 
   .interrogation-panel {
     position: static;
+    height: auto;
     max-height: none;
   }
 
   .suspect-preview img {
-    height: clamp(210px, 54vw, 300px);
-    object-position: center 32%;
+    height: clamp(150px, 36vw, 230px);
+    object-position: center 40%;
   }
 
-  .room-image {
-    height: auto;
+  .scene-frame {
+    max-height: none;
   }
 
   .messages {

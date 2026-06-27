@@ -208,8 +208,9 @@
   function updateControls() {
     const isTeacher = state.role === "teacher";
     const activeTeam = evidenceTeam();
-    const noTeam = !activeTeam;
-    const noCredits = state.credits <= 0;
+    const noTeam = state.role === "student" && !activeTeam;
+    const creditRequired = state.role === "student";
+    const noCredits = creditRequired && state.credits <= 0;
     const chatLocked = state.requesting || noTeam || noCredits;
     const canRedeemCode = (state.role === "student" && state.team) || (isTeacher && state.evidenceTeam);
 
@@ -229,7 +230,7 @@
     if (nodes.evidenceTeamSelect) nodes.evidenceTeamSelect.disabled = state.requesting;
     const codeButton = nodes.evidenceForm?.querySelector("button");
     if (codeButton) codeButton.disabled = codeLocked;
-    if (nodes.resetCreditsButton) nodes.resetCreditsButton.disabled = state.requesting || noTeam || state.credits <= 0;
+    if (nodes.resetCreditsButton) nodes.resetCreditsButton.disabled = state.requesting || !activeTeam || state.credits <= 0;
   }
 
   function evidenceTeam() {
@@ -575,13 +576,13 @@
     if (!text || state.requesting) return;
     const targetTeam = evidenceTeam();
 
-    if (!targetTeam) {
+    if (state.role === "student" && !targetTeam) {
       setChatState("팀 선택 필요");
       updateControls();
       return;
     }
 
-    if (state.credits <= 0) {
+    if (state.role === "student" && state.credits <= 0) {
       setChatState("질문권 필요");
       updateControls();
       return;
@@ -604,17 +605,20 @@
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-kit-role": "student",
+          "x-kit-role": state.role,
           "x-kit-class": state.classId,
           "x-kit-team": encoded(targetTeam),
           "x-kit-user": encoded(state.user),
-          "x-class-code": safeHeaderValue(state.accessCode)
+          "x-class-code": safeHeaderValue(state.accessCode),
+          ...(state.role === "teacher" && state.teacherCode
+            ? { "x-teacher-code": safeHeaderValue(state.teacherCode) }
+            : {})
         },
         body: JSON.stringify({
           suspect: suspectId,
           message: text,
           history: state.histories[suspectId],
-          role: "student",
+          role: state.role,
           classId: state.classId,
           team: targetTeam,
           user: state.user
