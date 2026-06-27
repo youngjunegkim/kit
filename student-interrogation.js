@@ -43,7 +43,7 @@
     B3K7J1W: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
     X6M4F9P: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
     V2D8R5Y: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
-    N7C3G1T: { room: "체육관", roomId: "gym", index: 1, evidence: "강우진의 연습 노트", image: "assets/evidence-rooms/gym.png", position: "37% 76%" },
+    N7C3G1T: { room: "체육관", roomId: "gym", index: 1, evidence: "연습 노트", image: "assets/evidence-rooms/gym.png", position: "37% 76%" },
     P5W9K2M: { room: "체육관", roomId: "gym", index: 2, evidence: "AI의 USB 오인식 결과", image: "assets/evidence-rooms/gym.png", position: "72% 65%" }
   };
 
@@ -179,7 +179,14 @@
   function loadEvidenceCards() {
     try {
       const saved = JSON.parse(localStorage.getItem(evidenceStorageKey()) || "[]");
-      state.evidenceCards = Array.isArray(saved) ? saved.filter((card) => card?.code && card?.evidence) : [];
+      state.evidenceCards = Array.isArray(saved)
+        ? saved
+          .filter((card) => card?.code && card?.evidence)
+          .map((card) => ({
+            ...card,
+            evidence: card.evidence === "강우진의 연습 노트" ? "연습 노트" : card.evidence
+          }))
+        : [];
     } catch {
       state.evidenceCards = [];
     }

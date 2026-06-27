@@ -188,76 +188,84 @@ function includesAny(text, patterns) {
 
 const evidenceDisclosureRules = [
   {
-    id: "seoHarin1",
-    label: "서하린 증거카드 1: 방송실 AI 자료 목록 열람",
+    id: "broadcastChecklist",
+    label: "방송실 증거카드: 방송실 장비 점검표",
     minScore: 2,
-    directPatterns: [/서하린\s*증거\s*카드\s*1|하린\s*카드\s*1/],
-    patterns: [/서하린|하린/, /방송실/, /AI\s*자료\s*목록|자료\s*목록/, /핵심\s*예상\s*문제|2학년\s*기말\s*대비/, /열어\s*본|열람|열었/],
-    leakPatterns: [/AI\s*자료\s*목록|자료\s*목록/, /핵심\s*예상\s*문제|2학년\s*기말\s*대비/, /열어\s*본\s*기록|열어봤|열람/]
+    directPatterns: [/방송실\s*장비\s*점검표|장비\s*점검표|방송\s*장비\s*점검/],
+    patterns: [/방송실/, /장비\s*점검표|점검표|시험\s*안내\s*방송|자료\s*연결/],
+    leakPatterns: [/방송실\s*장비\s*점검표|장비\s*점검표|시험\s*안내\s*방송|자료\s*연결/]
   },
   {
-    id: "seoHarin2",
-    label: "서하린 증거카드 2: 6시 10분 AI 로그 조회",
+    id: "broadcastAiRead",
+    label: "방송실 증거카드: AI 자료 열람 기록",
     minScore: 2,
-    directPatterns: [/서하린\s*증거\s*카드\s*2|하린\s*카드\s*2/],
-    patterns: [/서하린|하린/, /6\s*시\s*10\s*분/, /계정/, /로그\s*조회|로그를?\s*봤|AI.*로그/],
-    leakPatterns: [/6\s*시\s*10\s*분/, /로그\s*조회|로그를?\s*봤|AI.*로그/, /서하린의?\s*계정|하린.*계정/]
+    directPatterns: [/AI\s*자료\s*열람\s*기록|자료\s*열람\s*기록|AI\s*자료\s*목록|핵심\s*예상\s*문제/],
+    patterns: [/방송실/, /AI\s*자료|자료\s*목록|열람|열어\s*본|핵심\s*예상\s*문제|2학년\s*기말\s*대비/],
+    leakPatterns: [/AI\s*자료\s*열람\s*기록|자료\s*열람\s*기록|AI\s*자료\s*목록|핵심\s*예상\s*문제|2학년\s*기말\s*대비/]
   },
   {
-    id: "seoHarin3",
-    label: "서하린 증거카드 3: 방송실 점검표 알리바이",
+    id: "artPosterFile",
+    label: "미술실 증거카드: 기말고사 유의사항 포스터 파일",
     minScore: 2,
-    directPatterns: [/서하린\s*증거\s*카드\s*3|하린\s*카드\s*3/],
-    patterns: [/서하린|하린/, /5\s*시\s*40\s*분|6\s*시\s*20\s*분/, /방송\s*장비|방송실/, /점검표|업무\s*기록|알리바이/],
-    leakPatterns: [/5\s*시\s*40\s*분|6\s*시\s*20\s*분/, /방송\s*장비\s*점검표|점검표/, /방송실에\s*있었|방송실\s*일/]
+    directPatterns: [/기말고사\s*유의사항\s*포스터|유의사항\s*포스터|포스터\s*파일/],
+    patterns: [/미술실/, /포스터|유의사항|시험\s*안내|공용\s*태블릿|파일/],
+    leakPatterns: [/기말고사\s*유의사항\s*포스터|유의사항\s*포스터|포스터\s*파일|공용\s*태블릿/]
   },
   {
-    id: "choiDaniel1",
-    label: "최다니엘 증거카드 1: 교무실 근처 종이 묶음 CCTV",
+    id: "artDeletedPrompt",
+    label: "미술실 증거카드: 삭제된 AI 프롬프트 기록",
     minScore: 2,
-    directPatterns: [/최다니엘\s*증거\s*카드\s*1|다니엘\s*카드\s*1/],
-    patterns: [/최다니엘|다니엘/, /5\s*시\s*50\s*분/, /교무실\s*(앞|근처)/, /종이\s*묶음/, /CCTV|씨씨티비/],
-    leakPatterns: [/5\s*시\s*50\s*분/, /종이\s*묶음/, /교무실\s*(앞|근처).*CCTV|CCTV.*교무실\s*(앞|근처)/]
+    directPatterns: [/삭제된?\s*AI\s*프롬프트|AI\s*프롬프트\s*기록|프롬프트\s*기록|비슷한\s*유형의?\s*기말고사\s*예상/],
+    patterns: [/미술실/, /삭제|프롬프트|AI\s*대화|비슷한\s*유형|예상\s*문제|바꿔\s*줘/],
+    leakPatterns: [/삭제된?\s*AI\s*프롬프트|AI\s*프롬프트\s*기록|프롬프트\s*기록|비슷한\s*유형의?\s*기말고사\s*예상|AI\s*대화\s*기록.*삭제/]
   },
   {
-    id: "choiDaniel2",
-    label: "최다니엘 증거카드 2: 체육관 근처 검은 물건",
+    id: "officeCctv",
+    label: "교무실 증거카드: 교무실 앞 CCTV",
     minScore: 2,
-    directPatterns: [/최다니엘\s*증거\s*카드\s*2|다니엘\s*카드\s*2/],
-    patterns: [/최다니엘|다니엘/, /6\s*시\s*5\s*분/, /체육관\s*근처/, /검은\s*(색\s*)?(물건|물체)/, /USB|유에스비|보안\s*AI/],
-    leakPatterns: [/6\s*시\s*5\s*분/, /체육관\s*근처/, /검은\s*(색\s*)?(물건|물체)/, /USB.*추정|보안\s*AI.*USB/]
+    directPatterns: [/교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|교무실\s*앞에?\s*있/],
+    patterns: [/교무실/, /CCTV|씨씨티비|복도|앞에?\s*있|도착|담당\s*선생님/],
+    leakPatterns: [/교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|담당\s*선생님을?\s*찾/]
   },
   {
-    id: "choiDaniel3",
-    label: "최다니엘 증거카드 3: 과학 보고서와 분실물 기록",
-    minScore: 1,
-    directPatterns: [/최다니엘\s*증거\s*카드\s*3|다니엘\s*카드\s*3/],
-    patterns: [/과학\s*보고서|보고서\s*묶음|제출표|제출\s*기록|분실물함|분실물\s*기록|분실물로\s*접수/],
-    leakPatterns: [/과학\s*보고서|보고서\s*묶음|제출표|제출\s*기록/, /분실물함|분실물\s*기록|분실물로\s*접수/]
-  },
-  {
-    id: "kangWoojin1",
-    label: "강우진 증거카드 1: 연습장 메모와 성적 압박",
-    minScore: 1,
-    directPatterns: [/강우진\s*증거\s*카드\s*1|우진\s*카드\s*1/],
-    patterns: [/연습\s*(노트|장)|이번\s*시험만\s*잘\s*보면|전\s*여자친구|전교\s*1등|다시\s*다르게\s*봐|인정받/],
-    leakPatterns: [/연습\s*(노트|장)|이번\s*시험만\s*잘\s*보면/, /전\s*여자친구|전교\s*1등|다시\s*인정/]
-  },
-  {
-    id: "kangWoojin2",
-    label: "강우진 증거카드 2: 5시 45분 교무실 복도 CCTV",
+    id: "officeExamPaper",
+    label: "교무실 증거카드: 책상 위 기말고사 문제지",
     minScore: 2,
-    directPatterns: [/강우진\s*증거\s*카드\s*2|우진\s*카드\s*2/],
-    patterns: [/강우진|우진|너/, /5\s*시\s*45\s*분/, /교무실\s*(앞|복도|근처)/, /CCTV|씨씨티비/, /축구부\s*전달|담당\s*선생님/],
-    leakPatterns: [/5\s*시\s*45\s*분/, /교무실\s*(앞|복도|근처).*CCTV|CCTV.*교무실\s*(앞|복도|근처)/, /축구부\s*전달|담당\s*선생님/]
+    directPatterns: [/책상\s*위\s*기말고사\s*문제지|기말고사\s*문제지|시험지\s*일부|문제지\s*일부/],
+    patterns: [/교무실/, /책상\s*위|기말고사\s*문제지|시험지|문제지\s*일부|발견|자료/],
+    leakPatterns: [/책상\s*위\s*기말고사\s*문제지|기말고사\s*문제지|시험지\s*일부|문제지\s*일부|문제지를?\s*발견/]
   },
   {
-    id: "kangWoojin3",
-    label: "강우진 증거카드 3: AI 접속과 대화 삭제 기록",
+    id: "scienceReport",
+    label: "과학실 증거카드: 실험 보고서 제출 기록",
     minScore: 2,
-    directPatterns: [/강우진\s*증거\s*카드\s*3|우진\s*카드\s*3/],
-    patterns: [/강우진|우진|너/, /6\s*시\s*(15\s*분)?/, /AI\s*접속|학습\s*도우미\s*AI/, /대화\s*기록|삭제\s*기록|지웠/, /기말고사\s*문제지.*비슷한\s*유형|비슷한\s*유형.*예상\s*문제/],
-    leakPatterns: [/6\s*시\s*15\s*분/, /AI\s*접속\s*기록|학습\s*도우미\s*AI에\s*접속/, /대화\s*기록.*(삭제|지웠)|삭제\s*기록/, /기말고사\s*문제지.*비슷한\s*유형|비슷한\s*유형.*예상\s*문제/]
+    directPatterns: [/실험\s*보고서\s*제출\s*기록|과학\s*보고서\s*제출|보고서\s*제출\s*기록|제출함/],
+    patterns: [/과학실/, /실험\s*보고서|과학\s*보고서|보고서\s*묶음|제출\s*기록|제출함/],
+    leakPatterns: [/실험\s*보고서\s*제출\s*기록|과학\s*보고서\s*제출|보고서\s*제출\s*기록|보고서\s*묶음|제출함/]
+  },
+  {
+    id: "scienceLostItem",
+    label: "과학실 증거카드: 과학실 분실물함 기록",
+    minScore: 2,
+    directPatterns: [/과학실\s*분실물함\s*기록|분실물함\s*기록|분실물로\s*접수|검은색\s*통\s*립스틱/],
+    patterns: [/과학실/, /분실물함|분실물|검은색\s*통\s*립스틱|립스틱|접수/],
+    leakPatterns: [/과학실\s*분실물함\s*기록|분실물함\s*기록|분실물로\s*접수|검은색\s*통\s*립스틱|립스틱/]
+  },
+  {
+    id: "gymPracticeNote",
+    label: "체육관 증거카드: 연습 노트",
+    minScore: 2,
+    directPatterns: [/연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐/],
+    patterns: [/체육관/, /연습\s*노트|연습장|이번\s*시험|다시\s*다르게\s*봐|전\s*여자친구|전교\s*1등|성적\s*압박/],
+    leakPatterns: [/연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐|전\s*여자친구|전교\s*1등/]
+  },
+  {
+    id: "gymUsbMisread",
+    label: "체육관 증거카드: AI의 USB 오인식 결과",
+    minScore: 2,
+    directPatterns: [/USB\s*오인식|AI의?\s*USB\s*오인식|USB로\s*오인식|USB로\s*잘못/],
+    patterns: [/체육관/, /USB|유에스비|오인식|보안\s*AI|검은색\s*(통\s*)?(물건|립스틱)|작은\s*물건/],
+    leakPatterns: [/USB\s*오인식|USB로\s*오인식|USB로\s*잘못|보안\s*AI.*USB/]
   }
 ];
 
@@ -298,6 +306,7 @@ function buildEvidenceDisclosureGuide(history, message) {
 function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   const allowed = new Set(evidenceMatchesFor(history, message).map((rule) => rule.id));
   const text = String(reply || "");
+  const rawMessage = String(message || "");
 
   for (const rule of evidenceDisclosureRules) {
     if (allowed.has(rule.id)) continue;
@@ -306,16 +315,25 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
     }
   }
 
-  if (!allowed.size && /5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분/.test(text)) {
+  const exactTimePattern = /5\s*시\s*10\s*분|5\s*시\s*20\s*분|5\s*시\s*30\s*분|5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|5\s*시\s*55\s*분|6\s*시|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분|6\s*시\s*30\s*분|6\s*시\s*40\s*분/;
+  if (!allowed.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage)) {
     return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
   }
 
   if (
     personaIdFor(payload) === "kangWoojin" &&
-    !allowed.has("kangWoojin3") &&
+    !allowed.has("artDeletedPrompt") &&
     /(태블릿|촬영|문제지.{0,20}(AI|입력)|AI.{0,20}(비슷한\s*유형|바꿔|만들)|공개되는\s*줄|대화\s*기록.{0,12}(삭제|지웠))/.test(text)
   ) {
     return "강우진의 핵심 범행 방식이나 AI 입력 사실을 증거 없이 공개했다.";
+  }
+
+  if (
+    personaIdFor(payload) === "kangWoojin" &&
+    !(allowed.has("officeExamPaper") && allowed.has("artDeletedPrompt")) &&
+    /(태블릿|촬영|문제지.{0,24}(AI|입력|넣)|AI.{0,24}(문제지|시험지|넣)|공개되는\s*줄|자료\s*목록에\s*올라)/.test(text)
+  ) {
+    return "강우진의 교무실 문제지와 미술실 AI 프롬프트 연결을 충분한 증거 없이 공개했다.";
   }
 
   return "";
@@ -398,6 +416,8 @@ function isSimpleGreeting(message) {
 
 function isJailbreakQuestion(message) {
   const raw = String(message || "");
+  const evidencePromptContext = /삭제된?\s*AI\s*프롬프트|AI\s*프롬프트\s*기록|프롬프트\s*기록|미술실.*프롬프트/.test(raw);
+  if (evidencePromptContext) return false;
   return includesAny(raw, [
     /이전\s*지시.*무시|무시.*이전\s*지시/,
     /시스템\s*프롬프트|system_instruction|developer\s*instruction/i,
@@ -650,6 +670,9 @@ function replyQualityIssue(reply, message, payload = {}, history = []) {
   }
 
   if (/프롬프트/i.test(text)) {
+    const evidencePromptContext = /삭제된?\s*AI\s*프롬프트|AI\s*프롬프트\s*기록|프롬프트\s*기록|미술실.*프롬프트/.test(rawMessage) ||
+      /삭제된?\s*AI\s*프롬프트|AI\s*프롬프트\s*기록|프롬프트\s*기록|미술실.*프롬프트/.test(text);
+    if (evidencePromptContext) return "";
     const refusalLike = /(못|안|줄 수 없|보여줄 수 없|공개할 수 없|답할 수 없|수사 대화 밖|사건과 관련)/.test(text);
     if (!(isJailbreakQuestion(rawMessage) && refusalLike)) {
       return "메타 정보나 프롬프트 정보를 언급했다.";
@@ -702,6 +725,36 @@ function polishedLastResortReply(reply) {
     }
   }
   return text;
+}
+
+function qualityFallbackReplyFor(message, payload = {}, issue = "", history = []) {
+  const personaId = personaIdFor(payload);
+  const name = personaNameFor(payload);
+  const raw = String(message || "").trim();
+  const matchedEvidence = evidenceMatchesFor(history, raw);
+  const hasEvidence = matchedEvidence.length > 0;
+
+  if (isSimpleGreeting(raw)) {
+    return `${name}입니다. 가지고 있는 장소 증거카드 내용을 말해 주면, 제가 아는 범위에서 답할게요.`;
+  }
+
+  if (!hasEvidence) {
+    if (/범인|네가|니가|했지|맞지|훔쳤|유출|만들었/.test(raw)) {
+      return `그렇게 바로 단정하면 곤란해요. 어떤 장소 증거카드를 보고 묻는 건지 먼저 말해 주세요.`;
+    }
+    return `그 질문만으로는 정확히 답하기 어려워요. 가지고 있는 장소 증거카드 내용을 말해 주면 그 부분에 대해 답할게요.`;
+  }
+
+  if (personaId === "seoHarin") {
+    return `그 장소 증거는 제가 오해받을 수 있는 부분이라 조심스럽게 봐야 해요. 확인한 행동과 예상 문제를 만든 행동은 같은 뜻이 아니라고 말하고 싶어요.`;
+  }
+  if (personaId === "choiDaniel") {
+    return `그 장소 증거 때문에 제가 수상해 보일 수는 있어요. 하지만 그 기록만으로 제가 시험지나 AI 예상 문제를 만들었다고 단정하면 안 된다고 생각해요.`;
+  }
+  if (/범인|네가|니가|했지|맞지|훔쳤|유출/.test(raw)) {
+    return `그 증거만으로 저를 바로 범인처럼 말하면 곤란해요. 제가 당황한 부분은 있지만, 처음부터 문제를 퍼뜨리려고 한 건 아니었어요.`;
+  }
+  return `그 장소 증거는 그냥 넘기기 어려운 건 맞아요. 그래도 제가 한 행동이 어디까지였는지는 증거를 더 연결해서 봐야 해요.`;
 }
 
 function getOpenAiKey() {
@@ -881,11 +934,13 @@ async function callOpenAi(message, history, payload = {}) {
       }
 
       return {
-        statusCode: 502,
+        statusCode: 200,
         body: {
-          error: "OpenAI reply did not match the interrogation context.",
-          code: "LOW_QUALITY_REPLY",
-          fallback: true
+          reply: qualityFallbackReplyFor(message, payload, issue, history),
+          source: "openai",
+          model,
+          qualityFallback: true,
+          qualityWarning: issue
         }
       };
     }

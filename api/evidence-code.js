@@ -24,7 +24,7 @@ const evidenceCodes = {
   B3K7J1W: { room: "교무실", evidence: "책상 위 기말고사 문제지", person: "강우진" },
   X6M4F9P: { room: "과학실", evidence: "실험 보고서 제출 기록", person: "최다니엘" },
   V2D8R5Y: { room: "과학실", evidence: "과학실 분실물함 기록", person: "최다니엘" },
-  N7C3G1T: { room: "체육관", evidence: "강우진의 연습 노트", person: "강우진" },
+  N7C3G1T: { room: "체육관", evidence: "연습 노트", person: "강우진" },
   P5W9K2M: { room: "체육관", evidence: "AI의 USB 오인식 결과", person: "최다니엘" }
 };
 
@@ -82,6 +82,14 @@ function bodyFor(request) {
   return request.body;
 }
 
+function queryValue(request, name) {
+  try {
+    return new URL(request.url || "", "http://localhost").searchParams.get(name) || "";
+  } catch {
+    return "";
+  }
+}
+
 function cleanCode(value) {
   return String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
@@ -123,6 +131,25 @@ function evidenceCreditTotals(logs = []) {
   }, {});
 }
 
+function publicEvidenceLog(entry = {}) {
+  return {
+    team: normalizeTeam(entry.team),
+    user: String(entry.user || entry.team || "").trim().slice(0, 40),
+    code: cleanCode(entry.code),
+    room: String(entry.room || "").trim().slice(0, 40),
+    evidence: String(entry.evidence || "").trim().slice(0, 80),
+    added: Math.max(0, Number(entry.added) || 0),
+    at: entry.at || ""
+  };
+}
+
+function publicEvidence(evidence = {}) {
+  return {
+    room: String(evidence.room || "").trim().slice(0, 40),
+    evidence: String(evidence.evidence || "").trim().slice(0, 80)
+  };
+}
+
 async function subtractEvidenceCredits(logs = []) {
   const totals = evidenceCreditTotals(logs);
   await Promise.all(Object.entries(totals).map(async ([team, amount]) => {
@@ -141,6 +168,24 @@ module.exports = async function handler(request, response) {
     }
 
     if (request.method === "GET") {
+      const role = String(headerValue(request, "x-kit-role") || queryValue(request, "role") || "").toLowerCase();
+      const team = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || queryValue(request, "team"));
+      const logs = await getEvidenceRedemptions();
+
+      if (role === "student") {
+        if (!team) {
+          sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+          return;
+        }
+        sendJson(response, 200, {
+          evidenceLogs: logs
+            .filter((entry) => normalizeTeam(entry.team) === team)
+            .map(publicEvidenceLog),
+          persistent: hasPersistentStore()
+        });
+        return;
+      }
+
       const authError = teacherAuthError(request);
       if (authError) {
         sendJson(response, authError.status, { ...authError, fallback: true });
@@ -148,7 +193,7 @@ module.exports = async function handler(request, response) {
       }
 
       sendJson(response, 200, {
-        evidenceLogs: await getEvidenceRedemptions(),
+        evidenceLogs: logs,
         credits: await getAllCredits(),
         granted: await getAllGrantedCredits(),
         persistent: hasPersistentStore()
@@ -212,7 +257,7 @@ module.exports = async function handler(request, response) {
       sendJson(response, 409, {
         error: "이미 사용한 증거 코드입니다.",
         code: "ALREADY_REDEEMED",
-        evidence
+        evidence: publicEvidence(evidence)
       });
       return;
     }
@@ -232,8 +277,8 @@ module.exports = async function handler(request, response) {
     sendJson(response, 200, {
       ok: true,
       code,
-      evidence,
-      evidenceLog,
+      evidence: publicEvidence(evidence),
+      evidenceLog: publicEvidenceLog(evidenceLog),
       team,
       added: 3,
       credits: result.credits,
