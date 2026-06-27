@@ -237,6 +237,15 @@ textarea {
   margin-top: 18px;
 }
 
+.side-column {
+  display: grid;
+  gap: 18px;
+  align-self: start;
+  min-width: 0;
+  position: sticky;
+  top: 22px;
+}
+
 .input-panel {
   min-width: 0;
   padding: 18px;
@@ -473,8 +482,6 @@ textarea {
 }
 
 .ranking-panel {
-  position: sticky;
-  top: 22px;
   padding: 16px;
 }
 
@@ -565,7 +572,7 @@ textarea {
 }
 
 .report-panel {
-  grid-column: 2;
+  grid-column: auto;
   padding: 16px;
 }
 
@@ -684,9 +691,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .ranking-panel,
-  .report-panel {
-    grid-column: auto;
+  .side-column {
     position: static;
   }
 }
