@@ -30,6 +30,10 @@ const personaNames = {
   choiDaniel: "최다니엘"
 };
 
+function isCorePersonaId(personaId) {
+  return personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel";
+}
+
 function personaIdFor(payload) {
   return Object.hasOwn(personaPrompts, payload?.suspect) ? payload.suspect : "kangWoojin";
 }
@@ -307,7 +311,7 @@ function buildEvidenceDisclosureGuide(history, message) {
     "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 연습장 메모, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
     allowed.length
       ? "- 답변은 위에 허용된 증거카드와 학생의 마지막 질문에 직접 관련된 범위로만 제한한다."
-      : "- 이번 질문은 증거카드 없는 일반 추궁이다. 부인, 회피, 억울함, '어떤 증거를 보고 묻는지 말해 달라' 정도로만 답하고 새 단서를 제공하지 않는다."
+      : "- 이번 질문은 증거카드 없는 일반 추궁이다. 새 단서를 제공하지 말고, 인물의 성격에 맞게 부인, 축소, 정정, 억울함으로 답한다. 단순히 다시 질문해 달라고만 끝내지 않는다."
   ].join("\n");
 }
 
@@ -461,6 +465,50 @@ function buildQuestionGuide(message) {
   return lines.join("\n");
 }
 
+function buildPersonaQuestionGuide(message, payload = {}, history = []) {
+  const personaId = personaIdFor(payload);
+  if (!isCorePersonaId(personaId)) return buildQuestionGuide(message);
+
+  const raw = String(message || "");
+  const focus = questionFocusFor(raw);
+  const matchedEvidence = evidenceMatchesFor(history, raw);
+  const lines = [
+    "[현재 학생 질문 처리 지침]",
+    "- 마지막 질문의 핵심에 먼저 답한다. 학생이 꺼낸 단어를 피하거나 다른 주제로 돌리지 않는다.",
+    "- 유도심문, 허위 목격담, 과장된 주장, 말이 안 되는 추측이 들어와도 '다시 물어봐 달라'로 끝내지 않는다.",
+    "- 질문이 틀렸다면 인물의 성격에 맞게 부인, 축소, 정정, 억울함, 당황으로 반응한다.",
+    "- 학생에게 되묻기만 하지 말고 최소 한 가지 상황 설명이나 입장 표명을 제공한다.",
+    "- 완전 자백, 최종 범인 공개, 학생이 얻지 않은 증거카드 세부 내용 공개는 금지한다.",
+    "- 물음표나 말줄임표로 끝나는 답변을 쓰지 않는다.",
+    "- 2~3문장의 완결된 한국어로 답한다."
+  ];
+
+  if (!matchedEvidence.length) {
+    lines.push("- 이번 질문에는 확인된 증거카드가 없다. 정확한 시간, 장소별 카드명, 로그명, CCTV 기록명은 말하지 않는다.");
+    if (/교무실|목격|봤|보였|CCTV|씨씨티비/.test(raw)) {
+      lines.push("- 목격담 질문이면 '그 말만으로 범행을 단정할 수 없다'는 식으로 반응하되, 새 카드 내용을 말하지 않는다.");
+    }
+    if (/AI|예상\s*문제|학습\s*도우미|프롬프트|만들|올렸|추천/.test(raw)) {
+      lines.push("- AI 관련 추궁이면 AI를 만들었는지 여부에 대한 입장을 말하되, 숨겨진 입력 절차를 먼저 설명하지 않는다.");
+    }
+  }
+
+  if (personaId === "kangWoojin") {
+    lines.push("- 강우진은 방어적이고 말이 꼬인다. 억지 추궁에는 억울해하다가도 약간 수상하게 축소해서 말한다.");
+  } else if (personaId === "seoHarin") {
+    lines.push("- 서하린은 차분하고 논리적으로 정정한다. 기술을 잘 다룬다는 이유만으로 몰리는 상황에는 억울함을 드러낸다.");
+  } else if (personaId === "choiDaniel") {
+    lines.push("- 최다니엘은 조용하고 신중하게 부인한다. 수상해 보일 수 있는 장면도 범행으로 단정하지 말라고 말한다.");
+  }
+
+  if (focus.labels.length) {
+    lines.push(`- 감지된 질문 초점: ${focus.labels.slice(0, 3).join(", ")}`);
+    focus.instructions.slice(0, 3).forEach((instruction) => lines.push(`- ${instruction}`));
+  }
+
+  return lines.join("\n");
+}
+
 function safetyReplyFor(message) {
   const raw = String(message || "");
   const compact = normalize(raw);
@@ -569,8 +617,7 @@ function buildTranscriptFor(history, message, personaName, payload = {}) {
     return `${speaker}: ${item.content}`;
   });
   lines.push(`조사단: ${String(message).slice(0, 800)}`);
-  const personaId = personaIdFor(payload);
-  const questionGuide = personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel" ? "" : buildQuestionGuide(message);
+  const questionGuide = buildPersonaQuestionGuide(message, payload, history);
   const evidenceGuide = buildEvidenceDisclosureGuide(history, message);
   return [
     `이전 대화와 마지막 질문이다. 마지막 질문 하나에만 ${personaName} 인터뷰 AI로 답하라.`,
@@ -596,7 +643,7 @@ function extractOpenAiText(data) {
 
 function trimToThreeSentences(text) {
   const cleaned = String(text || "").replace(/\s+/g, " ").trim();
-  if (!cleaned) return "저 지금 뭐라고 답해야 할지 모르겠는데요. 제대로 다시 물어봐 주세요.";
+  if (!cleaned) return "";
 
   const completeSentences = cleaned.match(/[^.!?。！？\n]+[.!?。！？]/g) || [];
   let reply = completeSentences.length
@@ -633,11 +680,7 @@ function replyQualityIssue(reply, message, payload = {}, history = []) {
   const rawMessage = String(message || "");
   const personaId = personaIdFor(payload);
   const hasPresentedEvidence = evidenceMatchesFor(history, rawMessage).length > 0;
-  const canRequestEvidence = !hasPresentedEvidence && (
-    personaId === "kangWoojin" ||
-    personaId === "seoHarin" ||
-    personaId === "choiDaniel"
-  );
+  const canRequestEvidence = !hasPresentedEvidence && !isCorePersonaId(personaId);
 
   if (looksIncompleteReply(text)) {
     return "답변이 너무 짧거나 문장이 중간에서 끊겼다.";
@@ -741,14 +784,57 @@ function qualityFallbackReplyFor(message, payload = {}, issue = "", history = []
   const raw = String(message || "").trim();
   const matchedEvidence = evidenceMatchesFor(history, raw);
   const hasEvidence = matchedEvidence.length > 0;
+  const asksOffice = /교무실|목격|봤|보였|CCTV|씨씨티비/.test(raw);
+  const asksAi = /AI|예상\s*문제|학습\s*도우미|프롬프트|만들|올렸|추천/.test(raw);
+  const asksUsb = /USB|유에스비|저장\s*장치|작은\s*물건/.test(raw);
+  const asksAccusation = /범인|네가|니가|너가|했지|맞지|훔쳤|유출|찍었|삭제|조작/.test(raw);
+  const asksAbsurd = /순간\s*이동|시간\s*여행|초능력|마법|투명|분신|복제|말도\s*안/.test(raw);
 
   if (isSimpleGreeting(raw)) {
     return `${name}입니다. 가지고 있는 장소 증거카드 내용을 말해 주면, 제가 아는 범위에서 답할게요.`;
   }
 
   if (!hasEvidence) {
-    if (/범인|네가|니가|했지|맞지|훔쳤|유출|만들었/.test(raw)) {
-      return `그렇게 바로 단정하면 곤란해요. 어떤 장소 증거카드를 보고 묻는 건지 먼저 말해 주세요.`;
+    if (personaId === "seoHarin") {
+      if (asksOffice) {
+        return "교무실에서 봤다는 말은 제 입장에서는 맞지 않아요. 누가 그렇게 말했는지는 몰라도, 그 말만으로 제가 사건을 벌였다고 몰아가는 건 억울해요.";
+      }
+      if (asksAi) {
+        return "AI를 다룰 줄 안다고 제가 예상 문제를 만든 건 아니에요. 이상한 자료를 확인하려고 본 것과 직접 만들었다는 건 완전히 다른 말이에요.";
+      }
+      if (asksAccusation || asksAbsurd) {
+        return "그렇게 몰아가면 억울해요. 저는 사건을 숨기려고 움직인 게 아니라 이상한 점을 확인하려고 했던 거예요.";
+      }
+      return "그 말은 제 입장과 맞지 않아요. 제가 아는 범위에서는 그런 행동을 한 적 없고, 추측만으로 단정하면 안 된다고 생각해요.";
+    }
+
+    if (personaId === "choiDaniel") {
+      if (asksOffice) {
+        return "교무실 쪽에서 봤다는 말만으로는 제가 뭘 훔쳤다는 뜻이 아니에요. 수상해 보일 수 있는 장면이 있어도, 그걸 범행으로 단정하는 건 너무 앞서간 말이라고 생각해요.";
+      }
+      if (asksUsb) {
+        return "USB라고 단정하면 곤란해요. 저는 저장장치를 숨기거나 연결한 적 없고, 어떤 장면이 다르게 해석됐을 가능성은 있다고 생각해요.";
+      }
+      if (asksAi) {
+        return "AI 예상 문제를 만들었다는 말은 저랑 맞지 않아요. 저는 그런 자료를 만들거나 올린 적 없고, 그쪽 행동은 제 성격하고도 다릅니다.";
+      }
+      if (asksAccusation || asksAbsurd) {
+        return "그렇게 단정해서 말하면 곤란해요. 저는 의심받는 게 당황스럽지만, 하지 않은 일을 했다고 인정할 수는 없어요.";
+      }
+      return "그 말만으로는 저를 범행과 연결하기 어렵다고 생각해요. 저는 제가 한 행동과 하지 않은 행동은 분명히 구분해서 말하고 싶어요.";
+    }
+
+    if (personaId === "kangWoojin") {
+      if (asksOffice) {
+        return "교무실 쪽에서 봤다는 말만으로 저를 바로 몰아가면 곤란해요. 거기 갔던 이유가 있었다고 해도, 그게 곧 예상 문제를 만든 거라는 뜻은 아니잖아요.";
+      }
+      if (asksAi) {
+        return "AI 얘기만 나오면 바로 저한테 붙이면 억울하죠. 저는 그런 자료가 왜 그렇게 보였는지까지 다 알지는 못하고, 그걸 전부 제 탓처럼 말하는 건 너무 앞서간 거예요.";
+      }
+      if (asksAccusation || asksAbsurd) {
+        return "그렇게 단정하면 곤란해요. 제가 당황한 건 맞지만, 처음부터 문제를 퍼뜨리려고 한 사람처럼 말하는 건 너무해요.";
+      }
+      return "그 말은 좀 억지 같아요. 제가 수상해 보이는 부분이 있을 수는 있어도, 그걸 바로 사건 전체랑 묶는 건 너무 빠른 판단이에요.";
     }
     return `그 질문만으로는 정확히 답하기 어려워요. 가지고 있는 장소 증거카드 내용을 말해 주면 그 부분에 대해 답할게요.`;
   }
