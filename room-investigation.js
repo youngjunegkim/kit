@@ -43,6 +43,7 @@
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
+    classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a",
     accessCode: sessionStorage.getItem("class-access-code") || "",
     teacherCode: sessionStorage.getItem("kit-teacher-access-code") || "",
     credits: 0,
@@ -236,7 +237,7 @@
   }
 
   function evidenceStorageKey(team = evidenceTeam()) {
-    return `kit-evidence-cards:${team || state.user || "guest"}`;
+    return `kit-evidence-cards:${state.classId}:${team || state.user || "guest"}`;
   }
 
   function evidenceFromResponse(code, evidence = {}) {
@@ -268,6 +269,40 @@
 
   function saveEvidenceCards(cards, team = evidenceTeam()) {
     localStorage.setItem(evidenceStorageKey(team), JSON.stringify(cards));
+  }
+
+  function evidenceCardsFromLogs(logs = []) {
+    return logs
+      .filter((entry) => entry?.code && entry?.evidence)
+      .map((entry) => evidenceFromResponse(entry.code, {
+        room: entry.room,
+        evidence: entry.evidence
+      }));
+  }
+
+  async function syncEvidenceCardsWithServer(team = evidenceTeam()) {
+    if (!team) return null;
+
+    try {
+      const response = await fetch(`/api/evidence-code?team=${encoded(team)}&classId=${encoded(state.classId)}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encoded(team),
+          "x-kit-user": encoded(state.user)
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(data.evidenceLogs)) return null;
+
+      const cards = evidenceCardsFromLogs(data.evidenceLogs);
+      saveEvidenceCards(cards, team);
+      if (team === evidenceTeam()) renderEvidenceReveal(cards);
+      return cards;
+    } catch {
+      return null;
+    }
   }
 
   function renderEvidenceReveal(cards = loadEvidenceCards()) {
@@ -344,9 +379,10 @@
 
     setEvidenceTotal(team, null);
     try {
-      const response = await fetch(`/api/credits?team=${encoded(team)}`, {
+      const response = await fetch(`/api/credits?team=${encoded(team)}&classId=${encoded(state.classId)}`, {
         headers: {
           "x-kit-role": "student",
+          "x-kit-class": state.classId,
           "x-kit-team": encoded(team),
           "x-kit-user": encoded(state.user)
         }
@@ -380,9 +416,10 @@
 
     try {
       const creditRole = state.role === "teacher" ? "student" : state.role;
-      const response = await fetch(`/api/credits?team=${encoded(state.team)}`, {
+      const response = await fetch(`/api/credits?team=${encoded(state.team)}&classId=${encoded(state.classId)}`, {
         headers: {
           "x-kit-role": creditRole,
+          "x-kit-class": state.classId,
           "x-kit-team": encoded(state.team),
           "x-kit-user": encoded(state.user)
         }
@@ -434,6 +471,7 @@
         headers: {
           "content-type": "application/json",
           "x-kit-role": "student",
+          "x-kit-class": state.classId,
           "x-kit-team": encoded(targetTeam),
           "x-kit-user": encoded(state.user)
         },
@@ -442,6 +480,7 @@
           room: state.roomId,
           roomName: state.roomName,
           role: "student",
+          classId: state.classId,
           team: targetTeam,
           user: state.user
         })
@@ -503,12 +542,14 @@
         headers: {
           "content-type": "application/json",
           "x-kit-role": state.role,
+          "x-kit-class": state.classId,
           "x-kit-team": encoded(targetTeam),
           "x-kit-user": encoded(state.user)
         },
         body: JSON.stringify({
           action: "resetTeam",
           role: state.role,
+          classId: state.classId,
           team: targetTeam,
           user: state.user
         })
@@ -564,6 +605,7 @@
         headers: {
           "content-type": "application/json",
           "x-kit-role": "student",
+          "x-kit-class": state.classId,
           "x-kit-team": encoded(targetTeam),
           "x-kit-user": encoded(state.user),
           "x-class-code": safeHeaderValue(state.accessCode)
@@ -573,6 +615,7 @@
           message: text,
           history: state.histories[suspectId],
           role: "student",
+          classId: state.classId,
           team: targetTeam,
           user: state.user
         }),
@@ -671,6 +714,7 @@
         state.evidenceTeam = select.value;
         sessionStorage.setItem("kit-evidence-target-team", state.evidenceTeam);
         renderEvidenceReveal(loadEvidenceCards(state.evidenceTeam));
+        syncEvidenceCardsWithServer(state.evidenceTeam);
         refreshEvidenceTotal(state.evidenceTeam);
       });
       nodes.evidenceTeamSelect = select;
@@ -696,6 +740,10 @@
     renderSuspectPreview();
     renderMessages();
     updateControls();
+    syncEvidenceCardsWithServer();
+    window.setInterval(() => {
+      syncEvidenceCardsWithServer();
+    }, 15000);
     refreshCredits();
     checkApiStatus();
   }

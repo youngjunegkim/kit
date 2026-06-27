@@ -457,9 +457,9 @@ button {
 .suspect-preview img {
   display: block;
   width: 100%;
-  height: clamp(142px, 24vh, 210px);
+  height: clamp(188px, 30vh, 270px);
   object-fit: cover;
-  object-position: center 18%;
+  object-position: center 32%;
   border: 1px solid rgba(225, 174, 45, 0.58);
   border-radius: 7px;
   background: #000;
@@ -565,7 +565,8 @@ input:disabled {
   }
 
   .suspect-preview img {
-    height: clamp(150px, 38vw, 260px);
+    height: clamp(210px, 54vw, 300px);
+    object-position: center 32%;
   }
 
   .room-image {

@@ -1,4 +1,7 @@
+const { AsyncLocalStorage } = require("node:async_hooks");
+
 const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+const classScope = globalThis.__kitClassScope || new AsyncLocalStorage();
 const memoryStore = globalThis.__kitQuestionCreditStore || new Map();
 const memoryGrantStore = globalThis.__kitQuestionGrantStore || new Map();
 const memoryCountStore = globalThis.__kitQuestionCountStore || new Map();
@@ -6,6 +9,7 @@ const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
 const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
+globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
 globalThis.__kitQuestionCountStore = memoryCountStore;
@@ -17,6 +21,73 @@ const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
+const defaultClassId = "class-a";
+
+function decodeValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function headerValue(request, name) {
+  const value = request?.headers?.[name.toLowerCase()] || request?.headers?.[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function queryValue(request, name) {
+  if (request?.query?.[name]) return request.query[name];
+  try {
+    return new URL(request?.url || "", "http://localhost").searchParams.get(name) || "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeClassId(value) {
+  const raw = decodeValue(value).toLowerCase().replace(/\s+/g, "");
+  if (!raw) return defaultClassId;
+  if (["1", "1반", "반1", "class1", "class-a", "classa", "a", "a반"].includes(raw)) return "class-a";
+  if (["2", "2반", "반2", "class2", "class-b", "classb", "b", "b반"].includes(raw)) return "class-b";
+  return raw.replace(/[^a-z0-9_-]/g, "").slice(0, 24) || defaultClassId;
+}
+
+function classLabelFor(value) {
+  const classId = normalizeClassId(value);
+  if (classId === "class-b") return "2반";
+  if (classId === "class-a") return "1반";
+  return classId;
+}
+
+function currentClassId() {
+  return normalizeClassId(
+    classScope.getStore()?.classId ||
+    process.env.KIT_DEFAULT_CLASS_ID ||
+    process.env.KIT_DEFAULT_CLASS ||
+    defaultClassId
+  );
+}
+
+function requestClassId(request, body = {}) {
+  return normalizeClassId(
+    headerValue(request, "x-kit-class-id") ||
+    headerValue(request, "x-kit-class") ||
+    body.classId ||
+    body.className ||
+    body.classSection ||
+    body.section ||
+    queryValue(request, "classId") ||
+    queryValue(request, "class") ||
+    queryValue(request, "classSection")
+  );
+}
+
+function withClassScope(classId, fn) {
+  return classScope.run({ classId: normalizeClassId(classId) }, fn);
+}
 
 function normalizeTeam(team) {
   const normalized = String(team || "").trim();
@@ -30,7 +101,8 @@ function cleanCredits(value) {
 }
 
 function storeNamespace() {
-  return String(process.env.KIT_CREDIT_NAMESPACE || "default").trim() || "default";
+  const base = String(process.env.KIT_CREDIT_NAMESPACE || "default").trim() || "default";
+  return `${base}:${currentClassId()}`;
 }
 
 function keyFor(team) {
@@ -92,7 +164,7 @@ async function getCredits(team) {
   if (!normalized) return null;
 
   if (!hasPersistentStore()) {
-    return cleanCredits(memoryStore.get(normalized) || 0);
+    return cleanCredits(memoryStore.get(keyFor(normalized)) || 0);
   }
 
   return cleanCredits(await redisCommand(["GET", keyFor(normalized)]));
@@ -108,8 +180,9 @@ async function getGrantedCredits(team) {
   if (!normalized) return null;
 
   if (!hasPersistentStore()) {
-    if (memoryGrantStore.has(normalized)) {
-      return cleanCredits(memoryGrantStore.get(normalized));
+    const key = grantKeyFor(normalized);
+    if (memoryGrantStore.has(key)) {
+      return cleanCredits(memoryGrantStore.get(key));
     }
     return cleanCredits(await getCredits(normalized)) + cleanCredits(await getQuestionCount(normalized));
   }
@@ -132,7 +205,7 @@ async function setCredits(team, value) {
   const credits = cleanCredits(value);
 
   if (!hasPersistentStore()) {
-    memoryStore.set(normalized, credits);
+    memoryStore.set(keyFor(normalized), credits);
     return credits;
   }
 
@@ -146,7 +219,7 @@ async function setGrantedCredits(team, value) {
   const credits = cleanCredits(value);
 
   if (!hasPersistentStore()) {
-    memoryGrantStore.set(normalized, credits);
+    memoryGrantStore.set(grantKeyFor(normalized), credits);
     return credits;
   }
 
@@ -160,8 +233,9 @@ async function addCredits(team, amount) {
   const delta = cleanCredits(amount);
 
   if (!hasPersistentStore()) {
-    const next = cleanCredits(memoryStore.get(normalized) || 0) + delta;
-    memoryStore.set(normalized, next);
+    const key = keyFor(normalized);
+    const next = cleanCredits(memoryStore.get(key) || 0) + delta;
+    memoryStore.set(key, next);
     return next;
   }
 
@@ -192,10 +266,11 @@ async function redeemEvidenceCode(team, code) {
   if (!normalized || !normalizedCode) return false;
 
   if (!hasPersistentStore()) {
-    const redeemed = memoryEvidenceRedeemStore.get(normalized) || new Set();
+    const key = evidenceRedeemKeyFor(normalized);
+    const redeemed = memoryEvidenceRedeemStore.get(key) || new Set();
     if (redeemed.has(normalizedCode)) return false;
     redeemed.add(normalizedCode);
-    memoryEvidenceRedeemStore.set(normalized, redeemed);
+    memoryEvidenceRedeemStore.set(key, redeemed);
     return true;
   }
 
@@ -218,7 +293,8 @@ function cleanEvidenceEntry(entry = {}) {
     evidence: String(entry.evidence || "").trim().slice(0, 80),
     person: String(entry.person || "").trim().slice(0, 30),
     added: cleanCredits(entry.added || 0),
-    remaining: cleanCredits(entry.remaining || 0)
+    remaining: cleanCredits(entry.remaining || 0),
+    namespace: String(entry.namespace || storeNamespace()).trim()
   };
 }
 
@@ -242,8 +318,9 @@ async function getEvidenceRedemptions(team = "", limit = maxReturnedEvidenceLogs
   const safeLimit = Math.min(maxReturnedEvidenceLogs, Math.max(1, cleanCredits(limit) || maxReturnedEvidenceLogs));
 
   if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
     return memoryEvidenceLogStore
-      .filter((entry) => !normalized || entry.team === normalized)
+      .filter((entry) => entry.namespace === namespace && (!normalized || entry.team === normalized))
       .slice(0, safeLimit);
   }
 
@@ -262,8 +339,14 @@ async function getEvidenceRedemptions(team = "", limit = maxReturnedEvidenceLogs
 
 async function clearEvidenceRedemptions() {
   if (!hasPersistentStore()) {
-    const removed = memoryEvidenceLogStore.splice(0);
-    memoryEvidenceRedeemStore.clear();
+    const namespace = storeNamespace();
+    const removed = [];
+    for (let index = memoryEvidenceLogStore.length - 1; index >= 0; index -= 1) {
+      if (memoryEvidenceLogStore[index]?.namespace === namespace) {
+        removed.unshift(...memoryEvidenceLogStore.splice(index, 1));
+      }
+    }
+    teams.forEach((team) => memoryEvidenceRedeemStore.delete(evidenceRedeemKeyFor(team)));
     return removed;
   }
 
@@ -288,7 +371,7 @@ async function getQuestionCount(team) {
   if (!normalized) return 0;
 
   if (!hasPersistentStore()) {
-    return cleanCredits(memoryCountStore.get(normalized) || 0);
+    return cleanCredits(memoryCountStore.get(countKeyFor(normalized)) || 0);
   }
 
   return cleanCredits(await redisCommand(["GET", countKeyFor(normalized)]));
@@ -312,7 +395,8 @@ function cleanPresenceAccount(account = {}) {
     role: String(account.role || "").trim().toLowerCase() === "teacher" ? "teacher" : "student",
     label: String(account.label || account.team || user).trim().slice(0, 30),
     team: String(account.team || "").trim().slice(0, 30),
-    at: Number(account.at || Date.now())
+    at: Number(account.at || Date.now()),
+    namespace: String(account.namespace || storeNamespace()).trim()
   };
 }
 
@@ -341,7 +425,7 @@ async function touchPresence(account) {
   if (!entry) return getPresence();
 
   if (!hasPersistentStore()) {
-    memoryPresenceStore.set(entry.user, entry);
+    memoryPresenceStore.set(`${presenceKey()}:${entry.user}`, entry);
     return getPresence();
   }
 
@@ -354,7 +438,7 @@ async function removePresence(user) {
   if (!normalized) return getPresence();
 
   if (!hasPersistentStore()) {
-    memoryPresenceStore.delete(normalized);
+    memoryPresenceStore.delete(`${presenceKey()}:${normalized}`);
     return getPresence();
   }
 
@@ -366,12 +450,15 @@ async function getPresence() {
   const now = Date.now();
 
   if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
     [...memoryPresenceStore.entries()].forEach(([user, entry]) => {
       if (now - Number(entry.at || 0) > presenceTtlMs) {
         memoryPresenceStore.delete(user);
       }
     });
-    return [...memoryPresenceStore.values()].sort(sortPresence);
+    return [...memoryPresenceStore.values()]
+      .filter((entry) => entry.namespace === namespace)
+      .sort(sortPresence);
   }
 
   const rawEntries = parsePresenceResult(await redisCommand(["HGETALL", presenceKey()]));
@@ -405,8 +492,9 @@ async function getQuestionLogs(team = "", limit = maxReturnedLogs) {
   const safeLimit = Math.min(maxReturnedLogs, Math.max(1, cleanCredits(limit) || maxReturnedLogs));
 
   if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
     return memoryLogStore
-      .filter((entry) => !normalized || entry.team === normalized)
+      .filter((entry) => entry.namespace === namespace && (!normalized || entry.team === normalized))
       .slice(0, safeLimit);
   }
 
@@ -434,12 +522,14 @@ async function logQuestion({ team, user, suspect, message, remaining }) {
     user: String(user || normalized).trim() || normalized,
     suspect: String(suspect || "").trim(),
     message: cleanLogMessage(message),
-    remaining: cleanCredits(remaining)
+    remaining: cleanCredits(remaining),
+    namespace: storeNamespace()
   };
 
   if (!hasPersistentStore()) {
-    const count = cleanCredits(memoryCountStore.get(normalized) || 0) + 1;
-    memoryCountStore.set(normalized, count);
+    const key = countKeyFor(normalized);
+    const count = cleanCredits(memoryCountStore.get(key) || 0) + 1;
+    memoryCountStore.set(key, count);
     memoryLogStore.unshift({ ...entry, count });
     memoryLogStore.splice(maxStoredLogs);
     return { entry: { ...entry, count }, count };
@@ -454,8 +544,13 @@ async function logQuestion({ team, user, suspect, message, remaining }) {
 
 async function clearQuestionLogs() {
   if (!hasPersistentStore()) {
-    memoryLogStore.splice(0);
-    teams.forEach((team) => memoryCountStore.set(team, 0));
+    const namespace = storeNamespace();
+    for (let index = memoryLogStore.length - 1; index >= 0; index -= 1) {
+      if (memoryLogStore[index]?.namespace === namespace) {
+        memoryLogStore.splice(index, 1);
+      }
+    }
+    teams.forEach((team) => memoryCountStore.set(countKeyFor(team), 0));
     return {
       counts: await getAllQuestionCounts(),
       logs: []
@@ -479,12 +574,13 @@ async function consumeCredit(team) {
   }
 
   if (!hasPersistentStore()) {
-    const current = cleanCredits(memoryStore.get(normalized) || 0);
+    const key = keyFor(normalized);
+    const current = cleanCredits(memoryStore.get(key) || 0);
     if (current <= 0) {
       return { ok: false, team: normalized, remaining: 0, reason: "NO_CREDITS" };
     }
     const remaining = current - 1;
-    memoryStore.set(normalized, remaining);
+    memoryStore.set(key, remaining);
     return { ok: true, team: normalized, remaining };
   }
 
@@ -504,9 +600,11 @@ async function consumeCredit(team) {
 
 module.exports = {
   addCredits,
+  classLabelFor,
   clearEvidenceRedemptions,
   consumeCredit,
   clearQuestionLogs,
+  currentClassId,
   getAllCredits,
   getAllGrantedCredits,
   getAllQuestionCounts,
@@ -519,13 +617,16 @@ module.exports = {
   grantCredits,
   hasPersistentStore,
   logQuestion,
+  normalizeClassId,
   normalizeTeam,
   recordEvidenceRedemption,
   removePresence,
+  requestClassId,
   redeemEvidenceCode,
   resetCredits,
   setGrantedCredits,
   setCredits,
   touchPresence,
+  withClassScope,
   teams
 };

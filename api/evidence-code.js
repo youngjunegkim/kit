@@ -11,8 +11,10 @@ const {
   normalizeTeam,
   recordEvidenceRedemption,
   redeemEvidenceCode,
+  requestClassId,
   setCredits,
-  setGrantedCredits
+  setGrantedCredits,
+  withClassScope
 } = require("./_credits");
 
 const evidenceCodes = {
@@ -160,7 +162,7 @@ async function subtractEvidenceCredits(logs = []) {
   }));
 }
 
-module.exports = async function handler(request, response) {
+async function handleEvidenceCode(request, response) {
   try {
     if (!isAllowedOrigin(request)) {
       sendJson(response, 403, { error: "Origin is not allowed.", fallback: true });
@@ -292,4 +294,9 @@ module.exports = async function handler(request, response) {
       fallback: true
     });
   }
+}
+
+module.exports = async function handler(request, response) {
+  const body = bodyFor(request);
+  return withClassScope(requestClassId(request, body), () => handleEvidenceCode(request, response));
 };

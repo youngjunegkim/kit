@@ -2,7 +2,9 @@ const {
   getPresence,
   hasPersistentStore,
   removePresence,
-  touchPresence
+  requestClassId,
+  touchPresence,
+  withClassScope
 } = require("./_credits");
 
 function sendJson(response, statusCode, body) {
@@ -67,7 +69,7 @@ function isAllowedOrigin(request) {
   }
 }
 
-module.exports = async function handler(request, response) {
+async function handlePresence(request, response) {
   try {
     if (!isAllowedOrigin(request)) {
       sendJson(response, 403, { error: "Origin is not allowed.", fallback: true });
@@ -111,4 +113,9 @@ module.exports = async function handler(request, response) {
       fallback: true
     });
   }
+}
+
+module.exports = async function handler(request, response) {
+  const body = bodyFor(request);
+  return withClassScope(requestClassId(request, body), () => handlePresence(request, response));
 };

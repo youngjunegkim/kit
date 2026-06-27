@@ -10,10 +10,12 @@ const {
   grantCredits,
   hasPersistentStore,
   normalizeTeam,
+  requestClassId,
   resetCredits,
   setGrantedCredits,
   setCredits,
-  teams
+  teams,
+  withClassScope
 } = require("./_credits");
 
 function sendJson(response, statusCode, body) {
@@ -115,7 +117,7 @@ function bodyFor(request) {
   return request.body;
 }
 
-module.exports = async function handler(request, response) {
+async function handleCredits(request, response) {
   try {
     if (!isAllowedOrigin(request)) {
       sendJson(response, 403, { error: "Origin is not allowed.", fallback: true });
@@ -281,4 +283,9 @@ module.exports = async function handler(request, response) {
       fallback: true
     });
   }
+}
+
+module.exports = async function handler(request, response) {
+  const body = bodyFor(request);
+  return withClassScope(requestClassId(request, body), () => handleCredits(request, response));
 };

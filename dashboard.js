@@ -1,5 +1,7 @@
 (function () {
-  const draftKey = "kit-student-question-credit-additions";
+  const classKey = "kit-class-section";
+  const classId = sessionStorage.getItem(classKey) || localStorage.getItem("kit-last-class-section") || "class-a";
+  const draftKey = `kit-student-question-credit-additions:${classId}`;
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
   const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
   const user = sessionStorage.getItem("kit-auth-user") || "";
@@ -63,7 +65,8 @@
     const headers = {
       "content-type": "application/json",
       "x-kit-user": user,
-      "x-kit-role": role
+      "x-kit-role": role,
+      "x-kit-class": classId
     };
     const teacherCode = sessionStorage.getItem(teacherCodeKey) || "";
     if (teacherCode) headers["x-teacher-code"] = safeHeaderValue(teacherCode);

@@ -1,4 +1,4 @@
-const { addCredits, consumeCredit, logQuestion, normalizeTeam } = require("./_credits");
+const { addCredits, consumeCredit, logQuestion, normalizeTeam, requestClassId, withClassScope } = require("./_credits");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./personas");
 
 const safetyReplies = {
@@ -47,6 +47,14 @@ function sendJson(response, statusCode, body) {
   response.setHeader("content-type", "application/json; charset=utf-8");
   response.setHeader("cache-control", "no-store");
   response.end(JSON.stringify(body));
+}
+
+function bodyFor(request) {
+  if (!request.body) return {};
+  if (typeof request.body === "string") {
+    return JSON.parse(request.body);
+  }
+  return request.body;
 }
 
 function headerValue(request, name) {
@@ -967,7 +975,7 @@ async function callOpenAi(message, history, payload = {}) {
   };
 }
 
-module.exports = async function handler(request, response) {
+async function handleChat(request, response) {
   if (request.method !== "POST") {
     response.setHeader("allow", "POST");
     sendJson(response, 405, { error: "Method not allowed" });
@@ -979,8 +987,10 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  if (!isAuthorized(request)) {
-    sendJson(response, 401, { error: "Class access code is required.", requiresAccessCode: true, fallback: true });
+  try {
+    request.body = bodyFor(request);
+  } catch {
+    sendJson(response, 400, { error: "Invalid JSON body", fallback: true });
     return;
   }
 
@@ -1082,4 +1092,16 @@ module.exports = async function handler(request, response) {
       fallback: true
     }, creditInfo));
   }
+}
+
+module.exports = async function handler(request, response) {
+  let body = request.body || {};
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
+  }
+  return withClassScope(requestClassId(request, body), () => handleChat(request, response));
 };

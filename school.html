@@ -15,12 +15,11 @@
       min-height: 100vh;
       display: grid;
       place-items: center;
-      padding: 24px;
+      padding: 28px;
       background:
-        linear-gradient(rgba(13, 21, 34, 0.9), rgba(24, 32, 43, 0.94)),
-        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 76px),
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 76px),
-        #101826;
+        radial-gradient(circle at 18% 18%, rgba(180, 46, 36, 0.24), transparent 32%),
+        radial-gradient(circle at 82% 78%, rgba(214, 156, 54, 0.18), transparent 34%),
+        linear-gradient(145deg, #0d1724 0%, #17120d 48%, #121922 100%);
       color: #18202b;
       font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
       letter-spacing: 0;
@@ -37,11 +36,11 @@
     }
 
     .login-shell {
-      width: min(1040px, 100%);
+      width: min(1220px, 100%);
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
-      gap: 18px;
-      align-items: stretch;
+      grid-template-columns: minmax(560px, 1.25fr) minmax(360px, 440px);
+      gap: 24px;
+      align-items: center;
     }
 
     .brief-panel,
@@ -49,7 +48,7 @@
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.96);
       border: 1px solid rgba(255, 255, 255, 0.62);
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+      box-shadow: 0 22px 64px rgba(0, 0, 0, 0.42);
       overflow: hidden;
     }
 
@@ -59,9 +58,9 @@
       display: block;
       min-height: 0;
       color: #f7fafc;
-      background: #080d15;
-      border-color: rgba(255, 255, 255, 0.24);
-      padding: 0;
+      background: linear-gradient(180deg, rgba(57, 39, 24, 0.96), rgba(12, 16, 22, 0.98));
+      border-color: rgba(224, 177, 83, 0.5);
+      padding: 12px;
     }
 
     .school-hub {
@@ -70,7 +69,9 @@
       height: auto;
       min-height: 0;
       overflow: hidden;
-      background: #080d15;
+      border-radius: 8px;
+      background: #1b130d;
+      box-shadow: inset 0 0 0 1px rgba(255, 236, 184, 0.16);
     }
 
     .school-hub img {
@@ -82,6 +83,35 @@
       object-position: center;
       user-select: none;
       -webkit-user-drag: none;
+    }
+
+    .board-caption {
+      position: absolute;
+      z-index: 4;
+      left: 28px;
+      top: 28px;
+      display: grid;
+      gap: 2px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(17, 18, 21, 0.78);
+      border: 1px solid rgba(226, 179, 84, 0.46);
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
+      pointer-events: none;
+    }
+
+    .board-caption span {
+      color: #e4b45e;
+      font-size: 0.72rem;
+      font-weight: 950;
+    }
+
+    .board-caption strong {
+      color: #fff;
+      font-size: clamp(1.25rem, 2.4vw, 2.1rem);
+      line-height: 1.05;
+      font-weight: 950;
     }
 
     .room-hotspot {
@@ -182,7 +212,10 @@
     .login-panel {
       position: relative;
       display: grid;
-      padding: 26px;
+      padding: 28px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 244, 235, 0.98));
+      border-color: rgba(232, 211, 170, 0.84);
     }
 
     .login-panel.is-error {
@@ -192,8 +225,8 @@
     .login-kicker {
       width: fit-content;
       border-radius: 999px;
-      background: #edf2f7;
-      color: #435064;
+      background: #fff4d8;
+      color: #7a4c12;
       padding: 7px 11px;
       font-size: 0.82rem;
       font-weight: 900;
@@ -219,6 +252,48 @@
       grid-template-columns: 1fr 1fr;
       gap: 10px;
       margin-top: 20px;
+    }
+
+    .class-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .class-btn {
+      min-height: 54px;
+      border-radius: 8px;
+      background: #fffaf0;
+      border: 1px solid #d9c487;
+      color: #59431a;
+      padding: 10px 11px;
+      text-align: left;
+      font-weight: 950;
+    }
+
+    .class-btn span {
+      display: block;
+      margin-top: 3px;
+      color: #7a6747;
+      font-size: 0.76rem;
+      line-height: 1.22;
+      font-weight: 850;
+    }
+
+    .class-btn:hover,
+    .class-btn:focus-visible,
+    .class-btn.is-active {
+      background: #101826;
+      border-color: #101826;
+      color: #fff;
+      outline: none;
+    }
+
+    .class-btn.is-active span,
+    .class-btn:hover span,
+    .class-btn:focus-visible span {
+      color: rgba(255, 255, 255, 0.76);
     }
 
     .role-btn {
@@ -334,14 +409,14 @@
       min-height: 46px;
       margin-top: 18px;
       border-radius: 6px;
-      background: #101826;
+      background: #241711;
       color: #fff;
       font-weight: 950;
     }
 
     .board-action-btn:hover,
     .board-action-btn:focus-visible {
-      background: #243146;
+      background: #3a2418;
       outline: none;
     }
 
@@ -362,14 +437,14 @@
       min-height: 46px;
       margin-top: 18px;
       border-radius: 6px;
-      background: #f3342f;
+      background: #c91f22;
       color: #fff;
       font-weight: 950;
     }
 
     .submit-btn:hover,
     .submit-btn:focus-visible {
-      background: #c92521;
+      background: #a7191c;
       outline: none;
     }
 
@@ -633,6 +708,10 @@
     }
 
     @media (max-width: 880px) {
+      body {
+        place-items: start center;
+      }
+
       .login-shell {
         grid-template-columns: 1fr;
       }
@@ -653,11 +732,18 @@
       }
 
       .brief-panel {
-        padding: 0;
+        padding: 10px;
+      }
+
+      .board-caption {
+        left: 20px;
+        top: 20px;
+        padding: 8px 10px;
       }
 
       .ready-list,
-      .role-picker {
+      .role-picker,
+      .class-picker {
         grid-template-columns: 1fr;
       }
 
@@ -701,22 +787,26 @@
 </head>
 <body>
   <main class="login-shell">
-    <section class="brief-panel" aria-label="키트중학교 지도">
+    <section class="brief-panel" aria-label="AI 수사단 보드게임판">
+      <div class="board-caption" aria-hidden="true">
+        <span>AI 수사단</span>
+        <strong>보드게임판</strong>
+      </div>
       <div class="school-hub">
-        <img src="assets/키트중학교.png" alt="키트중학교 교실 선택 지도">
-        <a class="room-hotspot" style="--x: 10.85%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-art.html" aria-label="미술실로 이동">
-          <span class="visually-hidden">미술실</span>
-        </a>
-        <a class="room-hotspot" style="--x: 37.15%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-science.html" aria-label="과학실로 이동">
-          <span class="visually-hidden">과학실</span>
-        </a>
-        <a class="room-hotspot" style="--x: 63.45%; --y: 21.2%; --w: 24.7%; --h: 31.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
+        <img src="assets/보드게임판.jpg" alt="AI 수사단 보드게임판">
+        <a class="room-hotspot" style="--x: 10.4%; --y: 16.2%; --w: 23.8%; --h: 27.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
           <span class="visually-hidden">방송실</span>
         </a>
-        <a class="room-hotspot" style="--x: 22.7%; --y: 56.4%; --w: 24.8%; --h: 31.7%;" href="game-office.html" aria-label="교무실로 이동">
+        <a class="room-hotspot" style="--x: 66.5%; --y: 16.2%; --w: 23.8%; --h: 27.8%;" href="game-science.html" aria-label="과학실로 이동">
+          <span class="visually-hidden">과학실</span>
+        </a>
+        <a class="room-hotspot" style="--x: 10.4%; --y: 44.5%; --w: 23.8%; --h: 39.5%;" href="game-art.html" aria-label="미술실로 이동">
+          <span class="visually-hidden">미술실</span>
+        </a>
+        <a class="room-hotspot" style="--x: 34.5%; --y: 44.5%; --w: 32.1%; --h: 39.5%;" href="game-office.html" aria-label="교무실로 이동">
           <span class="visually-hidden">교무실</span>
         </a>
-        <a class="room-hotspot" style="--x: 49.55%; --y: 56.4%; --w: 25.9%; --h: 31.7%;" href="game-gym.html" aria-label="체육관으로 이동">
+        <a class="room-hotspot" style="--x: 66.5%; --y: 44.5%; --w: 23.8%; --h: 39.5%;" href="game-gym.html" aria-label="체육관으로 이동">
           <span class="visually-hidden">체육관</span>
         </a>
       </div>
@@ -729,8 +819,19 @@
 
       <button class="board-action-btn" type="button" data-board-open>
         <span class="board-action-icon" aria-hidden="true">▦</span>
-        학교 지도
+        보드게임판
       </button>
+
+      <div class="class-picker" aria-label="진행 반 선택">
+        <button class="class-btn" type="button" data-class-preset="class-a">
+          1반
+          <span>1반 학생/선생님 저장소</span>
+        </button>
+        <button class="class-btn" type="button" data-class-preset="class-b">
+          2반
+          <span>2반 학생/선생님 저장소</span>
+        </button>
+      </div>
 
       <div class="role-picker" aria-label="역할 빠른 선택">
         <button class="role-btn" type="button" data-role-preset="">
@@ -775,11 +876,11 @@
     </section>
   </main>
 
-  <section class="board-viewer" data-board-viewer hidden aria-label="학교 지도 보기">
+  <section class="board-viewer" data-board-viewer hidden aria-label="보드게임판 보기">
     <div class="board-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="boardViewerTitle">
       <div class="board-viewer-toolbar">
-        <div class="board-viewer-title" id="boardViewerTitle">학교 지도</div>
-        <button class="board-close-btn" type="button" data-board-close aria-label="학교 지도 닫기">닫기</button>
+        <div class="board-viewer-title" id="boardViewerTitle">보드게임판</div>
+        <button class="board-close-btn" type="button" data-board-close aria-label="보드게임판 닫기">닫기</button>
       </div>
       <div class="board-viewer-frame">
         <aside class="board-rule-panel" aria-label="장소 이동 안내">
@@ -806,20 +907,20 @@
         </aside>
         <div class="board-image-wrap">
           <div class="school-hub">
-            <img src="assets/키트중학교.png" alt="키트중학교 교실 선택 지도">
-            <a class="room-hotspot" style="--x: 10.85%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-art.html" aria-label="미술실로 이동">
-              <span class="visually-hidden">미술실</span>
-            </a>
-            <a class="room-hotspot" style="--x: 37.15%; --y: 21.2%; --w: 24.8%; --h: 31.8%;" href="game-science.html" aria-label="과학실로 이동">
-              <span class="visually-hidden">과학실</span>
-            </a>
-            <a class="room-hotspot" style="--x: 63.45%; --y: 21.2%; --w: 24.7%; --h: 31.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
+            <img src="assets/보드게임판.jpg" alt="AI 수사단 보드게임판">
+            <a class="room-hotspot" style="--x: 10.4%; --y: 16.2%; --w: 23.8%; --h: 27.8%;" href="game-broadcast.html" aria-label="방송실로 이동">
               <span class="visually-hidden">방송실</span>
             </a>
-            <a class="room-hotspot" style="--x: 22.7%; --y: 56.4%; --w: 24.8%; --h: 31.7%;" href="game-office.html" aria-label="교무실로 이동">
+            <a class="room-hotspot" style="--x: 66.5%; --y: 16.2%; --w: 23.8%; --h: 27.8%;" href="game-science.html" aria-label="과학실로 이동">
+              <span class="visually-hidden">과학실</span>
+            </a>
+            <a class="room-hotspot" style="--x: 10.4%; --y: 44.5%; --w: 23.8%; --h: 39.5%;" href="game-art.html" aria-label="미술실로 이동">
+              <span class="visually-hidden">미술실</span>
+            </a>
+            <a class="room-hotspot" style="--x: 34.5%; --y: 44.5%; --w: 32.1%; --h: 39.5%;" href="game-office.html" aria-label="교무실로 이동">
               <span class="visually-hidden">교무실</span>
             </a>
-            <a class="room-hotspot" style="--x: 49.55%; --y: 56.4%; --w: 25.9%; --h: 31.7%;" href="game-gym.html" aria-label="체육관으로 이동">
+            <a class="room-hotspot" style="--x: 66.5%; --y: 44.5%; --w: 23.8%; --h: 39.5%;" href="game-gym.html" aria-label="체육관으로 이동">
               <span class="visually-hidden">체육관</span>
             </a>
           </div>

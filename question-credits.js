@@ -8,6 +8,7 @@
 
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
+  const classId = sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
 
   function setCreditText(text) {
     creditCounts.forEach((node) => {
@@ -75,9 +76,11 @@
 
     try {
       setRefreshBusy(true);
-      const response = await fetch(`/api/credits?team=${encodeURIComponent(team)}`, {
+      const response = await fetch(`/api/credits?team=${encodeURIComponent(team)}&classId=${encodeURIComponent(classId)}`, {
         headers: {
-          "x-kit-role": role
+          "x-kit-role": role,
+          "x-kit-class": classId,
+          "x-kit-team": encodeURIComponent(team)
         }
       });
       const data = await response.json().catch(() => ({}));

@@ -6,7 +6,8 @@
       user: sessionStorage.getItem("kit-auth-user") || "",
       role: sessionStorage.getItem("kit-auth-role") || "",
       label: sessionStorage.getItem("kit-auth-label") || "",
-      team: sessionStorage.getItem("kit-auth-team") || ""
+      team: sessionStorage.getItem("kit-auth-team") || "",
+      classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a"
     };
   }
 
@@ -17,7 +18,8 @@
   function accountHeaders(account) {
     return {
       "content-type": "application/json",
-      "x-kit-role": account.role
+      "x-kit-role": account.role,
+      "x-kit-class": account.classId
     };
   }
 

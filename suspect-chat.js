@@ -48,6 +48,7 @@
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
+    classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a",
     credits: null
   };
 
@@ -435,9 +436,12 @@
 
     try {
       setRefreshBusy(true);
-      const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}`, {
+      const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
         headers: {
-          "x-kit-role": state.role
+          "x-kit-role": state.role,
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
         }
       });
       const data = await response.json().catch(() => ({}));
@@ -531,7 +535,10 @@
     try {
       const headers = {
         "content-type": "application/json",
-        "x-kit-role": state.role
+        "x-kit-role": state.role,
+        "x-kit-class": state.classId,
+        "x-kit-team": encodeURIComponent(state.team),
+        "x-kit-user": encodeURIComponent(state.user)
       };
       if (state.accessCode) headers["x-class-code"] = safeHeaderValue(state.accessCode);
       if (state.role === "teacher") {
@@ -548,6 +555,7 @@
           history: priorHistory,
           user: state.user,
           role: state.role,
+          classId: state.classId,
           team: state.team
         })
       });

@@ -172,7 +172,7 @@ module.exports = async function handler(request, response) {
     imagePromptTranslationEnabled: imagePromptTranslationEnabled(),
     translationModel: process.env.GEMINI_TRANSLATION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash",
     usesSeparateImageKey: uniqueKeysFrom(process.env.GEMINI_IMAGE_API_KEYS, process.env.GEMINI_IMAGE_API_KEY).length > 0,
-    requiresAccessCode: Boolean(process.env.CLASS_ACCESS_CODE),
+    requiresAccessCode: false,
     hasCreditStore: hasPersistentStore()
   });
 };

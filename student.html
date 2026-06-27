@@ -565,10 +565,23 @@
     }
 
     .student-menu-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       color: #e1ae2d;
       font-size: 0.82rem;
       font-weight: 950;
       letter-spacing: 0;
+    }
+
+    .student-class-badge {
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(225, 174, 45, 0.4);
+      padding: 2px 7px;
+      color: #fff;
+      font-size: 0.72rem;
     }
 
     .student-main {
@@ -1224,7 +1237,7 @@
 
     <div class="student-workspace">
       <aside class="student-menu" aria-label="질문권 메뉴">
-        <strong class="student-menu-title">MENU</strong>
+        <strong class="student-menu-title">MENU <span class="student-class-badge" data-class-label>1반</span></strong>
         <div class="student-tools">
           <div class="credit-pill" aria-label="남은 질문권">
             <span data-team-label>학생</span>

@@ -18,6 +18,33 @@
   const lastLoginKey = "kit-last-login-id";
   const fullscreenKey = "kit-fullscreen-start";
   const teacherCodeKey = "kit-teacher-access-code";
+  const classKey = "kit-class-section";
+  const classLabelKey = "kit-class-label";
+  const lastClassKey = "kit-last-class-section";
+  const defaultClassId = "class-a";
+
+  function normalizeClassId(value) {
+    const compact = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+    if (["2", "2반", "반2", "class2", "class-b", "classb", "b", "b반"].includes(compact)) return "class-b";
+    return "class-a";
+  }
+
+  function classLabelFor(value) {
+    return normalizeClassId(value) === "class-b" ? "2반" : "1반";
+  }
+
+  function queryClassId() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("classId") || params.get("class") || params.get("classSection") || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function currentClassId() {
+    return normalizeClassId(queryClassId() || sessionStorage.getItem(classKey) || localStorage.getItem(lastClassKey) || defaultClassId);
+  }
 
   function go(path) {
     window.location.href = path;
@@ -41,6 +68,7 @@
     const studentStart = document.querySelector("[data-student-start]");
     const userIdInput = form.elements.userId;
     const passwordInput = form.elements.password;
+    let selectedClassId = currentClassId();
     let pendingPath = "";
 
     function setMessage(text, isOk) {
@@ -52,6 +80,13 @@
     function setActiveRole(id) {
       document.querySelectorAll("[data-role-preset]").forEach((button) => {
         button.classList.toggle("is-active", Boolean(id) && button.dataset.rolePreset === id);
+      });
+    }
+
+    function setActiveClass(classId) {
+      selectedClassId = normalizeClassId(classId);
+      document.querySelectorAll("[data-class-preset]").forEach((button) => {
+        button.classList.toggle("is-active", button.dataset.classPreset === selectedClassId);
       });
     }
 
@@ -81,6 +116,9 @@
       document.querySelectorAll("[data-role-preset]").forEach((button) => {
         button.disabled = true;
       });
+      document.querySelectorAll("[data-class-preset]").forEach((button) => {
+        button.disabled = true;
+      });
       submitButton?.classList.add("is-loading");
       if (submitText) submitText.textContent = "권한 확인 중";
     }
@@ -98,9 +136,13 @@
 
     function completeLogin(account) {
       pendingPath = homeFor(account.role);
+      const classId = normalizeClassId(selectedClassId);
       sessionStorage.setItem("kit-auth-user", userIdInput.value.trim().toLowerCase());
       sessionStorage.setItem("kit-auth-role", account.role);
       sessionStorage.setItem("kit-auth-label", account.label);
+      sessionStorage.setItem(classKey, classId);
+      sessionStorage.setItem(classLabelKey, classLabelFor(classId));
+      localStorage.setItem(lastClassKey, classId);
       if (account.team) {
         sessionStorage.setItem("kit-auth-team", account.team);
       } else {
@@ -148,6 +190,14 @@
       });
     });
 
+    document.querySelectorAll("[data-class-preset]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setActiveClass(button.dataset.classPreset);
+        localStorage.setItem(lastClassKey, selectedClassId);
+        setMessage(`${classLabelFor(selectedClassId)}으로 진행합니다.`, true);
+      });
+    });
+
     passwordToggle?.addEventListener("click", () => {
       const isHidden = passwordInput.type === "password";
       passwordInput.type = isHidden ? "text" : "password";
@@ -182,6 +232,7 @@
     localStorage.removeItem(lastLoginKey);
     userIdInput.value = "";
     setActiveRole("");
+    setActiveClass(selectedClassId);
     if (fullscreenToggle) fullscreenToggle.checked = localStorage.getItem(fullscreenKey) === "1";
 
     form.addEventListener("submit", (event) => {
@@ -206,6 +257,8 @@
         sessionStorage.removeItem("kit-auth-role");
         sessionStorage.removeItem("kit-auth-label");
         sessionStorage.removeItem("kit-auth-team");
+        sessionStorage.removeItem(classKey);
+        sessionStorage.removeItem(classLabelKey);
         sessionStorage.removeItem(teacherCodeKey);
         go("school.html");
       });
@@ -220,6 +273,9 @@
       const account = accounts[user];
       node.textContent = account ? account.label : sessionStorage.getItem("kit-auth-label") || "";
     });
+    document.querySelectorAll("[data-class-label]").forEach((node) => {
+      node.textContent = sessionStorage.getItem(classLabelKey) || classLabelFor(currentClassId());
+    });
   }
 
   function guardPage() {
@@ -229,6 +285,12 @@
     if (!role) {
       go("school.html");
       return;
+    }
+
+    if (!sessionStorage.getItem(classKey)) {
+      const classId = currentClassId();
+      sessionStorage.setItem(classKey, classId);
+      sessionStorage.setItem(classLabelKey, classLabelFor(classId));
     }
 
     if (role === "student" && !team) {

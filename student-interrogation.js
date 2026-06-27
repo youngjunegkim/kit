@@ -57,6 +57,7 @@
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
+    classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a",
     redeeming: false,
     evidenceCards: []
   };
@@ -151,11 +152,11 @@
   }
 
   function evidenceStorageKey() {
-    return `kit-evidence-cards:${state.team || state.user || "guest"}`;
+    return `kit-evidence-cards:${state.classId}:${state.team || state.user || "guest"}`;
   }
 
   function noteStorageKey() {
-    return `kit-case-note:${state.team || state.user || "guest"}`;
+    return `kit-case-note:${state.classId}:${state.team || state.user || "guest"}`;
   }
 
   function evidenceFromResponse(code, evidence = {}) {
@@ -419,9 +420,12 @@
 
     try {
       setRefreshBusy(true);
-      const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}`, {
+      const response = await fetch(`/api/credits?team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
         headers: {
-          "x-kit-role": state.role
+          "x-kit-role": state.role,
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
         }
       });
       const data = await response.json().catch(() => ({}));
@@ -463,12 +467,14 @@
         headers: {
           "content-type": "application/json",
           "x-kit-role": "student",
+          "x-kit-class": state.classId,
           "x-kit-team": encodeURIComponent(state.team),
           "x-kit-user": encodeURIComponent(state.user)
         },
         body: JSON.stringify({
           code,
           role: "student",
+          classId: state.classId,
           team: state.team,
           user: state.user
         })
@@ -549,7 +555,10 @@
     try {
       const headers = {
         "content-type": "application/json",
-        "x-kit-role": state.role
+        "x-kit-role": state.role,
+        "x-kit-class": state.classId,
+        "x-kit-team": encodeURIComponent(state.team),
+        "x-kit-user": encodeURIComponent(state.user)
       };
       if (state.accessCode) headers["x-class-code"] = safeHeaderValue(state.accessCode);
 
@@ -562,6 +571,7 @@
           history: priorHistory,
           user: state.user,
           role: state.role,
+          classId: state.classId,
           team: state.team
         })
       });

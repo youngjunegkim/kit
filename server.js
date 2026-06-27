@@ -2,6 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { URL } = require("node:url");
+const chatHandler = require("./api/chat");
 const creditsHandler = require("./api/credits");
 const evidenceCodeHandler = require("./api/evidence-code");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./api/personas");
@@ -311,7 +312,8 @@ async function handleStatus(response) {
     imagePromptTranslationEnabled,
     translationModel: translationModelName(),
     usesSeparateImageKey: geminiImageApiKeys.length > 0,
-    hasOpenAiKey: Boolean(openaiApiKey)
+    hasOpenAiKey: Boolean(openaiApiKey),
+    requiresAccessCode: false
   });
 }
 
@@ -1210,7 +1212,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && url.pathname === "/api/chat") {
-    await handleChat(request, response);
+    await handleApiModule(request, response, chatHandler);
     return;
   }
 
