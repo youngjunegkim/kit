@@ -1224,7 +1224,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "POST" && url.pathname === "/api/evidence-code") {
+  if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/evidence-code") {
     await handleApiModule(request, response, evidenceCodeHandler);
     return;
   }

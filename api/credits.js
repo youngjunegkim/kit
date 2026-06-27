@@ -160,13 +160,43 @@ module.exports = async function handler(request, response) {
     }
 
     const body = bodyFor(request);
+    const action = String(body.action || "set").toLowerCase();
+
+    if (action === "resetteam") {
+      const team = normalizeTeam(body.team || actorTeam(request, body));
+      const role = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
+      if (role !== "teacher" && role !== "student") {
+        sendJson(response, 403, { error: "Valid role is required.", code: "ROLE_REQUIRED" });
+        return;
+      }
+      if (!team) {
+        sendJson(response, 400, { error: "Valid team is required." });
+        return;
+      }
+
+      await setCredits(team, 0);
+      await setGrantedCredits(team, 0);
+      sendJson(response, 200, {
+        team,
+        credits: 0,
+        granted: 0,
+        count: await getQuestionCount(team),
+        allCredits: await getAllCredits(),
+        allGranted: await getAllGrantedCredits(),
+        counts: await getAllQuestionCounts(),
+        logs: await getQuestionLogs(team),
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
+      });
+      return;
+    }
+
     const authError = teacherAuthError(request, body);
     if (authError) {
       sendJson(response, authError.status, { ...authError, fallback: true });
       return;
     }
 
-    const action = String(body.action || "set").toLowerCase();
     if (action === "reset") {
       sendJson(response, 200, {
         credits: await resetCredits(),

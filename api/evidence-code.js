@@ -1,9 +1,18 @@
 const {
+  clearEvidenceRedemptions,
+  getAllCredits,
+  getAllGrantedCredits,
+  getCredits,
+  getEvidenceRedemptions,
+  getGrantedCredits,
   getQuestionLogs,
   grantCredits,
   hasPersistentStore,
   normalizeTeam,
-  redeemEvidenceCode
+  recordEvidenceRedemption,
+  redeemEvidenceCode,
+  setCredits,
+  setGrantedCredits
 } = require("./_credits");
 
 const evidenceCodes = {
@@ -77,6 +86,53 @@ function cleanCode(value) {
   return String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
 
+function teacherAccessCode() {
+  return String(process.env.TEACHER_ACCESS_CODE || process.env.KIT_TEACHER_ACCESS_CODE || "").trim();
+}
+
+function isTeacher(request, body = {}) {
+  return String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase() === "teacher";
+}
+
+function teacherCodeFor(request, body = {}) {
+  return String(headerValue(request, "x-teacher-code") || body.teacherCode || "").trim();
+}
+
+function teacherAuthError(request, body = {}) {
+  if (!isTeacher(request, body)) {
+    return { status: 403, code: "TEACHER_ROLE_REQUIRED", error: "Teacher role is required." };
+  }
+
+  const configuredCode = teacherAccessCode();
+  if (!configuredCode) return null;
+  if (teacherCodeFor(request, body) === configuredCode) return null;
+
+  return {
+    status: 401,
+    code: "TEACHER_CODE_REQUIRED",
+    error: "Teacher access code is required."
+  };
+}
+
+function evidenceCreditTotals(logs = []) {
+  return logs.reduce((totals, entry) => {
+    const team = normalizeTeam(entry.team);
+    if (!team) return totals;
+    totals[team] = (totals[team] || 0) + Math.max(0, Number(entry.added) || 0);
+    return totals;
+  }, {});
+}
+
+async function subtractEvidenceCredits(logs = []) {
+  const totals = evidenceCreditTotals(logs);
+  await Promise.all(Object.entries(totals).map(async ([team, amount]) => {
+    const current = Math.max(0, Number(await getCredits(team)) || 0);
+    const granted = Math.max(0, Number(await getGrantedCredits(team)) || 0);
+    await setCredits(team, Math.max(0, current - amount));
+    await setGrantedCredits(team, Math.max(0, granted - amount));
+  }));
+}
+
 module.exports = async function handler(request, response) {
   try {
     if (!isAllowedOrigin(request)) {
@@ -84,13 +140,55 @@ module.exports = async function handler(request, response) {
       return;
     }
 
+    if (request.method === "GET") {
+      const authError = teacherAuthError(request);
+      if (authError) {
+        sendJson(response, authError.status, { ...authError, fallback: true });
+        return;
+      }
+
+      sendJson(response, 200, {
+        evidenceLogs: await getEvidenceRedemptions(),
+        credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
     if (request.method !== "POST") {
-      response.setHeader("allow", "POST");
+      response.setHeader("allow", "GET, POST");
       sendJson(response, 405, { error: "Method not allowed" });
       return;
     }
 
     const body = bodyFor(request);
+    const action = String(body.action || "").toLowerCase();
+
+    if (action === "clear") {
+      const authError = teacherAuthError(request, body);
+      if (authError) {
+        sendJson(response, authError.status, { ...authError, fallback: true });
+        return;
+      }
+
+      const logs = await getEvidenceRedemptions();
+      const shouldResetCredits = body.resetCredits !== false;
+      if (shouldResetCredits) await subtractEvidenceCredits(logs);
+      const removed = await clearEvidenceRedemptions();
+
+      sendJson(response, 200, {
+        ok: true,
+        removed: removed.length,
+        resetCredits: shouldResetCredits,
+        evidenceLogs: [],
+        credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
     const role = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
     const team = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team);
     const code = cleanCode(body.code);
@@ -120,10 +218,22 @@ module.exports = async function handler(request, response) {
     }
 
     const result = await grantCredits(team, 3);
+    const evidenceLog = await recordEvidenceRedemption({
+      team,
+      user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
+      code,
+      room: evidence.room,
+      evidence: evidence.evidence,
+      person: evidence.person,
+      added: 3,
+      remaining: result.credits
+    });
+
     sendJson(response, 200, {
       ok: true,
       code,
       evidence,
+      evidenceLog,
       team,
       added: 3,
       credits: result.credits,

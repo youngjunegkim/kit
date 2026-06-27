@@ -48,6 +48,7 @@
     evidenceTeamSelect: null,
     evidenceTotalLabel: null,
     evidenceTotalCount: null,
+    resetCreditsButton: null,
     suspectSelect: document.querySelector("[data-suspect-select]"),
     chatState: document.querySelector("[data-chat-state]"),
     messages: document.querySelector("[data-chat-messages]"),
@@ -89,27 +90,6 @@
     setText(nodes.chatState, text);
   }
 
-  function ensureTeacherCode() {
-    if (state.role !== "teacher" || state.teacherCode) return true;
-
-    const code = window.prompt("선생님 보안 코드를 입력하세요.");
-    if (!code || !code.trim()) {
-      setChatState("선생님 코드 필요");
-      return false;
-    }
-
-    state.teacherCode = code.trim();
-    sessionStorage.setItem("kit-teacher-access-code", state.teacherCode);
-    return true;
-  }
-
-  function withTeacherCode(headers) {
-    if (state.role === "teacher" && state.teacherCode) {
-      headers["x-teacher-code"] = safeHeaderValue(state.teacherCode);
-    }
-    return headers;
-  }
-
   function ensureSuspect(suspectId) {
     const id = suspects[suspectId] ? suspectId : "kangWoojin";
     if (!state.messages[id]) {
@@ -149,12 +129,12 @@
     nodes.messages.scrollTop = nodes.messages.scrollHeight;
   }
 
-  function applyCredits(data = {}) {
+  function applyCredits(data = {}, team = state.team) {
     state.credits = Math.max(0, Number(data.credits) || 0);
     state.count = Math.max(0, Number(data.count ?? state.count) || 0);
     setText(nodes.creditCount, `${state.credits}개`);
     setText(nodes.logCount, `${state.count}회`);
-    setEvidenceTotal(state.team, state.credits);
+    setEvidenceTotal(team, state.credits);
     updateControls();
   }
 
@@ -167,18 +147,19 @@
   }
 
   function updateControls() {
-    const isStudent = state.role === "student";
-    const noStudentTeam = isStudent && !state.team;
-    const noCredits = isStudent && state.credits <= 0;
-    const chatLocked = state.requesting || noStudentTeam || noCredits;
-    const canRedeemCode = (isStudent && state.team) || (state.role === "teacher" && state.evidenceTeam);
+    const isTeacher = state.role === "teacher";
+    const activeTeam = evidenceTeam();
+    const noTeam = !activeTeam;
+    const noCredits = state.credits <= 0;
+    const chatLocked = state.requesting || noTeam || noCredits;
+    const canRedeemCode = (state.role === "student" && state.team) || (isTeacher && state.evidenceTeam);
 
     if (nodes.chatInput) {
       nodes.chatInput.disabled = chatLocked;
-      nodes.chatInput.placeholder = noStudentTeam
-        ? "학생 팀 정보가 필요합니다"
+      nodes.chatInput.placeholder = noTeam
+        ? "팀 선택이 필요합니다"
         : noCredits
-          ? "증거 코드로 질문권을 얻으세요"
+          ? "질문권이 필요합니다"
           : `${suspects[state.currentSuspect].name}에게 질문`;
     }
     if (nodes.chatSubmit) nodes.chatSubmit.disabled = chatLocked;
@@ -189,6 +170,7 @@
     if (nodes.evidenceTeamSelect) nodes.evidenceTeamSelect.disabled = state.requesting;
     const codeButton = nodes.evidenceForm?.querySelector("button");
     if (codeButton) codeButton.disabled = codeLocked;
+    if (nodes.resetCreditsButton) nodes.resetCreditsButton.disabled = state.requesting || noTeam || state.credits <= 0;
   }
 
   function evidenceTeam() {
@@ -202,7 +184,13 @@
       : `${Math.max(0, Number(credits) || 0)}개`;
     setText(nodes.evidenceTotalLabel, label);
     setText(nodes.evidenceTotalCount, value);
-    if (state.role === "teacher") setText(nodes.creditCount, value);
+    if (team && (state.role === "teacher" || team === state.team)) setText(nodes.teamLabel, `${team}팀`);
+    if (state.role === "teacher") {
+      if (credits !== null && credits !== undefined && !Number.isNaN(Number(credits))) {
+        state.credits = Math.max(0, Number(credits) || 0);
+      }
+      setText(nodes.creditCount, value);
+    }
   }
 
   async function refreshEvidenceTotal(team = evidenceTeam()) {
@@ -223,6 +211,9 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "총 질문권 확인 실패");
       setEvidenceTotal(team, data.credits);
+      state.count = Math.max(0, Number(data.count ?? state.count) || 0);
+      setText(nodes.logCount, `${state.count}회`);
+      updateControls();
       return data;
     } catch (error) {
       setText(nodes.evidenceTotalCount, "확인 실패");
@@ -331,19 +322,64 @@
     }
   }
 
+  async function resetTeamCredits() {
+    const targetTeam = evidenceTeam();
+    if (!targetTeam) {
+      setEvidenceMessage("초기화할 팀을 선택하세요.", "bad");
+      return;
+    }
+    const confirmed = window.confirm(`${targetTeam}팀이 받은 질문권을 0개로 초기화할까요?`);
+    if (!confirmed) return;
+
+    state.requesting = true;
+    updateControls();
+    setEvidenceMessage("받은 질문권 초기화 중...", "");
+
+    try {
+      const response = await fetch("/api/credits", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": state.role,
+          "x-kit-team": encoded(targetTeam),
+          "x-kit-user": encoded(state.user)
+        },
+        body: JSON.stringify({
+          action: "resetTeam",
+          role: state.role,
+          team: targetTeam,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "받은 질문권 초기화 실패");
+
+      applyCredits({ credits: data.credits, count: data.count ?? state.count }, targetTeam);
+      setEvidenceMessage(`${targetTeam}팀 받은 질문권을 초기화했습니다.`, "ok");
+    } catch (error) {
+      setEvidenceMessage(error.message || "받은 질문권을 초기화하지 못했습니다.", "bad");
+      await refreshCredits();
+    } finally {
+      state.requesting = false;
+      updateControls();
+    }
+  }
+
   async function submitQuestion(event) {
     event.preventDefault();
     const suspectId = ensureSuspect(state.currentSuspect);
     const text = String(nodes.chatInput?.value || "").trim();
     if (!text || state.requesting) return;
+    const targetTeam = evidenceTeam();
 
-    if (state.role === "student" && state.credits <= 0) {
-      setChatState("질문권 필요");
+    if (!targetTeam) {
+      setChatState("팀 선택 필요");
       updateControls();
       return;
     }
 
-    if (state.role === "teacher" && !ensureTeacherCode()) {
+    if (state.credits <= 0) {
+      setChatState("질문권 필요");
       updateControls();
       return;
     }
@@ -360,19 +396,19 @@
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: withTeacherCode({
+        headers: {
           "content-type": "application/json",
-          "x-kit-role": state.role,
-          "x-kit-team": encoded(state.team),
+          "x-kit-role": "student",
+          "x-kit-team": encoded(targetTeam),
           "x-kit-user": encoded(state.user),
           "x-class-code": safeHeaderValue(state.accessCode)
-        }),
+        },
         body: JSON.stringify({
           suspect: suspectId,
           message: text,
           history: state.histories[suspectId],
-          role: state.role,
-          team: state.team,
+          role: "student",
+          team: targetTeam,
           user: state.user
         })
       });
@@ -398,7 +434,7 @@
         { role: "assistant", content: reply }
       );
       state.histories[suspectId] = state.histories[suspectId].slice(-12);
-      if (data.credits) applyCredits({ credits: data.credits.remaining, count: state.count });
+      if (data.credits) applyCredits({ credits: data.credits.remaining, count: state.count }, targetTeam);
       applyUsage(data.usage);
       setChatState("대기");
     } catch (error) {
@@ -429,6 +465,14 @@
       nodes.evidenceForm.after(totalCard);
       nodes.evidenceTotalLabel = totalLabel;
       nodes.evidenceTotalCount = totalCount;
+
+      const resetButton = document.createElement("button");
+      resetButton.className = "reset-credit-btn";
+      resetButton.type = "button";
+      resetButton.textContent = "받은 질문권 초기화";
+      totalCard.after(resetButton);
+      nodes.resetCreditsButton = resetButton;
+      resetButton.addEventListener("click", resetTeamCredits);
     }
 
     if (state.role === "teacher" && nodes.evidenceForm && !state.team) {

@@ -538,6 +538,65 @@
       gap: 10px;
     }
 
+    .evidence-redeem-panel {
+      display: grid;
+      gap: 8px;
+      margin: 12px 0;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid #dde5ef;
+      padding: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .evidence-redeem-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .evidence-redeem-head h3 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 0.95rem;
+      line-height: 1.2;
+    }
+
+    .evidence-redeem-list {
+      display: grid;
+      gap: 7px;
+      max-height: 190px;
+      overflow-y: auto;
+    }
+
+    .evidence-redeem-entry {
+      border-radius: 7px;
+      background: #fbfdff;
+      border: 1px solid #e6edf5;
+      padding: 8px;
+    }
+
+    .evidence-redeem-entry__meta {
+      color: #657181;
+      font-size: 0.75rem;
+      font-weight: 900;
+    }
+
+    .evidence-redeem-entry p,
+    .evidence-redeem-empty {
+      margin: 4px 0 0;
+      color: #18202b;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      font-weight: 850;
+    }
+
+    .evidence-redeem-entry strong {
+      color: var(--red);
+      font-weight: 950;
+    }
+
     .team-row {
       display: grid;
       grid-template-columns: 36px 1fr;
@@ -1033,6 +1092,17 @@
           <button class="reset-btn" type="button" id="resetScores">질문권 초기화</button>
         </div>
       </div>
+
+      <section class="evidence-redeem-panel" aria-label="증거코드 입력 기록">
+        <div class="evidence-redeem-head">
+          <h3>증거코드 입력 기록</h3>
+          <div class="score-actions">
+            <button class="reset-btn" type="button" id="refreshEvidenceLogs">새로고침</button>
+            <button class="reset-btn" type="button" id="clearEvidenceLogs">입력 초기화</button>
+          </div>
+        </div>
+        <div class="evidence-redeem-list" id="evidenceRedeemList"></div>
+      </section>
 
       <div class="team-list">
         <div class="team-row">

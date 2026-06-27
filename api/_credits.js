@@ -5,14 +5,17 @@ const memoryCountStore = globalThis.__kitQuestionCountStore || new Map();
 const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
+const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
 globalThis.__kitQuestionCountStore = memoryCountStore;
 globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
 globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
+globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
+const maxReturnedEvidenceLogs = 100;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
 
 function normalizeTeam(team) {
@@ -52,6 +55,10 @@ function presenceKey() {
 
 function evidenceRedeemKeyFor(team) {
   return `kit:${storeNamespace()}:evidence-redeemed:${team}`;
+}
+
+function evidenceLogKey() {
+  return `kit:${storeNamespace()}:evidence-logs`;
 }
 
 function hasPersistentStore() {
@@ -194,6 +201,78 @@ async function redeemEvidenceCode(team, code) {
 
   const added = Number(await redisCommand(["SADD", evidenceRedeemKeyFor(normalized), normalizedCode]));
   return added === 1;
+}
+
+function cleanEvidenceEntry(entry = {}) {
+  const team = normalizeTeam(entry.team);
+  const code = String(entry.code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
+  if (!team || !code) return null;
+
+  return {
+    id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    at: String(entry.at || new Date().toISOString()),
+    team,
+    user: String(entry.user || team).trim().slice(0, 30),
+    code,
+    room: String(entry.room || "").trim().slice(0, 30),
+    evidence: String(entry.evidence || "").trim().slice(0, 80),
+    person: String(entry.person || "").trim().slice(0, 30),
+    added: cleanCredits(entry.added || 0),
+    remaining: cleanCredits(entry.remaining || 0)
+  };
+}
+
+async function recordEvidenceRedemption(entry) {
+  const cleanEntry = cleanEvidenceEntry(entry);
+  if (!cleanEntry) return null;
+
+  if (!hasPersistentStore()) {
+    memoryEvidenceLogStore.unshift(cleanEntry);
+    memoryEvidenceLogStore.splice(maxStoredLogs);
+    return cleanEntry;
+  }
+
+  await redisCommand(["LPUSH", evidenceLogKey(), JSON.stringify(cleanEntry)]);
+  await redisCommand(["LTRIM", evidenceLogKey(), "0", String(maxStoredLogs - 1)]);
+  return cleanEntry;
+}
+
+async function getEvidenceRedemptions(team = "", limit = maxReturnedEvidenceLogs) {
+  const normalized = normalizeTeam(team);
+  const safeLimit = Math.min(maxReturnedEvidenceLogs, Math.max(1, cleanCredits(limit) || maxReturnedEvidenceLogs));
+
+  if (!hasPersistentStore()) {
+    return memoryEvidenceLogStore
+      .filter((entry) => !normalized || entry.team === normalized)
+      .slice(0, safeLimit);
+  }
+
+  const rawLogs = await redisCommand(["LRANGE", evidenceLogKey(), "0", String(maxStoredLogs - 1)]);
+  return (Array.isArray(rawLogs) ? rawLogs : [])
+    .map((item) => {
+      try {
+        return cleanEvidenceEntry(JSON.parse(item));
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry) => entry && (!normalized || entry.team === normalized))
+    .slice(0, safeLimit);
+}
+
+async function clearEvidenceRedemptions() {
+  if (!hasPersistentStore()) {
+    const removed = memoryEvidenceLogStore.splice(0);
+    memoryEvidenceRedeemStore.clear();
+    return removed;
+  }
+
+  const removed = await getEvidenceRedemptions("", maxReturnedEvidenceLogs);
+  await Promise.all([
+    redisCommand(["DEL", evidenceLogKey()]),
+    ...teams.map((team) => redisCommand(["DEL", evidenceRedeemKeyFor(team)]))
+  ]);
+  return removed;
 }
 
 async function resetCredits() {
@@ -425,12 +504,14 @@ async function consumeCredit(team) {
 
 module.exports = {
   addCredits,
+  clearEvidenceRedemptions,
   consumeCredit,
   clearQuestionLogs,
   getAllCredits,
   getAllGrantedCredits,
   getAllQuestionCounts,
   getCredits,
+  getEvidenceRedemptions,
   getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
@@ -439,6 +520,7 @@ module.exports = {
   hasPersistentStore,
   logQuestion,
   normalizeTeam,
+  recordEvidenceRedemption,
   removePresence,
   redeemEvidenceCode,
   resetCredits,

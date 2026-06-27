@@ -104,6 +104,35 @@
     }
   }
 
+  function presencePanelFor(button) {
+    const panelId = button.getAttribute("aria-controls");
+    if (panelId) return document.getElementById(panelId);
+    return document.querySelector("[data-presence-panel]");
+  }
+
+  function setPresencePanelOpen(button, panel, isOpen) {
+    if (!panel) return;
+    panel.hidden = !isOpen;
+    button.setAttribute("aria-expanded", String(isOpen));
+  }
+
+  async function handlePresenceButtonClick(event) {
+    const button = event.currentTarget;
+    if (!button.hasAttribute("data-toggle-presence")) {
+      await refreshPresence();
+      return;
+    }
+
+    const panel = presencePanelFor(button);
+    if (panel && !panel.hidden) {
+      setPresencePanelOpen(button, panel, false);
+      return;
+    }
+
+    setPresencePanelOpen(button, panel, true);
+    await refreshPresence();
+  }
+
   function leavePresence() {
     const account = sessionAccount();
     if (!account.user || !account.role) return;
@@ -131,7 +160,11 @@
     renderPresence([], "접속 정보를 아직 불러오지 않았습니다.");
 
     document.querySelectorAll("[data-refresh-presence]").forEach((button) => {
-      button.addEventListener("click", refreshPresence);
+      const panel = button.hasAttribute("data-toggle-presence") ? presencePanelFor(button) : null;
+      if (panel) {
+        setPresencePanelOpen(button, panel, !panel.hidden);
+      }
+      button.addEventListener("click", handlePresenceButtonClick);
     });
 
     document.querySelectorAll("[data-logout]").forEach((button) => {

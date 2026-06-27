@@ -10,6 +10,7 @@
   let grantedCredits = { ...emptyByTeam };
   let questionCounts = { ...emptyByTeam };
   let questionLogs = [];
+  let evidenceLogs = [];
 
   function cleanScore(value) {
     const number = Number(value);
@@ -65,8 +66,13 @@
       "x-kit-role": role
     };
     const teacherCode = sessionStorage.getItem(teacherCodeKey) || "";
-    if (teacherCode) headers["x-teacher-code"] = teacherCode;
+    if (teacherCode) headers["x-teacher-code"] = safeHeaderValue(teacherCode);
     return headers;
+  }
+
+  function safeHeaderValue(value) {
+    const text = String(value || "").trim().replace(/[\r\n]/g, "");
+    return /[^\u0000-\u00ff]/.test(text) ? encodeURIComponent(text) : text;
   }
 
   async function requestCredits(url, options = {}, retry = true) {
@@ -179,6 +185,37 @@
     });
   }
 
+  function renderEvidenceLogs() {
+    const list = document.getElementById("evidenceRedeemList");
+    if (!list) return;
+    list.textContent = "";
+
+    if (!evidenceLogs.length) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-redeem-empty";
+      empty.textContent = "아직 입력된 증거코드가 없습니다.";
+      list.append(empty);
+      return;
+    }
+
+    evidenceLogs.slice(0, 20).forEach((entry) => {
+      const item = document.createElement("article");
+      item.className = "evidence-redeem-entry";
+
+      const meta = document.createElement("div");
+      meta.className = "evidence-redeem-entry__meta";
+      meta.textContent = `${entry.team || "팀 없음"} · ${entry.code || "코드 없음"} · ${formatLogTime(entry.at)} · +${entry.added || 3}개`;
+
+      const text = document.createElement("p");
+      const code = document.createElement("strong");
+      code.textContent = entry.evidence || "증거";
+      text.append(code, document.createTextNode(` · ${entry.room || "장소 미상"} · ${entry.user || entry.team || "학생"}`));
+
+      item.append(meta, text);
+      list.append(item);
+    });
+  }
+
   async function fetchScores() {
     const { response, data } = await requestCredits("/api/credits");
     if (!response.ok || !data.credits) {
@@ -186,9 +223,20 @@
     }
     applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : [];
+    await fetchEvidenceLogs();
     renderScores();
     renderQuestionStats();
     setSyncStatus(data.persistent ? "질문권 현황을 불러왔습니다." : "공유 저장소 미연결: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
+  }
+
+  async function fetchEvidenceLogs() {
+    const { response, data } = await requestCredits("/api/evidence-code");
+    if (!response.ok) {
+      throw new Error(data.error || "증거코드 입력 기록 불러오기 실패");
+    }
+    evidenceLogs = Array.isArray(data.evidenceLogs) ? data.evidenceLogs : [];
+    renderEvidenceLogs();
+    return data;
   }
 
   async function publishScores() {
@@ -256,6 +304,33 @@
     setSyncStatus(data.persistent ? "질문 로그 삭제됨" : "임시 로그 삭제됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
+  async function clearEvidenceLogs() {
+    const confirmed = window.confirm("학생들이 입력한 증거코드 기록과 해당 증거코드로 받은 질문권을 초기화할까요?");
+    if (!confirmed) return;
+
+    const { response, data } = await requestCredits("/api/evidence-code", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "clear",
+        resetCredits: true
+      })
+    });
+    if (!response.ok) {
+      throw new Error(data.error || "증거코드 입력 초기화 실패");
+    }
+
+    evidenceLogs = [];
+    renderEvidenceLogs();
+    if (data.credits) {
+      applyCreditData({ credits: data.credits, granted: data.granted, counts: questionCounts });
+      renderScores();
+      renderQuestionStats();
+    } else {
+      await fetchScores();
+    }
+    setSyncStatus(`증거코드 입력 ${data.removed || 0}건과 해당 질문권을 초기화했습니다.`, data.persistent ? "ok" : "bad");
+  }
+
   function startScoreSync() {
     fetchScores().catch((error) => {
       renderScores();
@@ -305,8 +380,23 @@
     });
   });
 
+  document.getElementById("refreshEvidenceLogs")?.addEventListener("click", () => {
+    fetchEvidenceLogs().then(() => {
+      setSyncStatus("증거코드 입력 기록을 불러왔습니다.", "ok");
+    }).catch((error) => {
+      setSyncStatus(error.message || "증거코드 입력 기록 불러오기 실패", "bad");
+    });
+  });
+
+  document.getElementById("clearEvidenceLogs")?.addEventListener("click", () => {
+    clearEvidenceLogs().catch((error) => {
+      setSyncStatus(error.message || "증거코드 입력 초기화 실패", "bad");
+    });
+  });
+
   renderScores();
   renderQuestionStats();
+  renderEvidenceLogs();
   startScoreSync();
 
   const stopwatchDisplay = document.getElementById("stopwatchDisplay");
