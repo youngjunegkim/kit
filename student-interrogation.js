@@ -604,7 +604,7 @@
   }
 
   function trimHistory(panel) {
-    panel.history = panel.history.slice(-12);
+    panel.history = panel.history.slice(-6);
   }
 
   async function submitQuestion(panel) {

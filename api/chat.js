@@ -30,8 +30,15 @@ const personaNames = {
   choiDaniel: "최다니엘"
 };
 
+const defaultHistoryMessages = 6;
+
 function isCorePersonaId(personaId) {
   return personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel";
+}
+
+function openAiHistoryMessages() {
+  const configured = Number(process.env.OPENAI_HISTORY_MESSAGES || defaultHistoryMessages);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(12, Math.floor(configured)) : defaultHistoryMessages;
 }
 
 function personaIdFor(payload) {
@@ -604,7 +611,7 @@ function cleanHistory(history) {
       content: String(item.content || "").slice(0, 500)
     }))
     .filter((item) => item.content)
-    .slice(-12);
+    .slice(-openAiHistoryMessages());
 }
 
 function buildTranscript(history, message) {
@@ -957,71 +964,36 @@ async function callOpenAi(message, history, payload = {}) {
               reply: safetyReplyFor(repairedReply) || repairedReply,
               source: "openai",
               model,
-              repaired: true
+              repaired: true,
+              repairAttempts: 1
             }
           };
         }
-        let softRepairReply = canUseSoftQualityReply(repairedReply, repairIssue) ? repairedReply : "";
 
-        const finalRepairInstruction = [
-          buildRepairInstruction(repairIssue, repairedReply, message),
-          "[최종 재작성 조건]",
-          "- 이번 답변은 반드시 학생 질문의 핵심 단어로 시작한다.",
-          "- 질문의 증거 단어를 피하지 말고 같은 단어를 답변에 포함한다.",
-          "- 물음표를 쓰지 않는다.",
-          "- 말줄임표 없이 완결된 2문장으로 답한다.",
-          "- 확인만 하지 말고 사건 시간, 행동, 이유 중 하나를 진술문으로 설명한다."
-        ].join("\n");
-        const { response: finalRepairResponse, data: finalRepairData } = await requestOpenAiCandidate(
-          apiKey,
-          model,
-          message,
-          history,
-          payload,
-          finalRepairInstruction
-        );
-
-        if (finalRepairResponse.ok) {
-          const finalReply = trimToThreeSentences(extractOpenAiText(finalRepairData));
-          const finalIssue = replyQualityIssue(finalReply, message, payload, history);
-          if (!finalIssue || canUseSoftQualityReply(finalReply, finalIssue)) {
-            return {
-              statusCode: 200,
-              body: {
-                reply: safetyReplyFor(finalReply) || finalReply,
-                source: "openai",
-                model,
-                repaired: true,
-                repairAttempts: 2,
-                qualityWarning: finalIssue || undefined
-              }
-            };
-          }
-          const polishedReply = polishedLastResortReply(finalReply);
-          if (polishedReply) {
-            return {
-              statusCode: 200,
-              body: {
-                reply: safetyReplyFor(polishedReply) || polishedReply,
-                source: "openai",
-                model,
-                repaired: true,
-                repairAttempts: 2,
-                qualityWarning: finalIssue
-              }
-            };
-          }
-        }
-
-        if (softRepairReply) {
+        if (canUseSoftQualityReply(repairedReply, repairIssue)) {
           return {
             statusCode: 200,
             body: {
-              reply: safetyReplyFor(softRepairReply) || softRepairReply,
+              reply: safetyReplyFor(repairedReply) || repairedReply,
               source: "openai",
               model,
               repaired: true,
+              repairAttempts: 1,
               qualityWarning: repairIssue
+            }
+          };
+        }
+
+        const polishedReply = polishedLastResortReply(repairedReply);
+        if (polishedReply && !replyQualityIssue(polishedReply, message, payload, history)) {
+          return {
+            statusCode: 200,
+            body: {
+              reply: safetyReplyFor(polishedReply) || polishedReply,
+              source: "openai",
+              model,
+              repaired: true,
+              repairAttempts: 1
             }
           };
         }

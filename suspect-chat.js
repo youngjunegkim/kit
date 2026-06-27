@@ -378,7 +378,7 @@
   }
 
   function trimHistory() {
-    state.history = state.history.slice(-12);
+    state.history = state.history.slice(-6);
   }
 
   function setApiStatus(text, type = "") {
