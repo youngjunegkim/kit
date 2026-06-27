@@ -256,6 +256,13 @@
   function setupLogout() {
     document.querySelectorAll("[data-logout]").forEach((button) => {
       button.addEventListener("click", () => {
+        const password = window.prompt("로그아웃하려면 비밀번호를 입력하세요.");
+        if (password === null) return;
+        if (password !== "kit") {
+          window.alert("비밀번호가 맞지 않아 로그아웃하지 않았습니다.");
+          return;
+        }
+
         sessionStorage.removeItem("kit-auth-user");
         sessionStorage.removeItem("kit-auth-role");
         sessionStorage.removeItem("kit-auth-label");
