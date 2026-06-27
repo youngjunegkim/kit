@@ -270,32 +270,43 @@
     localStorage.setItem(evidenceStorageKey(team), JSON.stringify(cards));
   }
 
-  function renderEvidenceReveal(card) {
+  function renderEvidenceReveal(cards = loadEvidenceCards()) {
     if (!nodes.evidenceReveal) return;
+    const list = Array.isArray(cards) ? cards : cards ? [cards] : [];
     nodes.evidenceReveal.textContent = "";
-    nodes.evidenceReveal.hidden = !card;
-    if (!card) return;
+    nodes.evidenceReveal.hidden = false;
 
     const title = document.createElement("h3");
-    title.textContent = "확인한 증거카드";
+    title.textContent = "획득한 증거카드";
+    nodes.evidenceReveal.append(title);
 
-    const body = document.createElement("article");
-    body.className = "obtained-evidence-card";
+    if (!list.length) {
+      const empty = document.createElement("p");
+      empty.className = "obtained-evidence-empty";
+      empty.textContent = "아직 획득한 증거카드가 없습니다.";
+      nodes.evidenceReveal.append(empty);
+      return;
+    }
 
-    const image = document.createElement("img");
-    image.src = card.image;
-    image.alt = `${card.room} 증거 카드 ${card.index}`;
-    image.style.objectPosition = card.position || "center";
+    list.forEach((card) => {
+      const body = document.createElement("article");
+      body.className = "obtained-evidence-card";
 
-    const info = document.createElement("div");
-    const meta = document.createElement("span");
-    meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
-    const text = document.createElement("strong");
-    text.textContent = card.evidence;
+      const image = document.createElement("img");
+      image.src = card.image;
+      image.alt = `${card.room} 증거 카드 ${card.index}`;
+      image.style.objectPosition = card.position || "center";
 
-    info.append(meta, text);
-    body.append(image, info);
-    nodes.evidenceReveal.append(title, body);
+      const info = document.createElement("div");
+      const meta = document.createElement("span");
+      meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
+      const text = document.createElement("strong");
+      text.textContent = card.evidence;
+
+      info.append(meta, text);
+      body.append(image, info);
+      nodes.evidenceReveal.append(body);
+    });
   }
 
   function storeEvidenceCard(code, evidence, team = evidenceTeam()) {
@@ -305,7 +316,7 @@
       ...loadEvidenceCards(team).filter((item) => item.code !== card.code)
     ].slice(0, 10);
     saveEvidenceCards(cards, team);
-    renderEvidenceReveal(card);
+    renderEvidenceReveal(cards);
     return card;
   }
 
@@ -390,7 +401,14 @@
     try {
       const response = await fetch("/api/status", { cache: "no-store" });
       if (!response.ok) throw new Error("API unavailable");
-      setApiStatus("준비됨", "ok");
+      const data = await response.json().catch(() => ({}));
+      if (data.provider === "openai" && data.hasOpenAiKey) {
+        setApiStatus("ChatGPT 준비됨", "ok");
+      } else if (data.provider === "openai") {
+        setApiStatus("OpenAI 키 필요", "bad");
+      } else {
+        setApiStatus(data.provider || "준비됨", "ok");
+      }
     } catch {
       setApiStatus("확인 필요", "bad");
     }
@@ -537,7 +555,10 @@
     setChatState("응답 중");
     updateControls();
 
+    let timeout = 0;
     try {
+      const controller = new AbortController();
+      timeout = window.setTimeout(() => controller.abort(), 30000);
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -554,8 +575,11 @@
           role: "student",
           team: targetTeam,
           user: state.user
-        })
+        }),
+        signal: controller.signal
       });
+      window.clearTimeout(timeout);
+      timeout = 0;
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -582,10 +606,13 @@
       applyUsage(data.usage);
       setChatState("대기");
     } catch (error) {
-      pending.text = error.message || "답변을 받지 못했습니다.";
+      pending.text = error.name === "AbortError"
+        ? "ChatGPT 응답이 30초 넘게 지연됐습니다. 잠시 후 다시 질문해 주세요."
+        : error.message || "답변을 받지 못했습니다.";
       setChatState("확인 필요");
       await refreshCredits();
     } finally {
+      if (timeout) window.clearTimeout(timeout);
       state.requesting = false;
       renderMessages();
       updateControls();
@@ -613,9 +640,9 @@
       const reveal = document.createElement("div");
       reveal.className = "obtained-evidence";
       reveal.setAttribute("data-obtained-evidence", "");
-      reveal.hidden = true;
       totalCard.after(reveal);
       nodes.evidenceReveal = reveal;
+      renderEvidenceReveal(loadEvidenceCards());
 
       if (state.role === "teacher") {
         const resetButton = document.createElement("button");
@@ -643,6 +670,7 @@
       select.addEventListener("change", () => {
         state.evidenceTeam = select.value;
         sessionStorage.setItem("kit-evidence-target-team", state.evidenceTeam);
+        renderEvidenceReveal(loadEvidenceCards(state.evidenceTeam));
         refreshEvidenceTotal(state.evidenceTeam);
       });
       nodes.evidenceTeamSelect = select;

@@ -597,6 +597,23 @@
       font-weight: 950;
     }
 
+    .evidence-redeem-entry .evidence-redeem-secret {
+      color: transparent;
+      text-shadow: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .evidence-redeem-entry .evidence-redeem-secret::selection {
+      color: var(--red);
+      background: rgba(225, 174, 45, 0.32);
+    }
+
+    .evidence-redeem-entry .evidence-redeem-secret::-moz-selection {
+      color: var(--red);
+      background: rgba(225, 174, 45, 0.32);
+    }
+
     .team-row {
       display: grid;
       grid-template-columns: 36px 1fr;

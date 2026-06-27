@@ -74,11 +74,15 @@
     exportCsv: document.querySelector("[data-export-csv]"),
     resetAll: document.querySelector("[data-reset-all]"),
     teamTotal: document.querySelector("[data-team-total]"),
-    averageScore: document.querySelector("[data-average-score]")
+    averageScore: document.querySelector("[data-average-score]"),
+    reportStatus: document.querySelector("[data-report-status]"),
+    reportList: document.querySelector("[data-report-list]")
   };
 
   const state = {
-    teams: defaultTeams.map((name, index) => createTeam(name, index + 1))
+    teams: defaultTeams.map((name, index) => createTeam(name, index + 1)),
+    reports: [],
+    isMeasuring: false
   };
 
   function createTeam(name, number) {
@@ -177,8 +181,10 @@
         note: String(team.note || ""),
         result: team.result || null
       }));
+      state.reports = Array.isArray(parsed.reports) ? parsed.reports : [];
     } catch {
       state.teams = defaultTeams.map((name, index) => createTeam(name, index + 1));
+      state.reports = [];
     }
   }
 
@@ -189,7 +195,8 @@
         name: team.name,
         note: team.note,
         result: team.result
-      }))
+      })),
+      reports: state.reports
     }));
   }
 
@@ -202,13 +209,16 @@
     `).join("");
   }
 
-  function renderTeams() {
+  function renderTeams(options = {}) {
+    const animate = Boolean(options.animate);
     elements.teamCount.value = state.teams.length;
     elements.teamList.innerHTML = state.teams.map((team, index) => {
       const result = team.result || scoreNote(team.note);
       const score = team.note.trim() ? result.score : 0;
+      const displayScore = animate && team.note.trim() ? 0 : score;
+      const measuringClass = animate && team.note.trim() ? " is-measuring" : "";
       return `
-        <article class="team-card" data-team-card="${team.id}">
+        <article class="team-card${measuringClass}" data-team-card="${team.id}" data-score-target="${score}">
           <div class="team-card__main">
             <div class="team-card__top">
               <input class="team-name-input" type="text" value="${escapeHtml(team.name)}" aria-label="${index + 1}번째 팀 이름" data-team-name>
@@ -218,10 +228,10 @@
           </div>
           <div class="team-card__score">
             <div class="score-badge">
-              <strong>${score}%</strong>
+              <strong data-score-text>${displayScore}%</strong>
               <span>유사도</span>
             </div>
-            <div class="score-bar" style="--score-width: ${score}%"><span></span></div>
+            <div class="score-bar" style="--score-width: ${displayScore}%"><span data-score-bar></span></div>
             <div class="breakdown" data-breakdown>
               ${renderBreakdown(result)}
             </div>
@@ -305,6 +315,193 @@
     return `${best.label} ${best.score}/${best.max}`;
   }
 
+  function rankedTeams() {
+    let rank = 0;
+    let previousScore = null;
+    let seen = 0;
+    return sortedTeams().map((team) => {
+      seen += 1;
+      const score = team.hasNote ? team.result.score : 0;
+      if (previousScore !== score) {
+        rank = seen;
+        previousScore = score;
+      }
+      return {
+        ...team,
+        score,
+        rank: team.hasNote ? rank : null
+      };
+    });
+  }
+
+  function reportPayload() {
+    return rankedTeams()
+      .filter((team) => team.hasNote)
+      .map((team) => ({
+        name: team.name || `${team.index + 1}팀`,
+        rank: team.rank,
+        score: team.score,
+        note: team.note,
+        details: team.result.details.map((detail) => ({
+          label: detail.label,
+          score: detail.score,
+          max: detail.max,
+          matches: detail.matches,
+          misses: detail.misses
+        }))
+      }));
+  }
+
+  function localReportFor(team) {
+    const sorted = [...team.details].sort((a, b) => (b.score / Math.max(1, b.max)) - (a.score / Math.max(1, a.max)));
+    const strong = sorted[0];
+    const weak = [...team.details].sort((a, b) => (a.score / Math.max(1, a.max)) - (b.score / Math.max(1, b.max)))[0];
+    if (!team.note.trim()) return "사건노트가 비어 있어 아직 판정할 근거가 없습니다.";
+    return `${team.name}은 ${team.score}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높아 사건 흐름이 잘 맞았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.`;
+  }
+
+  function fallbackReports(teams) {
+    return teams.map((team) => ({
+      name: team.name,
+      rank: team.rank,
+      score: team.score,
+      report: localReportFor(team)
+    }));
+  }
+
+  function setReportStatus(text) {
+    if (elements.reportStatus) elements.reportStatus.textContent = text;
+  }
+
+  function renderReports(reports = state.reports, statusText) {
+    if (typeof statusText === "string") setReportStatus(statusText);
+    if (!elements.reportList) return;
+
+    if (!reports || !reports.length) {
+      elements.reportList.innerHTML = `
+        <p class="report-empty">유사도 측정을 누르면 탐정 캐릭터가 팀별 판정 근거를 정리합니다.</p>
+      `;
+      return;
+    }
+
+    elements.reportList.innerHTML = reports.map((report) => `
+      <article class="report-card">
+        <img class="report-card__avatar" src="assets/characters/detective-note-mascot.png" alt="" aria-hidden="true">
+        <div class="report-card__bubble">
+          <strong>${escapeHtml(report.rank ? `${report.rank}위 · ` : "")}${escapeHtml(report.name)} · ${escapeHtml(report.score)}%</strong>
+          ${escapeHtml(report.report)}
+        </div>
+      </article>
+    `).join("");
+  }
+
+  async function fetchCaseNoteReports() {
+    const teams = reportPayload();
+    if (!teams.length) {
+      state.reports = [];
+      renderReports([], "입력된 사건노트가 없어 리포트를 만들 수 없습니다.");
+      saveState();
+      return;
+    }
+
+    setReportStatus("탐정이 팀별 판정 근거를 정리하고 있습니다...");
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 45000);
+
+    try {
+      const response = await fetch("/api/case-note-report", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "x-kit-role": "teacher"
+        },
+        body: JSON.stringify({
+          role: "teacher",
+          standardNote,
+          teams
+        }),
+        signal: controller.signal
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "리포트 생성 실패");
+
+      const reports = Array.isArray(data.reports) ? data.reports : [];
+      const merged = teams.map((team, index) => {
+        const report = reports.find((item) => item.name === team.name) || reports[index] || {};
+        return {
+          name: team.name,
+          rank: team.rank,
+          score: team.score,
+          report: String(report.report || localReportFor(team)).slice(0, 360)
+        };
+      });
+      state.reports = merged;
+      saveState();
+      renderReports(merged, data.source === "openai"
+        ? "ChatGPT가 팀별 유사도 판정 근거를 완성했습니다."
+        : "ChatGPT 응답이 불안정해 로컬 판정 기준으로 정리했습니다.");
+    } catch (error) {
+      const fallback = fallbackReports(teams);
+      state.reports = fallback;
+      saveState();
+      renderReports(fallback, "ChatGPT 연결이 되지 않아 로컬 판정 기준으로 임시 리포트를 표시합니다.");
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  function animateScoreBars() {
+    const cards = [...elements.teamList.querySelectorAll("[data-team-card]")];
+    if (!cards.length) return Promise.resolve();
+
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduceMotion) {
+      cards.forEach((card) => {
+        const target = Number(card.dataset.scoreTarget || 0);
+        card.querySelector("[data-score-text]").textContent = `${target}%`;
+        card.querySelector(".score-bar")?.style.setProperty("--score-width", `${target}%`);
+        card.classList.remove("is-measuring");
+      });
+      return Promise.resolve();
+    }
+
+    return Promise.all(cards.map((card, index) => new Promise((resolve) => {
+      const target = Number(card.dataset.scoreTarget || 0);
+      const scoreText = card.querySelector("[data-score-text]");
+      const scoreBar = card.querySelector(".score-bar");
+      const delay = index * 160;
+      const duration = 1000 + Math.min(target * 9, 700);
+
+      window.setTimeout(() => {
+        const startedAt = performance.now();
+        function frame(now) {
+          const progress = Math.min(1, (now - startedAt) / duration);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.round(target * eased);
+          if (scoreText) scoreText.textContent = `${current}%`;
+          if (scoreBar) scoreBar.style.setProperty("--score-width", `${target * eased}%`);
+          if (progress < 1) {
+            requestAnimationFrame(frame);
+            return;
+          }
+          if (scoreText) scoreText.textContent = `${target}%`;
+          if (scoreBar) scoreBar.style.setProperty("--score-width", `${target}%`);
+          card.classList.remove("is-measuring");
+          resolve();
+        }
+        requestAnimationFrame(frame);
+      }, delay);
+    })));
+  }
+
+  function calculateAll() {
+    syncFromDom();
+    state.teams.forEach((team) => {
+      team.result = scoreNote(team.note);
+    });
+    saveState();
+  }
+
   function syncFromDom() {
     [...elements.teamList.querySelectorAll("[data-team-card]")].forEach((card) => {
       const team = state.teams.find((item) => item.id === card.dataset.teamCard);
@@ -316,14 +513,27 @@
     saveState();
   }
 
-  function scoreAll() {
-    syncFromDom();
-    state.teams.forEach((team) => {
-      team.result = scoreNote(team.note);
-    });
-    saveState();
-    renderTeams();
-    renderRanking();
+  async function scoreAll() {
+    if (state.isMeasuring) return;
+    state.isMeasuring = true;
+    const originalText = elements.scoreAll.textContent;
+    elements.scoreAll.disabled = true;
+    elements.scoreAll.textContent = "측정 중";
+
+    try {
+      calculateAll();
+      state.reports = [];
+      saveState();
+      renderReports([], "팀별 유사도 막대를 계산하고 있습니다...");
+      renderTeams({ animate: true });
+      await animateScoreBars();
+      renderRanking();
+      await fetchCaseNoteReports();
+    } finally {
+      elements.scoreAll.disabled = false;
+      elements.scoreAll.textContent = originalText;
+      state.isMeasuring = false;
+    }
   }
 
   function setTeamCount(count) {
@@ -344,17 +554,21 @@
       state.teams.push(createTeam(`${state.teams.length + 1}팀`, state.teams.length + 1));
     }
 
+    state.reports = [];
     saveState();
     renderTeams();
     renderRanking();
+    renderReports([], "팀 구성이 바뀌었습니다. 다시 유사도를 측정하세요.");
   }
 
   function addTeam() {
     syncFromDom();
     state.teams.push(createTeam(`${state.teams.length + 1}팀`, state.teams.length + 1));
+    state.reports = [];
     saveState();
     renderTeams();
     renderRanking();
+    renderReports([], "팀이 추가되었습니다. 다시 유사도를 측정하세요.");
   }
 
   function removeTeam(id) {
@@ -363,13 +577,17 @@
     const team = state.teams.find((item) => item.id === id);
     if (team?.note.trim() && !window.confirm(`${team.name}을 삭제할까요? 입력한 사건노트도 사라집니다.`)) return;
     state.teams = state.teams.filter((item) => item.id !== id);
+    state.reports = [];
     saveState();
     renderTeams();
     renderRanking();
+    renderReports([], "팀이 삭제되었습니다. 다시 유사도를 측정하세요.");
   }
 
   function exportCsv() {
-    scoreAll();
+    calculateAll();
+    renderTeams();
+    renderRanking();
     const rows = [["순위", "팀", "유사도", "범인", "확보 경로", "AI 입력", "예상 문제", "유출 경로", "동기", "사건노트"]];
     let rank = 0;
     let previousScore = null;
@@ -411,9 +629,11 @@
   function resetAll() {
     if (!window.confirm("모든 팀 이름, 사건노트, 점수를 초기화할까요?")) return;
     state.teams = defaultTeams.map((name, index) => createTeam(name, index + 1));
+    state.reports = [];
     saveState();
     renderTeams();
     renderRanking();
+    renderReports([], "전체 입력을 초기화했습니다.");
   }
 
   function bindEvents() {
@@ -440,7 +660,9 @@
     elements.teamList.addEventListener("input", (event) => {
       if (!event.target.matches("[data-team-name], [data-team-note]")) return;
       syncFromDom();
+      state.reports = [];
       renderRanking();
+      renderReports([], "사건노트가 수정되었습니다. 다시 유사도를 측정하세요.");
     });
   }
 
@@ -450,6 +672,7 @@
     loadState();
     renderTeams();
     renderRanking();
+    renderReports();
     bindEvents();
   }
 

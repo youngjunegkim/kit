@@ -198,16 +198,22 @@
       return;
     }
 
+    function maskedEvidenceCode(value) {
+      const code = String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
+      return code ? `${code.slice(0, 2)}•••••` : "코드 없음";
+    }
+
     evidenceLogs.slice(0, 20).forEach((entry) => {
       const item = document.createElement("article");
       item.className = "evidence-redeem-entry";
 
       const meta = document.createElement("div");
       meta.className = "evidence-redeem-entry__meta";
-      meta.textContent = `${entry.team || "팀 없음"} · ${entry.code || "코드 없음"} · ${formatLogTime(entry.at)} · +${entry.added || 3}개`;
+      meta.textContent = `${entry.team || "팀 없음"} · ${maskedEvidenceCode(entry.code)} · ${formatLogTime(entry.at)} · +${entry.added || 3}개`;
 
       const text = document.createElement("p");
       const code = document.createElement("strong");
+      code.className = "evidence-redeem-secret";
       code.textContent = entry.evidence || "증거";
       text.append(code, document.createTextNode(` · ${entry.room || "장소 미상"} · ${entry.user || entry.team || "학생"}`));
 
