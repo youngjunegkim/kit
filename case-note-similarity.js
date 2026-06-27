@@ -76,13 +76,18 @@
     teamTotal: document.querySelector("[data-team-total]"),
     averageScore: document.querySelector("[data-average-score]"),
     reportStatus: document.querySelector("[data-report-status]"),
+    readAllReports: document.querySelector("[data-read-all-reports]"),
     reportList: document.querySelector("[data-report-list]")
   };
 
   const state = {
     teams: defaultTeams.map((name, index) => createTeam(name, index + 1)),
     reports: [],
-    isMeasuring: false
+    isMeasuring: false,
+    speakingKey: "",
+    speechUtterance: null,
+    speechAudio: null,
+    speechAudioUrl: ""
   };
 
   function createTeam(name, number) {
@@ -373,26 +378,197 @@
     if (elements.reportStatus) elements.reportStatus.textContent = text;
   }
 
+  function speechSupported() {
+    return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  }
+
+  function audioPlaybackSupported() {
+    return typeof Audio !== "undefined" && typeof URL !== "undefined";
+  }
+
+  function reportSpeechText(report) {
+    const rankText = report.rank ? `${report.rank}위. ` : "";
+    return `${rankText}${report.name}. 유사도 ${report.score}퍼센트. ${report.report}`;
+  }
+
+  function KoreanVoice() {
+    if (!speechSupported()) return null;
+    const voices = window.speechSynthesis.getVoices();
+    return voices.find((voice) => /^ko(-|_)?/i.test(voice.lang))
+      || voices.find((voice) => /Korean|한국/i.test(voice.name))
+      || null;
+  }
+
+  function updateSpeechButtons() {
+    const supported = audioPlaybackSupported() || speechSupported();
+    const hasReports = Boolean(state.reports?.length);
+    if (elements.readAllReports) {
+      elements.readAllReports.disabled = !supported || !hasReports;
+      elements.readAllReports.textContent = state.speakingKey === "all" ? "읽기 정지" : "기티가 읽기";
+      elements.readAllReports.setAttribute("aria-pressed", String(state.speakingKey === "all"));
+    }
+
+    elements.reportList?.querySelectorAll("[data-read-report]").forEach((button) => {
+      const key = `report-${button.dataset.readReport}`;
+      const isSpeaking = state.speakingKey === key;
+      button.disabled = !supported;
+      button.textContent = isSpeaking ? "정지" : "재생";
+      button.setAttribute("aria-pressed", String(isSpeaking));
+      button.closest(".report-card")?.classList.toggle("is-speaking", isSpeaking);
+    });
+  }
+
+  function stopSpeech() {
+    if (speechSupported()) window.speechSynthesis.cancel();
+    if (state.speechAudio) {
+      state.speechAudio.pause();
+      state.speechAudio.src = "";
+    }
+    if (state.speechAudioUrl) URL.revokeObjectURL(state.speechAudioUrl);
+    state.speechAudio = null;
+    state.speechAudioUrl = "";
+    state.speechUtterance = null;
+    state.speakingKey = "";
+    updateSpeechButtons();
+  }
+
+  function clearSpeechAfter(key) {
+    if (state.speakingKey && state.speakingKey !== key) return;
+    if (state.speechAudioUrl) URL.revokeObjectURL(state.speechAudioUrl);
+    state.speechAudio = null;
+    state.speechAudioUrl = "";
+    state.speechUtterance = null;
+    state.speakingKey = "";
+    updateSpeechButtons();
+  }
+
+  function speakWithBrowserVoice(text, key) {
+    if (!speechSupported()) {
+      setReportStatus("이 브라우저에서는 음성 읽기를 지원하지 않습니다.");
+      updateSpeechButtons();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "ko-KR";
+    utterance.rate = 0.94;
+    utterance.pitch = 1.05;
+    utterance.volume = 1;
+    const voice = KoreanVoice();
+    if (voice) utterance.voice = voice;
+    state.speakingKey = key;
+    state.speechUtterance = utterance;
+    updateSpeechButtons();
+
+    utterance.onstart = () => {
+      state.speakingKey = key;
+      state.speechUtterance = utterance;
+      updateSpeechButtons();
+    };
+    utterance.onend = () => {
+      clearSpeechAfter(key);
+    };
+    utterance.onerror = () => {
+      clearSpeechAfter(key);
+      setReportStatus("기티 음성 읽기를 시작하지 못했습니다. 브라우저 음성 설정을 확인하세요.");
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  async function gitiVoiceUrl(text) {
+    if (window.location.protocol === "file:") {
+      throw new Error("TTS API requires an http page.");
+    }
+
+    const response = await fetch("/api/tts", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "x-kit-role": "teacher"
+      },
+      body: JSON.stringify({
+        role: "teacher",
+        text
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(errorText || "TTS request failed.");
+    }
+
+    const blob = await response.blob();
+    if (!blob.size) throw new Error("Empty TTS audio.");
+    return URL.createObjectURL(blob);
+  }
+
+  async function speakReport(text, key) {
+    if (state.speakingKey === key) {
+      stopSpeech();
+      return;
+    }
+
+    stopSpeech();
+    state.speakingKey = key;
+    updateSpeechButtons();
+    setReportStatus("기티 목소리를 준비하고 있습니다...");
+
+    try {
+      const audioUrl = await gitiVoiceUrl(text);
+      if (state.speakingKey !== key) {
+        URL.revokeObjectURL(audioUrl);
+        return;
+      }
+
+      const audio = new Audio(audioUrl);
+      state.speechAudio = audio;
+      state.speechAudioUrl = audioUrl;
+      audio.onended = () => clearSpeechAfter(key);
+      audio.onerror = () => {
+        clearSpeechAfter(key);
+        setReportStatus("기티 음성을 재생하지 못해 기본 음성으로 읽습니다.");
+        speakWithBrowserVoice(text, key);
+      };
+      await audio.play();
+      setReportStatus("기티가 리포트를 읽고 있습니다.");
+      updateSpeechButtons();
+    } catch (error) {
+      if (state.speakingKey !== key) return;
+      if (speechSupported()) {
+        setReportStatus("기티 전용 음성 연결이 되지 않아 기본 음성으로 읽습니다.");
+        speakWithBrowserVoice(text, key);
+        return;
+      }
+      clearSpeechAfter(key);
+      setReportStatus("기티 음성을 만들지 못했습니다. 서버 API 키와 브라우저 음성 설정을 확인하세요.");
+    }
+  }
+
   function renderReports(reports = state.reports, statusText) {
     if (typeof statusText === "string") setReportStatus(statusText);
     if (!elements.reportList) return;
 
     if (!reports || !reports.length) {
+      stopSpeech();
       elements.reportList.innerHTML = `
         <p class="report-empty">유사도 측정을 누르면 탐정 캐릭터가 팀별 판정 근거를 정리합니다.</p>
       `;
+      updateSpeechButtons();
       return;
     }
 
-    elements.reportList.innerHTML = reports.map((report) => `
+    elements.reportList.innerHTML = reports.map((report, index) => `
       <article class="report-card">
         <img class="report-card__avatar" src="assets/characters/detective-note-mascot.png" alt="" aria-hidden="true">
         <div class="report-card__bubble">
           <strong>${escapeHtml(report.rank ? `${report.rank}위 · ` : "")}${escapeHtml(report.name)} · ${escapeHtml(report.score)}%</strong>
           ${escapeHtml(report.report)}
         </div>
+        <button class="report-voice-btn" type="button" data-read-report="${index}" aria-label="${escapeHtml(report.name)} 리포트 듣기">재생</button>
       </article>
     `).join("");
+    updateSpeechButtons();
   }
 
   async function fetchCaseNoteReports() {
@@ -642,6 +818,19 @@
     elements.scoreAll.addEventListener("click", scoreAll);
     elements.exportCsv.addEventListener("click", exportCsv);
     elements.resetAll.addEventListener("click", resetAll);
+    elements.readAllReports?.addEventListener("click", () => {
+      const reports = state.reports || [];
+      if (!reports.length) return;
+      speakReport(reports.map(reportSpeechText).join(" "), "all");
+    });
+    elements.reportList?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-read-report]");
+      if (!button) return;
+      const report = state.reports[Number(button.dataset.readReport)];
+      if (!report) return;
+      speakReport(reportSpeechText(report), `report-${button.dataset.readReport}`);
+    });
+    window.speechSynthesis?.addEventListener?.("voiceschanged", updateSpeechButtons);
 
     elements.teamCount.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {

@@ -7,6 +7,7 @@ const creditsHandler = require("./api/credits");
 const evidenceCodeHandler = require("./api/evidence-code");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./api/personas");
 const presenceHandler = require("./api/presence");
+const ttsHandler = require("./api/tts");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 8123);
@@ -70,7 +71,9 @@ const mimeTypes = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml; charset=utf-8"
+  ".svg": "image/svg+xml; charset=utf-8",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav"
 };
 
 const safetyReplies = {
@@ -1213,6 +1216,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "POST" && url.pathname === "/api/chat") {
     await handleApiModule(request, response, chatHandler);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/tts") {
+    await handleApiModule(request, response, ttsHandler);
     return;
   }
 

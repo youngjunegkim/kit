@@ -18,6 +18,8 @@
   const lastLoginKey = "kit-last-login-id";
   const fullscreenKey = "kit-fullscreen-start";
   const teacherCodeKey = "kit-teacher-access-code";
+  const teacherMainSoundKey = "kit-teacher-main-sound";
+  const teacherRoomSoundKey = "kit-teacher-room-sound";
   const classKey = "kit-class-section";
   const classLabelKey = "kit-class-label";
   const lastClassKey = "kit-last-class-section";
@@ -150,6 +152,7 @@
       }
       if (account.role === "teacher") {
         sessionStorage.setItem(teacherCodeKey, passwordInput.value.trim());
+        sessionStorage.setItem(teacherMainSoundKey, "1");
       } else {
         sessionStorage.removeItem(teacherCodeKey);
       }
@@ -260,6 +263,8 @@
         sessionStorage.removeItem(classKey);
         sessionStorage.removeItem(classLabelKey);
         sessionStorage.removeItem(teacherCodeKey);
+        sessionStorage.removeItem(teacherMainSoundKey);
+        sessionStorage.removeItem(teacherRoomSoundKey);
         go("school.html");
       });
     });
