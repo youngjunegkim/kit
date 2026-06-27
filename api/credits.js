@@ -165,8 +165,8 @@ module.exports = async function handler(request, response) {
     if (action === "resetteam") {
       const team = normalizeTeam(body.team || actorTeam(request, body));
       const role = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
-      if (role !== "teacher" && role !== "student") {
-        sendJson(response, 403, { error: "Valid role is required.", code: "ROLE_REQUIRED" });
+      if (role !== "teacher") {
+        sendJson(response, 403, { error: "Teacher account is required.", code: "TEACHER_ONLY" });
         return;
       }
       if (!team) {

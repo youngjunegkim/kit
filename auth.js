@@ -242,6 +242,11 @@
 
     if (required === "teacher" && role !== "teacher") {
       go("student.html");
+      return;
+    }
+
+    if (required === "student" && role !== "student") {
+      go("teacher.html");
     }
   }
 

@@ -34,6 +34,18 @@
     technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다.",
     unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
+  const evidenceCatalog = {
+    K9F2W7V: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", image: "assets/evidence-rooms/broadcast.png", position: "84% 58%" },
+    R4B8X1M: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", image: "assets/evidence-rooms/broadcast.png", position: "18% 55%" },
+    Z7N3P6D: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", image: "assets/evidence-rooms/art.png", position: "72% 46%" },
+    L1V9T4C: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", image: "assets/evidence-rooms/art.png", position: "22% 70%" },
+    H5Q2G8S: { room: "교무실", roomId: "office", index: 1, evidence: "교무실 앞 CCTV", image: "assets/evidence-rooms/office.png", position: "20% 16%" },
+    B3K7J1W: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
+    X6M4F9P: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
+    V2D8R5Y: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
+    N7C3G1T: { room: "체육관", roomId: "gym", index: 1, evidence: "강우진의 연습 노트", image: "assets/evidence-rooms/gym.png", position: "37% 76%" },
+    P5W9K2M: { room: "체육관", roomId: "gym", index: 2, evidence: "AI의 USB 오인식 결과", image: "assets/evidence-rooms/gym.png", position: "72% 65%" }
+  };
 
   const state = {
     credits: 0,
@@ -45,7 +57,8 @@
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
-    redeeming: false
+    redeeming: false,
+    evidenceCards: []
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -57,6 +70,11 @@
   const evidenceSubmit = document.querySelector("[data-evidence-submit]");
   const evidenceMessage = document.querySelector("[data-evidence-message]");
   const studentLogList = document.querySelector("[data-student-log-list]");
+  const evidenceBoard = document.querySelector("[data-evidence-board]");
+  const evidenceBoardCount = document.querySelector("[data-evidence-board-count]");
+  const caseNoteArea = document.querySelector("[data-note-key='case']");
+  const caseNoteStatus = document.querySelector("[data-note-status='case']");
+  const clearCaseNote = document.querySelector("[data-clear-note='case']");
   const apiStatus = document.querySelector("[data-api-status]");
 
   function normalize(text) {
@@ -130,6 +148,112 @@
     evidenceMessage.textContent = text;
     evidenceMessage.classList.toggle("is-ok", type === "ok");
     evidenceMessage.classList.toggle("is-bad", type === "bad");
+  }
+
+  function evidenceStorageKey() {
+    return `kit-evidence-cards:${state.team || state.user || "guest"}`;
+  }
+
+  function noteStorageKey() {
+    return `kit-case-note:${state.team || state.user || "guest"}`;
+  }
+
+  function evidenceFromResponse(code, evidence = {}) {
+    const clean = cleanCode(code);
+    const catalog = evidenceCatalog[clean] || Object.values(evidenceCatalog).find((item) => {
+      return item.room === evidence.room && item.evidence === evidence.evidence;
+    }) || {};
+
+    return {
+      code: clean,
+      room: evidence.room || catalog.room || "교실",
+      roomId: catalog.roomId || "",
+      index: Number(catalog.index) || Number(evidence.index) || 1,
+      evidence: evidence.evidence || catalog.evidence || "증거카드",
+      image: catalog.image || "",
+      position: catalog.position || "center",
+      at: new Date().toISOString()
+    };
+  }
+
+  function loadEvidenceCards() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(evidenceStorageKey()) || "[]");
+      state.evidenceCards = Array.isArray(saved) ? saved.filter((card) => card?.code && card?.evidence) : [];
+    } catch {
+      state.evidenceCards = [];
+    }
+  }
+
+  function saveEvidenceCards() {
+    localStorage.setItem(evidenceStorageKey(), JSON.stringify(state.evidenceCards));
+  }
+
+  function storeEvidenceCard(code, evidence) {
+    const card = evidenceFromResponse(code, evidence);
+    state.evidenceCards = [
+      card,
+      ...state.evidenceCards.filter((item) => item.code !== card.code)
+    ].slice(0, 10);
+    saveEvidenceCards();
+    renderEvidenceBoard();
+    return card;
+  }
+
+  function renderEvidenceBoard() {
+    if (!evidenceBoard) return;
+    evidenceBoard.textContent = "";
+    if (evidenceBoardCount) evidenceBoardCount.textContent = `${state.evidenceCards.length}개`;
+
+    if (!state.evidenceCards.length) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-board-empty";
+      empty.textContent = "아직 획득한 증거카드가 없습니다.";
+      evidenceBoard.append(empty);
+      return;
+    }
+
+    state.evidenceCards.forEach((card) => {
+      const item = document.createElement("article");
+      item.className = "evidence-board-card";
+
+      const thumb = document.createElement("img");
+      thumb.className = "evidence-board-thumb";
+      thumb.src = card.image;
+      thumb.alt = `${card.room} 증거 카드 ${card.index}`;
+      thumb.style.objectPosition = card.position || "center";
+
+      const body = document.createElement("div");
+      body.className = "evidence-board-body";
+
+      const meta = document.createElement("span");
+      meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
+
+      const title = document.createElement("strong");
+      title.textContent = card.evidence;
+
+      body.append(meta, title);
+      item.append(thumb, body);
+      evidenceBoard.append(item);
+    });
+  }
+
+  function setupCaseNote() {
+    if (!caseNoteArea) return;
+    caseNoteArea.value = localStorage.getItem(noteStorageKey()) || "";
+    const setStatus = (text) => {
+      if (caseNoteStatus) caseNoteStatus.textContent = text;
+    };
+    caseNoteArea.addEventListener("input", () => {
+      localStorage.setItem(noteStorageKey(), caseNoteArea.value);
+      setStatus("자동 저장");
+    });
+    clearCaseNote?.addEventListener("click", () => {
+      caseNoteArea.value = "";
+      localStorage.removeItem(noteStorageKey());
+      setStatus("비움");
+      caseNoteArea.focus();
+    });
   }
 
   function updateEvidenceControls() {
@@ -345,6 +469,12 @@
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (data.code === "ALREADY_REDEEMED" && data.evidence) {
+          const card = storeEvidenceCard(code, data.evidence);
+          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}를 표시했습니다.`, "bad");
+          if (evidenceInput) evidenceInput.value = "";
+          return;
+        }
         const message = data.code === "ALREADY_REDEEMED"
           ? "이미 사용한 증거 코드입니다."
           : data.code === "INVALID_EVIDENCE_CODE"
@@ -354,7 +484,8 @@
       }
 
       applyCredits(data.credits);
-      setEvidenceMessage(`${state.team}팀 질문권 ${Number(data.added || 3)}개 추가`, "ok");
+      const card = storeEvidenceCard(code, data.evidence);
+      setEvidenceMessage(`${state.team}팀 질문권 ${Number(data.added || 3)}개 추가 · ${card.room} 증거 카드 ${card.index}`, "ok");
       if (evidenceInput) evidenceInput.value = "";
     } catch (error) {
       setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");
@@ -500,6 +631,9 @@
   });
   setCreditText(state.team ? "받기 필요" : "학생 없음");
   setLogCount(0);
+  loadEvidenceCards();
+  renderEvidenceBoard();
+  setupCaseNote();
   renderStudentLogs();
   updateControls();
 

@@ -25,6 +25,10 @@
     return role === "teacher" ? "선생님" : "학생";
   }
 
+  function displayName(account = {}) {
+    return account.label || account.team || account.user || "이름 없음";
+  }
+
   function renderPresence(online = [], emptyText = "아직 접속 중인 계정이 없습니다.") {
     const visible = Array.isArray(online) ? online : [];
     document.querySelectorAll("[data-presence-count]").forEach((node) => {
@@ -48,7 +52,7 @@
 
         const main = document.createElement("span");
         main.className = "presence-name";
-        main.textContent = account.label || account.user;
+        main.textContent = displayName(account);
 
         const meta = document.createElement("span");
         meta.className = "presence-role";

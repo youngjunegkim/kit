@@ -5,19 +5,37 @@
   const suspects = {
     kangWoojin: {
       name: "강우진",
+      image: "assets/suspect-card-kang.png",
+      alt: "강우진 용의자 카드",
       greeting: "안녕하세요. 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요. 어떤 걸 확인하면 될까요?"
     },
     seoHarin: {
       name: "서하린",
+      image: "assets/suspect-card-harin.png",
+      alt: "서하린 용의자 카드",
       greeting: "안녕하세요. 서하린입니다. 제가 시스템 로그를 본 건 맞지만, 시험지를 유출했다는 뜻은 아니에요. 어떤 기록부터 확인할까요?"
     },
     choiDaniel: {
       name: "최다니엘",
+      image: "assets/suspect-card-daniel.png",
+      alt: "최다니엘 용의자 카드",
       greeting: "안녕하세요. 최다니엘입니다. 제가 교무실 근처 복도에 있었던 건 맞지만, 교무실 안에 들어간 건 아니에요. 어떤 장면을 확인하고 싶으세요?"
     }
   };
 
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+  const evidenceCatalog = {
+    K9F2W7V: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", image: "assets/evidence-rooms/broadcast.png", position: "84% 58%" },
+    R4B8X1M: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", image: "assets/evidence-rooms/broadcast.png", position: "18% 55%" },
+    Z7N3P6D: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", image: "assets/evidence-rooms/art.png", position: "72% 46%" },
+    L1V9T4C: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", image: "assets/evidence-rooms/art.png", position: "22% 70%" },
+    H5Q2G8S: { room: "교무실", roomId: "office", index: 1, evidence: "교무실 앞 CCTV", image: "assets/evidence-rooms/office.png", position: "20% 16%" },
+    B3K7J1W: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
+    X6M4F9P: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
+    V2D8R5Y: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
+    N7C3G1T: { room: "체육관", roomId: "gym", index: 1, evidence: "강우진의 연습 노트", image: "assets/evidence-rooms/gym.png", position: "37% 76%" },
+    P5W9K2M: { room: "체육관", roomId: "gym", index: 2, evidence: "AI의 USB 오인식 결과", image: "assets/evidence-rooms/gym.png", position: "72% 65%" }
+  };
 
   const state = {
     roomId: page.dataset.roomId || "",
@@ -48,8 +66,12 @@
     evidenceTeamSelect: null,
     evidenceTotalLabel: null,
     evidenceTotalCount: null,
+    evidenceReveal: null,
     resetCreditsButton: null,
     suspectSelect: document.querySelector("[data-suspect-select]"),
+    suspectPreview: null,
+    suspectImage: null,
+    suspectCaption: null,
     chatState: document.querySelector("[data-chat-state]"),
     messages: document.querySelector("[data-chat-messages]"),
     chatForm: document.querySelector("[data-chat-form]"),
@@ -129,6 +151,42 @@
     nodes.messages.scrollTop = nodes.messages.scrollHeight;
   }
 
+  function ensureSuspectPreview() {
+    if (nodes.suspectPreview) return;
+    const chatCard = document.querySelector(".chat-card");
+    const chatHead = chatCard?.querySelector(".chat-head");
+    if (!chatCard || !chatHead) return;
+
+    const figure = document.createElement("figure");
+    figure.className = "suspect-preview";
+    figure.setAttribute("data-suspect-preview", "");
+
+    const image = document.createElement("img");
+    image.setAttribute("data-suspect-image", "");
+    image.decoding = "async";
+
+    const caption = document.createElement("figcaption");
+    caption.setAttribute("data-suspect-caption", "");
+
+    figure.append(image, caption);
+    chatHead.after(figure);
+
+    nodes.suspectPreview = figure;
+    nodes.suspectImage = image;
+    nodes.suspectCaption = caption;
+  }
+
+  function renderSuspectPreview() {
+    ensureSuspectPreview();
+    const suspectId = ensureSuspect(state.currentSuspect);
+    const suspect = suspects[suspectId];
+    if (nodes.suspectImage) {
+      nodes.suspectImage.src = suspect.image;
+      nodes.suspectImage.alt = suspect.alt;
+    }
+    setText(nodes.suspectCaption, suspect.name);
+  }
+
   function applyCredits(data = {}, team = state.team) {
     state.credits = Math.max(0, Number(data.credits) || 0);
     state.count = Math.max(0, Number(data.count ?? state.count) || 0);
@@ -175,6 +233,80 @@
 
   function evidenceTeam() {
     return state.role === "teacher" ? state.evidenceTeam : state.team;
+  }
+
+  function evidenceStorageKey(team = evidenceTeam()) {
+    return `kit-evidence-cards:${team || state.user || "guest"}`;
+  }
+
+  function evidenceFromResponse(code, evidence = {}) {
+    const clean = cleanCode(code);
+    const catalog = evidenceCatalog[clean] || Object.values(evidenceCatalog).find((item) => {
+      return item.room === evidence.room && item.evidence === evidence.evidence;
+    }) || {};
+
+    return {
+      code: clean,
+      room: evidence.room || catalog.room || state.roomName,
+      roomId: catalog.roomId || state.roomId,
+      index: Number(catalog.index) || Number(evidence.index) || 1,
+      evidence: evidence.evidence || catalog.evidence || "증거카드",
+      image: catalog.image || "",
+      position: catalog.position || "center",
+      at: new Date().toISOString()
+    };
+  }
+
+  function loadEvidenceCards(team = evidenceTeam()) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(evidenceStorageKey(team)) || "[]");
+      return Array.isArray(saved) ? saved.filter((card) => card?.code && card?.evidence) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveEvidenceCards(cards, team = evidenceTeam()) {
+    localStorage.setItem(evidenceStorageKey(team), JSON.stringify(cards));
+  }
+
+  function renderEvidenceReveal(card) {
+    if (!nodes.evidenceReveal) return;
+    nodes.evidenceReveal.textContent = "";
+    nodes.evidenceReveal.hidden = !card;
+    if (!card) return;
+
+    const title = document.createElement("h3");
+    title.textContent = "확인한 증거카드";
+
+    const body = document.createElement("article");
+    body.className = "obtained-evidence-card";
+
+    const image = document.createElement("img");
+    image.src = card.image;
+    image.alt = `${card.room} 증거 카드 ${card.index}`;
+    image.style.objectPosition = card.position || "center";
+
+    const info = document.createElement("div");
+    const meta = document.createElement("span");
+    meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
+    const text = document.createElement("strong");
+    text.textContent = card.evidence;
+
+    info.append(meta, text);
+    body.append(image, info);
+    nodes.evidenceReveal.append(title, body);
+  }
+
+  function storeEvidenceCard(code, evidence, team = evidenceTeam()) {
+    const card = evidenceFromResponse(code, evidence);
+    const cards = [
+      card,
+      ...loadEvidenceCards(team).filter((item) => item.code !== card.code)
+    ].slice(0, 10);
+    saveEvidenceCards(cards, team);
+    renderEvidenceReveal(card);
+    return card;
   }
 
   function setEvidenceTotal(team, credits) {
@@ -299,6 +431,12 @@
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (data.code === "ALREADY_REDEEMED" && data.evidence) {
+          const card = storeEvidenceCard(code, data.evidence, targetTeam);
+          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}를 표시했습니다.`, "bad");
+          if (nodes.evidenceInput) nodes.evidenceInput.value = "";
+          return;
+        }
         const message = data.code === "ALREADY_REDEEMED"
           ? "이미 사용한 증거 코드입니다."
           : data.code === "INVALID_EVIDENCE_CODE"
@@ -307,7 +445,8 @@
         throw new Error(message);
       }
 
-      setEvidenceMessage(`${targetTeam}팀 질문권 3개 추가: ${data.evidence.evidence}`, "ok");
+      const card = storeEvidenceCard(code, data.evidence, targetTeam);
+      setEvidenceMessage(`${targetTeam}팀 질문권 3개 추가 · ${card.room} 증거 카드 ${card.index}`, "ok");
       if (nodes.evidenceInput) nodes.evidenceInput.value = "";
       setEvidenceTotal(targetTeam, data.credits);
       if (state.role === "student") {
@@ -323,6 +462,11 @@
   }
 
   async function resetTeamCredits() {
+    if (state.role !== "teacher") {
+      setEvidenceMessage("받은 질문권 초기화는 선생님 계정에서만 가능합니다.", "bad");
+      return;
+    }
+
     const targetTeam = evidenceTeam();
     if (!targetTeam) {
       setEvidenceMessage("초기화할 팀을 선택하세요.", "bad");
@@ -466,13 +610,22 @@
       nodes.evidenceTotalLabel = totalLabel;
       nodes.evidenceTotalCount = totalCount;
 
-      const resetButton = document.createElement("button");
-      resetButton.className = "reset-credit-btn";
-      resetButton.type = "button";
-      resetButton.textContent = "받은 질문권 초기화";
-      totalCard.after(resetButton);
-      nodes.resetCreditsButton = resetButton;
-      resetButton.addEventListener("click", resetTeamCredits);
+      const reveal = document.createElement("div");
+      reveal.className = "obtained-evidence";
+      reveal.setAttribute("data-obtained-evidence", "");
+      reveal.hidden = true;
+      totalCard.after(reveal);
+      nodes.evidenceReveal = reveal;
+
+      if (state.role === "teacher") {
+        const resetButton = document.createElement("button");
+        resetButton.className = "reset-credit-btn";
+        resetButton.type = "button";
+        resetButton.textContent = "받은 질문권 초기화";
+        totalCard.after(resetButton);
+        nodes.resetCreditsButton = resetButton;
+        resetButton.addEventListener("click", resetTeamCredits);
+      }
     }
 
     if (state.role === "teacher" && nodes.evidenceForm && !state.team) {
@@ -501,6 +654,7 @@
     nodes.suspectSelect?.addEventListener("change", () => {
       state.currentSuspect = ensureSuspect(nodes.suspectSelect.value);
       setChatState("대기");
+      renderSuspectPreview();
       renderMessages();
       updateControls();
     });
@@ -511,6 +665,7 @@
     nodes.evidenceForm?.addEventListener("submit", submitEvidenceCode);
     nodes.chatForm?.addEventListener("submit", submitQuestion);
 
+    renderSuspectPreview();
     renderMessages();
     updateControls();
     refreshCredits();

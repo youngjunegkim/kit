@@ -327,6 +327,62 @@ button {
   font-weight: 950;
 }
 
+.obtained-evidence {
+  display: grid;
+  gap: 7px;
+}
+
+.obtained-evidence[hidden] {
+  display: none;
+}
+
+.obtained-evidence h3 {
+  margin: 0;
+  color: #2a1e13;
+  font-size: 0.86rem;
+  line-height: 1.2;
+  font-weight: 950;
+}
+
+.obtained-evidence-card {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  border: 1px solid #d6c49b;
+  border-radius: 7px;
+  background: #fff;
+  padding: 7px;
+}
+
+.obtained-evidence-card img {
+  width: 78px;
+  aspect-ratio: 1 / 0.86;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #17110d;
+}
+
+.obtained-evidence-card div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.obtained-evidence-card span {
+  color: #8f1717;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.obtained-evidence-card strong {
+  color: #24180f;
+  font-size: 0.84rem;
+  line-height: 1.28;
+  font-weight: 950;
+  word-break: keep-all;
+}
+
 .reset-credit-btn {
   min-height: 32px;
   border: 1px solid #d6c49b;
@@ -354,7 +410,7 @@ button {
 .chat-card {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 .chat-head {
@@ -373,6 +429,33 @@ button {
   color: #8f1717;
   font-size: 0.8rem;
   font-weight: 950;
+}
+
+.suspect-preview {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid #e2d6b7;
+  background: #160f0a;
+}
+
+.suspect-preview img {
+  display: block;
+  width: 100%;
+  height: clamp(142px, 24vh, 210px);
+  object-fit: cover;
+  object-position: center 18%;
+  border: 1px solid rgba(225, 174, 45, 0.58);
+  border-radius: 7px;
+  background: #000;
+}
+
+.suspect-preview figcaption {
+  color: #f7ead0;
+  font-size: 0.9rem;
+  font-weight: 950;
+  text-align: center;
 }
 
 .messages {
@@ -465,6 +548,10 @@ input:disabled {
   .interrogation-panel {
     position: static;
     max-height: none;
+  }
+
+  .suspect-preview img {
+    height: clamp(150px, 38vw, 260px);
   }
 
   .room-image {

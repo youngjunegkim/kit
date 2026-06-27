@@ -268,6 +268,7 @@
 
     .presence-name {
       min-width: 0;
+      color: #18202b;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -572,6 +573,16 @@
 
     .student-main {
       min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .student-content {
+      min-width: 0;
+      display: grid;
+      gap: 16px;
     }
 
     .credit-pill {
@@ -993,6 +1004,77 @@
       border-color: #d6c49b;
     }
 
+    .case-note-card {
+      position: sticky;
+      top: 18px;
+    }
+
+    .case-note-card .note-area {
+      min-height: 420px;
+    }
+
+    .evidence-vault-card {
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+      overflow: hidden;
+    }
+
+    .evidence-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      padding: 12px;
+      background: #fffaf0;
+    }
+
+    .evidence-board-card {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      border: 1px solid #e4d8bd;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+    }
+
+    .evidence-board-thumb {
+      width: 92px;
+      aspect-ratio: 1 / 0.82;
+      object-fit: cover;
+      border-radius: 7px;
+      background: #16110d;
+    }
+
+    .evidence-board-body {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .evidence-board-body span {
+      color: #8f1717;
+      font-size: 0.76rem;
+      font-weight: 950;
+    }
+
+    .evidence-board-body strong {
+      color: #2a1e13;
+      font-size: 0.94rem;
+      line-height: 1.28;
+      font-weight: 950;
+      word-break: keep-all;
+    }
+
+    .evidence-board-empty {
+      margin: 0;
+      color: #786850;
+      font-weight: 850;
+    }
+
     .footer-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -1045,6 +1127,14 @@
         grid-template-columns: 1fr;
       }
 
+      .student-main {
+        grid-template-columns: 1fr;
+      }
+
+      .case-note-card {
+        position: static;
+      }
+
       .student-menu {
         position: static;
       }
@@ -1066,14 +1156,13 @@
         align-items: start;
       }
 
-      .suspect-card,
-      .note-card {
+      .suspect-card {
         grid-column: 1;
       }
 
       .chat-card {
         grid-column: 2;
-        grid-row: 1 / span 2;
+        grid-row: 1;
         grid-template-rows: auto minmax(360px, 48vh) auto;
       }
 
@@ -1182,6 +1271,7 @@
       </aside>
 
       <div class="student-main">
+        <div class="student-content">
         <section class="suspect-grid" aria-label="용의자 심문">
           <article class="suspect-column" data-suspect-panel data-suspect="kangWoojin" data-suspect-name="강우진">
             <figure class="suspect-card">
@@ -1199,15 +1289,6 @@
             <input class="chat-input" id="chatKangWoojin" type="text" autocomplete="off" data-chat-input placeholder="강우진에게 질문하기">
             <button class="send-btn" type="submit" data-chat-submit>전송</button>
           </form>
-        </section>
-
-        <section class="note-card" aria-label="강우진 심문 노트">
-          <h3>강우진 심문 노트</h3>
-          <textarea class="note-area" data-note-key="kang-woojin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
-          <div class="note-tools">
-            <span data-note-status="kang-woojin">자동 저장</span>
-            <button class="clear-note" type="button" data-clear-note="kang-woojin">비우기</button>
-          </div>
         </section>
       </article>
 
@@ -1228,15 +1309,6 @@
             <button class="send-btn" type="submit" data-chat-submit>전송</button>
           </form>
         </section>
-
-        <section class="note-card" aria-label="서하린 심문 노트">
-          <h3>서하린 심문 노트</h3>
-          <textarea class="note-area" data-note-key="seo-harin" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
-          <div class="note-tools">
-            <span data-note-status="seo-harin">자동 저장</span>
-            <button class="clear-note" type="button" data-clear-note="seo-harin">비우기</button>
-          </div>
-        </section>
       </article>
 
       <article class="suspect-column" data-suspect-panel data-suspect="choiDaniel" data-suspect-name="최다니엘">
@@ -1256,18 +1328,26 @@
             <button class="send-btn" type="submit" data-chat-submit>전송</button>
           </form>
         </section>
-
-        <section class="note-card" aria-label="최다니엘 심문 노트">
-          <h3>최다니엘 심문 노트</h3>
-          <textarea class="note-area" data-note-key="choi-daniel" placeholder="1.&#10;2.&#10;3.&#10;4.&#10;5."></textarea>
-          <div class="note-tools">
-            <span data-note-status="choi-daniel">자동 저장</span>
-            <button class="clear-note" type="button" data-clear-note="choi-daniel">비우기</button>
-          </div>
-        </section>
       </article>
     </section>
 
+        <section class="evidence-vault-card" aria-label="획득한 증거카드">
+          <div class="student-log-head">
+            <h2>획득한 증거카드</h2>
+            <strong data-evidence-board-count>0개</strong>
+          </div>
+          <div class="evidence-board" data-evidence-board></div>
+        </section>
+        </div>
+
+        <aside class="note-card case-note-card" aria-label="심문 노트">
+          <h3>심문 노트</h3>
+          <textarea class="note-area" data-note-key="case" placeholder="심문 내용을 자유롭게 정리하세요."></textarea>
+          <div class="note-tools">
+            <span data-note-status="case">자동 저장</span>
+            <button class="clear-note" type="button" data-clear-note="case">비우기</button>
+          </div>
+        </aside>
       </div>
     </div>
   </main>
