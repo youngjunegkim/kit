@@ -6,7 +6,6 @@
   const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
-  const teacherCodeKey = "kit-teacher-access-code";
   let syncStatus = null;
   let remainingCredits = { ...emptyByTeam };
   let grantedCredits = { ...emptyByTeam };
@@ -68,17 +67,10 @@
       "x-kit-role": role,
       "x-kit-class": classId
     };
-    const teacherCode = sessionStorage.getItem(teacherCodeKey) || "";
-    if (teacherCode) headers["x-teacher-code"] = safeHeaderValue(teacherCode);
     return headers;
   }
 
-  function safeHeaderValue(value) {
-    const text = String(value || "").trim().replace(/[\r\n]/g, "");
-    return /[^\u0000-\u00ff]/.test(text) ? encodeURIComponent(text) : text;
-  }
-
-  async function requestCredits(url, options = {}, retry = true) {
+  async function requestCredits(url, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -87,19 +79,6 @@
       }
     });
     const data = await response.json().catch(() => ({}));
-
-    if (response.status === 401 && data.code === "TEACHER_CODE_REQUIRED" && retry) {
-      const code = window.prompt("선생용 보안 코드를 입력하세요. Vercel 환경변수 TEACHER_ACCESS_CODE 값입니다.");
-      if (!code || !code.trim()) {
-        throw new Error("선생용 보안 코드가 필요합니다.");
-      }
-      sessionStorage.setItem(teacherCodeKey, code.trim());
-      return requestCredits(url, options, false);
-    }
-
-    if (response.status === 401) {
-      sessionStorage.removeItem(teacherCodeKey);
-    }
 
     return { response, data };
   }

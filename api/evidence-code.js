@@ -96,32 +96,15 @@ function cleanCode(value) {
   return String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
 
-function teacherAccessCode() {
-  return String(process.env.TEACHER_ACCESS_CODE || process.env.KIT_TEACHER_ACCESS_CODE || "").trim();
-}
-
 function isTeacher(request, body = {}) {
   return String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase() === "teacher";
-}
-
-function teacherCodeFor(request, body = {}) {
-  return String(headerValue(request, "x-teacher-code") || body.teacherCode || "").trim();
 }
 
 function teacherAuthError(request, body = {}) {
   if (!isTeacher(request, body)) {
     return { status: 403, code: "TEACHER_ROLE_REQUIRED", error: "Teacher role is required." };
   }
-
-  const configuredCode = teacherAccessCode();
-  if (!configuredCode) return null;
-  if (teacherCodeFor(request, body) === configuredCode) return null;
-
-  return {
-    status: 401,
-    code: "TEACHER_CODE_REQUIRED",
-    error: "Teacher access code is required."
-  };
+  return null;
 }
 
 function evidenceCreditTotals(logs = []) {
