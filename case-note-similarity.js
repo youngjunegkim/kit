@@ -87,7 +87,8 @@
     speakingKey: "",
     speechUtterance: null,
     speechAudio: null,
-    speechAudioUrl: ""
+    speechAudioUrl: "",
+    speechSessionId: 0
   };
 
   function createTeam(name, number) {
@@ -419,6 +420,7 @@
   }
 
   function stopSpeech() {
+    state.speechSessionId += 1;
     if (speechSupported()) window.speechSynthesis.cancel();
     if (state.speechAudio) {
       state.speechAudio.pause();
@@ -432,7 +434,8 @@
     updateSpeechButtons();
   }
 
-  function clearSpeechAfter(key) {
+  function clearSpeechAfter(key, sessionId) {
+    if (sessionId !== undefined && state.speechSessionId !== sessionId) return;
     if (state.speakingKey && state.speakingKey !== key) return;
     if (state.speechAudioUrl) URL.revokeObjectURL(state.speechAudioUrl);
     state.speechAudio = null;
@@ -442,11 +445,16 @@
     updateSpeechButtons();
   }
 
-  function speakWithBrowserVoice(text, key) {
+  function speakWithBrowserVoice(text, key, sessionId) {
     if (!speechSupported()) {
       setReportStatus("이 브라우저에서는 음성 읽기를 지원하지 않습니다.");
       updateSpeechButtons();
       return;
+    }
+    if (sessionId === undefined) {
+      stopSpeech();
+      sessionId = state.speechSessionId + 1;
+      state.speechSessionId = sessionId;
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -461,15 +469,16 @@
     updateSpeechButtons();
 
     utterance.onstart = () => {
+      if (state.speechSessionId !== sessionId) return;
       state.speakingKey = key;
       state.speechUtterance = utterance;
       updateSpeechButtons();
     };
     utterance.onend = () => {
-      clearSpeechAfter(key);
+      clearSpeechAfter(key, sessionId);
     };
     utterance.onerror = () => {
-      clearSpeechAfter(key);
+      clearSpeechAfter(key, sessionId);
       setReportStatus("기티 음성 읽기를 시작하지 못했습니다. 브라우저 음성 설정을 확인하세요.");
     };
 
@@ -510,13 +519,15 @@
     }
 
     stopSpeech();
+    const sessionId = state.speechSessionId + 1;
+    state.speechSessionId = sessionId;
     state.speakingKey = key;
     updateSpeechButtons();
     setReportStatus("기티 목소리를 준비하고 있습니다...");
 
     try {
       const audioUrl = await gitiVoiceUrl(text);
-      if (state.speakingKey !== key) {
+      if (state.speechSessionId !== sessionId || state.speakingKey !== key) {
         URL.revokeObjectURL(audioUrl);
         return;
       }
@@ -524,23 +535,36 @@
       const audio = new Audio(audioUrl);
       state.speechAudio = audio;
       state.speechAudioUrl = audioUrl;
-      audio.onended = () => clearSpeechAfter(key);
+      audio.onended = () => clearSpeechAfter(key, sessionId);
       audio.onerror = () => {
-        clearSpeechAfter(key);
+        if (state.speechSessionId !== sessionId) return;
+        clearSpeechAfter(key, sessionId);
         setReportStatus("기티 음성을 재생하지 못해 기본 음성으로 읽습니다.");
-        speakWithBrowserVoice(text, key);
+        speakWithBrowserVoice(text, key, sessionId);
       };
       await audio.play();
+      if (state.speechSessionId !== sessionId || state.speakingKey !== key) {
+        audio.pause();
+        audio.src = "";
+        return;
+      }
       setReportStatus("기티가 리포트를 읽고 있습니다.");
       updateSpeechButtons();
     } catch (error) {
-      if (state.speakingKey !== key) return;
+      if (state.speechSessionId !== sessionId || state.speakingKey !== key) return;
+      if (state.speechAudio) {
+        state.speechAudio.pause();
+        state.speechAudio.src = "";
+      }
+      if (state.speechAudioUrl) URL.revokeObjectURL(state.speechAudioUrl);
+      state.speechAudio = null;
+      state.speechAudioUrl = "";
       if (speechSupported()) {
         setReportStatus("기티 전용 음성 연결이 되지 않아 기본 음성으로 읽습니다.");
-        speakWithBrowserVoice(text, key);
+        speakWithBrowserVoice(text, key, sessionId);
         return;
       }
-      clearSpeechAfter(key);
+      clearSpeechAfter(key, sessionId);
       setReportStatus("기티 음성을 만들지 못했습니다. 서버 API 키와 브라우저 음성 설정을 확인하세요.");
     }
   }

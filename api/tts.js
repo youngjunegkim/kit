@@ -35,7 +35,7 @@ function ttsModel() {
 }
 
 function ttsVoice() {
-  return String(process.env.OPENAI_TTS_VOICE || "shimmer").trim();
+  return String(process.env.OPENAI_TTS_VOICE || "coral").trim();
 }
 
 function cleanSpeechText(value) {
@@ -92,10 +92,12 @@ module.exports = async function handler(request, response) {
         response_format: "mp3",
         input: text,
         instructions: [
-          "너는 사건 추리 수업을 도와주는 작은 탐정 캐릭터 '기티'다.",
-          "한국어로 밝고 호기심 많은 캐릭터처럼 말한다.",
-          "너무 빠르지 않게 또박또박 말하되, 중요한 순위와 점수는 살짝 강조한다.",
-          "과장된 연기보다 학생들이 듣기 좋은 명확한 안내 목소리를 유지한다."
+          "You are 'Giti', a tiny detective mascot for a classroom mystery game.",
+          "Speak in Korean with a bright, playful, character-like voice: curious, clever, and slightly mischievous.",
+          "Use a lively rhythm with small dramatic pauses before ranks, scores, and evidence words.",
+          "Keep the pitch a little higher and warmer than a normal narrator, but do not sound like a baby.",
+          "Sound like an animated detective sidekick explaining clues to students, not like a formal announcer.",
+          "Do not rush. Make the report feel suspenseful, friendly, and fun."
         ].join(" ")
       })
     });
