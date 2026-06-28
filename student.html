@@ -990,12 +990,20 @@
       overflow: hidden;
     }
 
-    .evidence-board {
+    .evidence-vault-layout {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.52fr);
       gap: 10px;
       padding: 12px;
       background: #fffaf0;
+    }
+
+    .evidence-board {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      align-content: start;
     }
 
     .evidence-board-card {
@@ -1008,6 +1016,16 @@
       border-radius: 8px;
       background: #fff;
       padding: 8px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .evidence-board-card:hover,
+    .evidence-board-card:focus-visible,
+    .evidence-board-card.is-active {
+      border-color: #a31616;
+      box-shadow: 0 0 0 3px rgba(163, 22, 22, 0.12);
+      outline: none;
     }
 
     .evidence-board-thumb {
@@ -1042,6 +1060,105 @@
       margin: 0;
       color: #786850;
       font-weight: 850;
+    }
+
+    .evidence-room-detail {
+      min-width: 0;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      border: 1px solid #e4d8bd;
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+    }
+
+    .evidence-room-empty {
+      margin: 0;
+      color: #786850;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      font-weight: 850;
+      word-break: keep-all;
+    }
+
+    .evidence-room-hero {
+      display: grid;
+      gap: 8px;
+    }
+
+    .evidence-room-hero img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #16110d;
+      border: 1px solid #e4d8bd;
+    }
+
+    .evidence-room-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .evidence-room-title h3 {
+      margin: 0;
+      color: #2a1e13;
+      font-size: 1.02rem;
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .evidence-room-title span {
+      flex: 0 0 auto;
+      color: #8f1717;
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .evidence-room-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .evidence-room-card {
+      display: grid;
+      grid-template-columns: 84px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      border: 1px solid #eadfc7;
+      border-radius: 8px;
+      background: #fffaf0;
+      padding: 8px;
+    }
+
+    .evidence-room-card img {
+      display: block;
+      width: 84px;
+      aspect-ratio: 1 / 0.78;
+      object-fit: cover;
+      border-radius: 7px;
+      background: #16110d;
+    }
+
+    .evidence-room-card span {
+      display: block;
+      color: #8f1717;
+      font-size: 0.74rem;
+      font-weight: 950;
+    }
+
+    .evidence-room-card strong {
+      display: block;
+      margin-top: 4px;
+      color: #2a1e13;
+      font-size: 0.9rem;
+      line-height: 1.28;
+      font-weight: 950;
+      word-break: keep-all;
     }
 
     .footer-grid {
@@ -1117,6 +1234,10 @@
       }
 
       .suspect-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .evidence-vault-layout {
         grid-template-columns: 1fr;
       }
 
@@ -1297,7 +1418,12 @@
             <h2>획득한 증거카드</h2>
             <strong data-evidence-board-count>0개</strong>
           </div>
-          <div class="evidence-board" data-evidence-board></div>
+          <div class="evidence-vault-layout">
+            <div class="evidence-board" data-evidence-board></div>
+            <aside class="evidence-room-detail" data-evidence-room-detail aria-live="polite">
+              <p class="evidence-room-empty">증거카드를 누르면 교실 사진과 해당 교실에서 얻은 증거만 표시됩니다.</p>
+            </aside>
+          </div>
         </section>
         </div>
 

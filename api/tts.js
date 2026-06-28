@@ -1,6 +1,21 @@
 const { applyCors, handleCorsPreflight, isAllowedOrigin } = require("./_origin");
 
 const maxSpeechChars = Number(process.env.TTS_MAX_CHARS || 1400);
+const builtInVoices = new Set([
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar"
+]);
 
 function headerValue(request, name) {
   const value = request.headers?.[name.toLowerCase()] || request.headers?.[name];
@@ -36,6 +51,11 @@ function ttsModel() {
 
 function ttsVoice() {
   return String(process.env.OPENAI_TTS_VOICE || "coral").trim();
+}
+
+function requestedVoice(value) {
+  const voice = String(value || "").trim().toLowerCase();
+  return builtInVoices.has(voice) ? voice : ttsVoice();
 }
 
 function cleanSpeechText(value) {
@@ -88,7 +108,7 @@ module.exports = async function handler(request, response) {
       },
       body: JSON.stringify({
         model: ttsModel(),
-        voice: ttsVoice(),
+        voice: requestedVoice(body.voice),
         response_format: "mp3",
         input: text,
         instructions: [

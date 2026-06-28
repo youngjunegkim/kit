@@ -205,6 +205,7 @@
       grid-template-columns: 108px minmax(0, 1fr);
       gap: 14px;
       align-items: center;
+      width: 100%;
       min-height: 138px;
       padding: 12px;
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -212,8 +213,10 @@
       background: rgba(14, 24, 38, 0.9);
       color: #f7f9fc;
       text-decoration: none;
+      text-align: left;
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
       transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      cursor: zoom-in;
     }
 
     .suspect-link:hover,
@@ -257,6 +260,56 @@
       font-size: 0.92rem;
       line-height: 1.45;
       word-break: keep-all;
+    }
+
+    .lightbox-open {
+      overflow: hidden;
+    }
+
+    .card-lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.92);
+    }
+
+    .card-lightbox[hidden] {
+      display: none;
+    }
+
+    .card-lightbox__image {
+      display: block;
+      width: auto;
+      max-width: min(92vw, 720px);
+      height: auto;
+      max-height: 92vh;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 22px 80px rgba(0, 0, 0, 0.62);
+    }
+
+    .card-lightbox__close {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      background: #fff4d8;
+      color: #24180f;
+      font-size: 1.1rem;
+      font-weight: 950;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+    }
+
+    .card-lightbox__close:hover,
+    .card-lightbox__close:focus-visible {
+      background: #f3342f;
+      color: #fff;
+      outline: none;
     }
 
     .case-note-action {
@@ -1034,7 +1087,7 @@
       </div>
 
       <div class="suspect-strip" aria-label="용의자 선택">
-        <a class="suspect-link" href="teacherroom.html" aria-label="강우진 조사 화면으로 이동">
+        <button class="suspect-link" type="button" data-suspect-card-src="assets/suspect-card-kang.png" data-suspect-card-alt="강우진 용의자 카드" aria-label="강우진 용의자 카드 크게 보기">
           <div class="suspect-photo">
             <img src="assets/characters/kang-woojin.png" alt="축구부 학생 강우진">
           </div>
@@ -1042,9 +1095,9 @@
             <h2>강우진</h2>
             <p>축구부 소속. 운동장에 자주 보이는 활발한 학생.</p>
           </div>
-        </a>
+        </button>
 
-        <a class="suspect-link" href="harinroom.html" aria-label="서하린 조사 화면으로 이동">
+        <button class="suspect-link" type="button" data-suspect-card-src="assets/suspect-card-harin.png" data-suspect-card-alt="서하린 용의자 카드" aria-label="서하린 용의자 카드 크게 보기">
           <div class="suspect-photo">
             <img src="assets/characters/ai-tech-girl.png" alt="AI와 컴퓨터를 잘 다루는 서하린">
           </div>
@@ -1052,9 +1105,9 @@
             <h2>서하린</h2>
             <p>차분하고 꼼꼼한 성격. 컴퓨터 사용에 익숙한 학생.</p>
           </div>
-        </a>
+        </button>
 
-        <a class="suspect-link" href="danielroom.html" aria-label="최다니엘 조사 화면으로 이동">
+        <button class="suspect-link" type="button" data-suspect-card-src="assets/suspect-card-daniel.png" data-suspect-card-alt="최다니엘 용의자 카드" aria-label="최다니엘 용의자 카드 크게 보기">
           <div class="suspect-photo">
             <img src="assets/characters/alibi-black-boy.png" alt="교무실 근처에서 목격된 최다니엘">
           </div>
@@ -1062,7 +1115,7 @@
             <h2>최다니엘</h2>
             <p>조용하고 성실한 편. 복도와 체육관 근처에서 자주 보이는 학생.</p>
           </div>
-        </a>
+        </button>
       </div>
 
       <div class="case-note-action">
@@ -1316,10 +1369,51 @@
     </aside>
   </main>
 
+  <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="용의자 카드 확대 보기">
+    <button class="card-lightbox__close" type="button" data-close-card aria-label="닫기">X</button>
+    <img class="card-lightbox__image" data-card-lightbox-image alt="">
+  </div>
+
   <script src="clock.js"></script>
   <script src="presence.js?v=manual-presence-3"></script>
   <script src="teacher-sounds.js"></script>
   <script src="dashboard.js"></script>
+  <script>
+    (() => {
+      const lightbox = document.querySelector("[data-card-lightbox]");
+      const image = document.querySelector("[data-card-lightbox-image]");
+      const closeButton = document.querySelector("[data-close-card]");
+      const triggers = document.querySelectorAll("[data-suspect-card-src]");
+
+      function openCard(trigger) {
+        if (!lightbox || !image || !trigger) return;
+        image.src = trigger.dataset.suspectCardSrc || "";
+        image.alt = trigger.dataset.suspectCardAlt || "용의자 카드";
+        lightbox.hidden = false;
+        document.body.classList.add("lightbox-open");
+        closeButton?.focus({ preventScroll: true });
+      }
+
+      function closeCard() {
+        if (!lightbox || !image) return;
+        lightbox.hidden = true;
+        image.removeAttribute("src");
+        document.body.classList.remove("lightbox-open");
+      }
+
+      triggers.forEach((trigger) => {
+        trigger.addEventListener("click", () => openCard(trigger));
+      });
+
+      closeButton?.addEventListener("click", closeCard);
+      lightbox?.addEventListener("click", (event) => {
+        if (event.target === lightbox) closeCard();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && lightbox && !lightbox.hidden) closeCard();
+      });
+    })();
+  </script>
 </body>
 </html>
 

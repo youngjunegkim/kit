@@ -77,7 +77,17 @@
     averageScore: document.querySelector("[data-average-score]"),
     reportStatus: document.querySelector("[data-report-status]"),
     readAllReports: document.querySelector("[data-read-all-reports]"),
-    reportList: document.querySelector("[data-report-list]")
+    reportList: document.querySelector("[data-report-list]"),
+    revealStage: document.querySelector("[data-reveal-stage]"),
+    revealEyebrow: document.querySelector("[data-reveal-eyebrow]"),
+    revealTitle: document.querySelector("[data-reveal-title]"),
+    revealScore: document.querySelector("[data-reveal-score]"),
+    revealBar: document.querySelector("[data-reveal-bar]"),
+    revealSummary: document.querySelector("[data-reveal-summary]"),
+    revealReport: document.querySelector("[data-reveal-report]"),
+    revealProgress: document.querySelector("[data-reveal-progress]"),
+    revealNext: document.querySelector("[data-reveal-next]"),
+    revealClose: document.querySelector("[data-reveal-close]")
   };
 
   const state = {
@@ -88,7 +98,10 @@
     speechUtterance: null,
     speechAudio: null,
     speechAudioUrl: "",
-    speechSessionId: 0
+    speechSessionId: 0,
+    revealReports: [],
+    revealIndex: 0,
+    revealAnimating: false
   };
 
   function createTeam(name, number) {
@@ -595,13 +608,168 @@
     updateSpeechButtons();
   }
 
-  async function fetchCaseNoteReports() {
+  function delay(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function revealOrder(reports = state.reports) {
+    const ranked = [...(reports || [])]
+      .filter((report) => report && report.name)
+      .map((report, index) => ({
+        ...report,
+        rank: Number(report.rank) || index + 1,
+        score: Math.max(0, Math.min(100, Number(report.score) || 0))
+      }))
+      .sort((a, b) => {
+        const rankDiff = a.rank - b.rank;
+        if (rankDiff) return rankDiff;
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff) return scoreDiff;
+        return String(a.name).localeCompare(String(b.name), "ko");
+      });
+
+    if (ranked.length <= 2) return ranked;
+    return [
+      ...ranked.slice(2).reverse(),
+      ranked[0],
+      ranked[1]
+    ];
+  }
+
+  function revealEyebrowFor(report, index, total) {
+    const remaining = total - index;
+    if (total <= 1) return "기티 최종 판정";
+    if (remaining === 2 && report.rank === 1) return "최종 두 팀 · 1등팀 먼저 공개";
+    if (index === 0) return "꼴등팀부터 공개";
+    if (report.rank === 1) return "최종 1등 공개";
+    return "하위 순위부터 공개";
+  }
+
+  function setRevealText(node, text) {
+    if (node) node.textContent = text;
+  }
+
+  function openRevealLoading() {
+    if (!elements.revealStage) return;
+    elements.revealStage.hidden = false;
+    document.body.classList.add("reveal-open");
+    setRevealText(elements.revealEyebrow, "기티 분석 중");
+    setRevealText(elements.revealTitle, "사건노트 유사도 측정");
+    setRevealText(elements.revealScore, "0%");
+    elements.revealBar?.style.setProperty("--reveal-score", "0%");
+    setRevealText(elements.revealSummary, "각 팀의 사건노트를 기준 사건노트와 대조하고 있습니다.");
+    setRevealText(elements.revealReport, "잠시만 기다려 주세요. 기티가 단서의 연결을 확인하고 있습니다.");
+    setRevealText(elements.revealProgress, "준비 중");
+    if (elements.revealNext) {
+      elements.revealNext.disabled = true;
+      elements.revealNext.textContent = "분석 중";
+    }
+  }
+
+  function animateRevealScore(targetScore) {
+    const target = Math.max(0, Math.min(100, Number(targetScore) || 0));
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduceMotion) {
+      setRevealText(elements.revealScore, `${target}%`);
+      elements.revealBar?.style.setProperty("--reveal-score", `${target}%`);
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      const duration = 1500 + Math.min(target * 8, 700);
+      const startedAt = performance.now();
+
+      function frame(now) {
+        const progress = Math.min(1, (now - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(target * eased);
+        setRevealText(elements.revealScore, `${current}%`);
+        elements.revealBar?.style.setProperty("--reveal-score", `${target * eased}%`);
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        setRevealText(elements.revealScore, `${target}%`);
+        elements.revealBar?.style.setProperty("--reveal-score", `${target}%`);
+        resolve();
+      }
+
+      requestAnimationFrame(frame);
+    });
+  }
+
+  async function showRevealReport(index) {
+    const report = state.revealReports[index];
+    if (!report) return;
+
+    state.revealIndex = index;
+    state.revealAnimating = true;
+    if (elements.revealNext) elements.revealNext.disabled = true;
+
+    const total = state.revealReports.length;
+    setRevealText(elements.revealEyebrow, revealEyebrowFor(report, index, total));
+    setRevealText(elements.revealTitle, `${report.rank}위 · ${report.name}`);
+    setRevealText(elements.revealScore, "0%");
+    elements.revealBar?.style.setProperty("--reveal-score", "0%");
+    setRevealText(elements.revealSummary, `${report.name}팀의 사건노트를 기준 사건노트와 비교하는 중입니다.`);
+    setRevealText(elements.revealReport, "기티가 핵심 단서와 빠진 단서를 확인하고 있습니다...");
+    setRevealText(elements.revealProgress, `${index + 1} / ${total}`);
+
+    await delay(420);
+    await animateRevealScore(report.score);
+
+    setRevealText(elements.revealSummary, `${report.name}팀 유사도 ${report.score}%`);
+    setRevealText(elements.revealReport, report.report || "기티가 판정 근거를 정리하지 못했습니다.");
+
+    if (elements.revealNext) {
+      elements.revealNext.disabled = false;
+      elements.revealNext.textContent = index >= total - 1 ? "전체 결과 보기" : "다음 팀 공개";
+    }
+    state.revealAnimating = false;
+  }
+
+  async function openRevealPresentation(reports = state.reports) {
+    const ordered = revealOrder(reports);
+    if (!ordered.length || !elements.revealStage) return false;
+
+    state.revealReports = ordered;
+    state.revealIndex = 0;
+    elements.revealStage.hidden = false;
+    document.body.classList.add("reveal-open");
+    await showRevealReport(0);
+    return true;
+  }
+
+  function closeReveal(showReports = true) {
+    if (state.revealAnimating) return;
+    if (elements.revealStage) elements.revealStage.hidden = true;
+    document.body.classList.remove("reveal-open");
+    state.revealReports = [];
+    state.revealIndex = 0;
+    if (showReports && state.reports?.length) {
+      renderTeams();
+      renderRanking();
+      renderReports(state.reports, "기티 발표가 끝났습니다. 팀별 리포트를 확인할 수 있습니다.");
+    }
+  }
+
+  async function revealNext() {
+    if (state.revealAnimating) return;
+    if (state.revealIndex >= state.revealReports.length - 1) {
+      closeReveal(true);
+      return;
+    }
+    await showRevealReport(state.revealIndex + 1);
+  }
+
+  async function fetchCaseNoteReports(options = {}) {
+    const shouldRender = options.render !== false;
     const teams = reportPayload();
     if (!teams.length) {
       state.reports = [];
-      renderReports([], "입력된 사건노트가 없어 리포트를 만들 수 없습니다.");
+      if (shouldRender) renderReports([], "입력된 사건노트가 없어 리포트를 만들 수 없습니다.");
       saveState();
-      return;
+      return [];
     }
 
     setReportStatus("탐정이 팀별 판정 근거를 정리하고 있습니다...");
@@ -637,14 +805,20 @@
       });
       state.reports = merged;
       saveState();
-      renderReports(merged, data.source === "openai"
-        ? "ChatGPT가 팀별 유사도 판정 근거를 완성했습니다."
-        : "ChatGPT 응답이 불안정해 로컬 판정 기준으로 정리했습니다.");
+      if (shouldRender) {
+        renderReports(merged, data.source === "openai"
+          ? "ChatGPT가 팀별 유사도 판정 근거를 완성했습니다."
+          : "ChatGPT 응답이 불안정해 로컬 판정 기준으로 정리했습니다.");
+      }
+      return merged;
     } catch (error) {
       const fallback = fallbackReports(teams);
       state.reports = fallback;
       saveState();
-      renderReports(fallback, "ChatGPT 연결이 되지 않아 로컬 판정 기준으로 임시 리포트를 표시합니다.");
+      if (shouldRender) {
+        renderReports(fallback, "ChatGPT 연결이 되지 않아 로컬 판정 기준으로 임시 리포트를 표시합니다.");
+      }
+      return fallback;
     } finally {
       window.clearTimeout(timer);
     }
@@ -724,11 +898,19 @@
       calculateAll();
       state.reports = [];
       saveState();
-      renderReports([], "팀별 유사도 막대를 계산하고 있습니다...");
+      renderReports([], "기티가 발표 순서를 정리하고 있습니다...");
       renderTeams({ animate: true });
-      await animateScoreBars();
-      renderRanking();
-      await fetchCaseNoteReports();
+      openRevealLoading();
+      const reports = await fetchCaseNoteReports({ render: false });
+      const didReveal = await openRevealPresentation(reports);
+      if (!didReveal) {
+        closeReveal(false);
+        renderTeams();
+        renderRanking();
+        renderReports(reports, reports.length
+          ? "기티가 팀별 리포트를 정리했습니다."
+          : "입력된 사건노트가 없어 리포트를 만들 수 없습니다.");
+      }
     } finally {
       elements.scoreAll.disabled = false;
       elements.scoreAll.textContent = originalText;
@@ -853,6 +1035,13 @@
       const report = state.reports[Number(button.dataset.readReport)];
       if (!report) return;
       speakReport(reportSpeechText(report), `report-${button.dataset.readReport}`);
+    });
+    elements.revealNext?.addEventListener("click", revealNext);
+    elements.revealClose?.addEventListener("click", () => closeReveal(Boolean(state.reports?.length)));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && elements.revealStage && !elements.revealStage.hidden) {
+        closeReveal(Boolean(state.reports?.length));
+      }
     });
     window.speechSynthesis?.addEventListener?.("voiceschanged", updateSpeechButtons);
 

@@ -5,20 +5,20 @@
   const suspects = {
     kangWoojin: {
       name: "강우진",
-      image: "assets/suspect-card-kang.png",
-      alt: "강우진 용의자 카드",
+      image: "assets/characters/kang-woojin.png",
+      alt: "강우진 인물 사진",
       greeting: "안녕하세요. 강우진입니다. 축구부 연습 끝나고 바로 불려와서 조금 당황했어요. 어떤 걸 확인하면 될까요?"
     },
     seoHarin: {
       name: "서하린",
-      image: "assets/suspect-card-harin.png",
-      alt: "서하린 용의자 카드",
+      image: "assets/characters/ai-tech-girl.png",
+      alt: "서하린 인물 사진",
       greeting: "안녕하세요. 서하린입니다. 제가 시스템 로그를 본 건 맞지만, 시험지를 유출했다는 뜻은 아니에요. 어떤 기록부터 확인할까요?"
     },
     choiDaniel: {
       name: "최다니엘",
-      image: "assets/suspect-card-daniel.png",
-      alt: "최다니엘 용의자 카드",
+      image: "assets/characters/alibi-black-boy.png",
+      alt: "최다니엘 인물 사진",
       greeting: "안녕하세요. 최다니엘입니다. 제가 교무실 근처 복도에 있었던 건 맞지만, 교무실 안에 들어간 건 아니에요. 어떤 장면을 확인하고 싶으세요?"
     }
   };
@@ -64,6 +64,9 @@
     evidenceForm: document.querySelector("[data-evidence-form]"),
     evidenceInput: document.querySelector("[data-evidence-code]"),
     evidenceMessage: document.querySelector("[data-evidence-message]"),
+    evidenceSection: document.querySelector("[data-evidence-form]")?.closest(".side-section") || null,
+    roomMain: document.querySelector(".room-main"),
+    sceneFrame: document.querySelector(".scene-frame"),
     evidenceTeamSelect: null,
     evidenceTotalLabel: null,
     evidenceTotalCount: null,
@@ -186,6 +189,18 @@
       nodes.suspectImage.alt = suspect.alt;
     }
     setText(nodes.suspectCaption, suspect.name);
+  }
+
+  function placeTeacherEvidenceTools() {
+    if (state.role !== "teacher" || !nodes.evidenceSection || !nodes.roomMain) return;
+    if (nodes.evidenceSection.closest(".room-control-panel")) return;
+
+    const panel = document.createElement("section");
+    panel.className = "room-control-panel";
+    panel.setAttribute("aria-label", "증거 코드 및 질문권 관리");
+    nodes.evidenceSection.classList.add("room-control-panel__section");
+    panel.append(nodes.evidenceSection);
+    (nodes.sceneFrame || nodes.roomMain.lastElementChild)?.after(panel);
   }
 
   function applyCredits(data = {}, team = state.team) {
@@ -648,7 +663,7 @@
         { role: "user", content: text },
         { role: "assistant", content: reply }
       );
-      state.histories[suspectId] = state.histories[suspectId].slice(-12);
+      state.histories[suspectId] = state.histories[suspectId].slice(-6);
       if (data.credits) applyCredits({ credits: data.credits.remaining, count: state.count }, targetTeam);
       applyUsage(data.usage);
       setChatState("대기");
@@ -671,6 +686,7 @@
     setText(nodes.teamLabel, state.team ? `${state.team}팀` : state.role === "teacher" ? "선생님" : "학생");
     setText(nodes.roomLabel, state.roomName);
     state.currentSuspect = ensureSuspect(nodes.suspectSelect?.value || "kangWoojin");
+    placeTeacherEvidenceTools();
 
     if (nodes.evidenceForm && !nodes.evidenceTotalCount) {
       const totalCard = document.createElement("div");

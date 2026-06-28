@@ -59,7 +59,8 @@
     team: sessionStorage.getItem("kit-auth-team") || "",
     classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a",
     redeeming: false,
-    evidenceCards: []
+    evidenceCards: [],
+    selectedEvidenceCode: ""
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -73,6 +74,7 @@
   const studentLogList = document.querySelector("[data-student-log-list]");
   const evidenceBoard = document.querySelector("[data-evidence-board]");
   const evidenceBoardCount = document.querySelector("[data-evidence-board-count]");
+  const evidenceRoomDetail = document.querySelector("[data-evidence-room-detail]");
   const caseNoteArea = document.querySelector("[data-note-key='case']");
   const caseNoteStatus = document.querySelector("[data-note-status='case']");
   const clearCaseNote = document.querySelector("[data-clear-note='case']");
@@ -203,9 +205,83 @@
       card,
       ...state.evidenceCards.filter((item) => item.code !== card.code)
     ].slice(0, 10);
+    state.selectedEvidenceCode = card.code;
     saveEvidenceCards();
     renderEvidenceBoard();
     return card;
+  }
+
+  function selectedEvidenceCard() {
+    return state.evidenceCards.find((card) => card.code === state.selectedEvidenceCode) || null;
+  }
+
+  function evidenceCardsForRoom(card) {
+    if (!card) return [];
+    return state.evidenceCards.filter((item) => {
+      if (card.roomId && item.roomId) return item.roomId === card.roomId;
+      return item.room === card.room;
+    });
+  }
+
+  function renderEvidenceRoomDetail(card = selectedEvidenceCard()) {
+    if (!evidenceRoomDetail) return;
+    evidenceRoomDetail.textContent = "";
+
+    if (!card) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-room-empty";
+      empty.textContent = "증거카드를 누르면 교실 사진과 해당 교실에서 얻은 증거만 표시됩니다.";
+      evidenceRoomDetail.append(empty);
+      return;
+    }
+
+    const roomCards = evidenceCardsForRoom(card);
+    const hero = document.createElement("div");
+    hero.className = "evidence-room-hero";
+
+    const roomImage = document.createElement("img");
+    roomImage.src = card.image;
+    roomImage.alt = `${card.room} 교실 사진`;
+    roomImage.decoding = "async";
+    roomImage.style.objectPosition = "center";
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "evidence-room-title";
+
+    const title = document.createElement("h3");
+    title.textContent = card.room;
+
+    const count = document.createElement("span");
+    count.textContent = `${roomCards.length}개`;
+
+    titleRow.append(title, count);
+    hero.append(roomImage, titleRow);
+
+    const list = document.createElement("div");
+    list.className = "evidence-room-list";
+
+    roomCards.forEach((item) => {
+      const row = document.createElement("article");
+      row.className = "evidence-room-card";
+
+      const thumb = document.createElement("img");
+      thumb.src = item.image;
+      thumb.alt = `${item.room} 증거 카드 ${item.index}`;
+      thumb.decoding = "async";
+      thumb.style.objectPosition = item.position || "center";
+
+      const body = document.createElement("div");
+      const meta = document.createElement("span");
+      meta.textContent = `${item.room} · 증거 카드 ${item.index}`;
+      const name = document.createElement("strong");
+      name.textContent = item.evidence;
+
+      body.append(meta, name);
+      row.append(thumb, body);
+      list.append(row);
+    });
+
+    evidenceRoomDetail.append(hero, list);
   }
 
   function renderEvidenceBoard() {
@@ -214,16 +290,25 @@
     if (evidenceBoardCount) evidenceBoardCount.textContent = `${state.evidenceCards.length}개`;
 
     if (!state.evidenceCards.length) {
+      state.selectedEvidenceCode = "";
       const empty = document.createElement("p");
       empty.className = "evidence-board-empty";
       empty.textContent = "아직 획득한 증거카드가 없습니다.";
       evidenceBoard.append(empty);
+      renderEvidenceRoomDetail(null);
       return;
     }
 
+    if (state.selectedEvidenceCode && !selectedEvidenceCard()) {
+      state.selectedEvidenceCode = "";
+    }
+
     state.evidenceCards.forEach((card) => {
-      const item = document.createElement("article");
+      const item = document.createElement("button");
+      item.type = "button";
       item.className = "evidence-board-card";
+      item.dataset.evidenceCodeCard = card.code;
+      item.classList.toggle("is-active", card.code === state.selectedEvidenceCode);
 
       const thumb = document.createElement("img");
       thumb.className = "evidence-board-thumb";
@@ -244,6 +329,8 @@
       item.append(thumb, body);
       evidenceBoard.append(item);
     });
+
+    renderEvidenceRoomDetail();
   }
 
   function setupCaseNote() {
@@ -665,6 +752,13 @@
   });
 
   setupCardLightbox();
+
+  evidenceBoard?.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-evidence-code-card]");
+    if (!item) return;
+    state.selectedEvidenceCode = item.dataset.evidenceCodeCard || "";
+    renderEvidenceBoard();
+  });
 
   evidenceInput?.addEventListener("input", () => {
     evidenceInput.value = cleanCode(evidenceInput.value);
