@@ -201,6 +201,48 @@
     localStorage.setItem(evidenceStorageKey(), JSON.stringify(state.evidenceCards));
   }
 
+  function evidenceCardsFromLogs(logs = []) {
+    return logs
+      .filter((entry) => entry?.code && entry?.evidence)
+      .map((entry) => evidenceFromResponse(entry.code, {
+        room: entry.room,
+        evidence: entry.evidence
+      }));
+  }
+
+  function applySyncedEvidenceCards(cards = []) {
+    state.evidenceCards = Array.isArray(cards) ? cards.slice(0, 10) : [];
+    if (!state.evidenceCards.some((card) => card.code === state.selectedEvidenceCode)) {
+      state.selectedEvidenceCode = state.evidenceCards[0]?.code || "";
+    }
+    saveEvidenceCards();
+    renderEvidenceBoard();
+  }
+
+  async function syncEvidenceCardsWithServer() {
+    if (!state.team) return null;
+
+    try {
+      const response = await fetch(`/api/evidence-code?team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(data.evidenceLogs)) return null;
+
+      const cards = evidenceCardsFromLogs(data.evidenceLogs);
+      applySyncedEvidenceCards(cards);
+      return cards;
+    } catch {
+      return null;
+    }
+  }
+
   function storeEvidenceCard(code, evidence) {
     const card = evidenceFromResponse(code, evidence);
     state.evidenceCards = [
@@ -547,6 +589,7 @@
       setLogCount(data.count || 0);
       state.logs = Array.isArray(data.logs) ? data.logs : [];
       renderStudentLogs();
+      await syncEvidenceCardsWithServer();
     } catch {
       setCreditText("받기 실패");
     } finally {
@@ -764,6 +807,7 @@
   setLogCount(0);
   loadEvidenceCards();
   renderEvidenceBoard();
+  syncEvidenceCardsWithServer();
   setupCaseNote();
   renderStudentLogs();
 
@@ -799,4 +843,5 @@
   });
 
   refreshApiStatus();
+  window.setInterval(syncEvidenceCardsWithServer, 10000);
 })();
