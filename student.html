@@ -923,7 +923,10 @@
     .chat-form {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px;
+      grid-template-areas:
+        "input button"
+        "counter button";
+      gap: 4px 8px;
       padding: 10px;
       border-top: 1px solid #e2d6b7;
       background: #fffaf0;
@@ -938,6 +941,25 @@
       color: #18202b;
       padding: 8px 10px;
       font-weight: 800;
+      grid-area: input;
+    }
+
+    .token-counter {
+      grid-area: counter;
+      justify-self: end;
+      color: #6f6454;
+      font-size: 0.72rem;
+      font-weight: 950;
+      letter-spacing: 0;
+      line-height: 1;
+    }
+
+    .token-counter.is-warn {
+      color: #b7791f;
+    }
+
+    .token-counter.is-full {
+      color: #a31616;
     }
 
     .chat-input:focus,
@@ -955,6 +977,8 @@
       color: #fff;
       padding: 8px 12px;
       font-weight: 950;
+      grid-area: button;
+      align-self: stretch;
     }
 
     .send-btn:hover,

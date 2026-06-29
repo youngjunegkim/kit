@@ -80,8 +80,10 @@
     messages: document.querySelector("[data-chat-messages]"),
     chatForm: document.querySelector("[data-chat-form]"),
     chatInput: document.querySelector("[data-chat-input]"),
+    tokenCounter: document.querySelector("[data-token-counter]"),
     chatSubmit: document.querySelector("[data-chat-submit]")
   };
+  const chatTokenLimit = 200;
 
   function encoded(value) {
     return encodeURIComponent(String(value || ""));
@@ -98,6 +100,29 @@
 
   function setText(node, text) {
     if (node) node.textContent = text;
+  }
+
+  function ensureTokenCounter() {
+    if (!nodes.chatInput) return;
+    nodes.chatInput.maxLength = chatTokenLimit;
+    nodes.chatInput.dataset.tokenLimit = String(chatTokenLimit);
+    if (!nodes.tokenCounter) {
+      const counter = document.createElement("span");
+      counter.className = "token-counter";
+      counter.dataset.tokenCounter = "";
+      nodes.chatInput.after(counter);
+      nodes.tokenCounter = counter;
+    }
+    updateTokenCounter();
+  }
+
+  function updateTokenCounter() {
+    if (!nodes.chatInput || !nodes.tokenCounter) return;
+    const limit = Number(nodes.chatInput.dataset.tokenLimit || chatTokenLimit);
+    const count = nodes.chatInput.value.length;
+    nodes.tokenCounter.textContent = `${count}/${limit} TOKEN`;
+    nodes.tokenCounter.classList.toggle("is-warn", count >= Math.floor(limit * 0.8) && count < limit);
+    nodes.tokenCounter.classList.toggle("is-full", count >= limit);
   }
 
   function setApiStatus(text, type = "") {
@@ -236,6 +261,7 @@
         : noCredits
           ? "질문권이 필요합니다"
           : `${suspects[state.currentSuspect].name}에게 질문`;
+      updateTokenCounter();
     }
     if (nodes.chatSubmit) nodes.chatSubmit.disabled = chatLocked;
     if (nodes.suspectSelect) nodes.suspectSelect.disabled = state.requesting;
@@ -604,6 +630,7 @@
     }
 
     if (nodes.chatInput) nodes.chatInput.value = "";
+    updateTokenCounter();
     addMessage(suspectId, "user", text);
     addMessage(suspectId, "bot", "답변을 정리하고 있습니다...");
     const pending = state.messages[suspectId][state.messages[suspectId].length - 1];
@@ -755,6 +782,8 @@
       nodes.evidenceInput.value = cleanCode(nodes.evidenceInput.value);
     });
     nodes.evidenceForm?.addEventListener("submit", submitEvidenceCode);
+    ensureTokenCounter();
+    nodes.chatInput?.addEventListener("input", updateTokenCounter);
     nodes.chatForm?.addEventListener("submit", submitQuestion);
 
     renderSuspectPreview();

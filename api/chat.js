@@ -10,7 +10,7 @@ const safetyReplies = {
 
 const rateWindowMs = 60 * 1000;
 const rateLimitPerWindow = Number(process.env.CHAT_RATE_LIMIT_PER_MINUTE || 12);
-const maxMessageChars = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 500);
+const maxMessageChars = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 200);
 const maxRequestBytes = Number(process.env.CHAT_MAX_REQUEST_BYTES || 25000);
 const rateBuckets = new Map();
 

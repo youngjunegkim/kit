@@ -7,6 +7,7 @@
     form: panel.querySelector("[data-chat-form]"),
     input: panel.querySelector("[data-chat-input]"),
     submit: panel.querySelector("[data-chat-submit]"),
+    counter: panel.querySelector("[data-token-counter]"),
     state: panel.querySelector("[data-chat-state]"),
     history: [],
     waiting: false
@@ -17,6 +18,7 @@
   const cardLightbox = document.querySelector("[data-card-lightbox]");
   const cardLightboxImage = document.querySelector("[data-card-lightbox-image]");
   const closeCardButton = document.querySelector("[data-close-card]");
+  const chatTokenLimit = 200;
 
   const greetings = {
     kangWoojin: "안녕하세요. 강우진입니다. 무슨 일 때문에 저를 부른 건지부터 말해 주세요.",
@@ -415,12 +417,36 @@
     });
   }
 
+  function ensureTokenCounter(panel) {
+    if (!panel.input) return;
+    panel.input.maxLength = chatTokenLimit;
+    panel.input.dataset.tokenLimit = String(chatTokenLimit);
+    if (!panel.counter) {
+      const counter = document.createElement("span");
+      counter.className = "token-counter";
+      counter.dataset.tokenCounter = "";
+      panel.input.after(counter);
+      panel.counter = counter;
+    }
+    updateTokenCounter(panel);
+  }
+
+  function updateTokenCounter(panel) {
+    if (!panel.input || !panel.counter) return;
+    const limit = Number(panel.input.dataset.tokenLimit || chatTokenLimit);
+    const count = panel.input.value.length;
+    panel.counter.textContent = `${count}/${limit} TOKEN`;
+    panel.counter.classList.toggle("is-warn", count >= Math.floor(limit * 0.8) && count < limit);
+    panel.counter.classList.toggle("is-full", count >= limit);
+  }
+
   function updateControls() {
     const locked = state.role === "student" && state.credits <= 0;
     panels.forEach((panel) => {
       const disabled = locked || state.requesting || panel.waiting;
       panel.input.disabled = disabled;
       panel.submit.disabled = disabled;
+      updateTokenCounter(panel);
       panel.input.placeholder = locked ? "질문권 받기를 눌러 확인하세요" : `${panel.name}에게 질문하기`;
     });
     setRefreshBusy(false);
@@ -709,6 +735,7 @@
     updateControls();
     addMessage(panel, "user", text);
     panel.input.value = "";
+    updateTokenCounter(panel);
 
     const priorHistory = panel.history.slice();
     panel.history.push({ role: "user", content: text });
@@ -739,9 +766,10 @@
   renderEvidenceBoard();
   setupCaseNote();
   renderStudentLogs();
-  updateControls();
 
   panels.forEach((panel) => {
+    ensureTokenCounter(panel);
+    panel.input?.addEventListener("input", () => updateTokenCounter(panel));
     const greeting = greetings[panel.suspect] || greetings.kangWoojin;
     panel.history = [{ role: "assistant", content: greeting }];
     addMessage(panel, "bot", greeting);
@@ -750,6 +778,7 @@
       submitQuestion(panel);
     });
   });
+  updateControls();
 
   setupCardLightbox();
 
