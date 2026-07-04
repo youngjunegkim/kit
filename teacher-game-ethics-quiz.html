@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>선생님 AI 윤리 퀴즈</title>
+  <script src="auth.js" defer></script>
+  <link rel="stylesheet" href="ethics-quiz.css">
+  <script src="teacher-sounds.js" defer></script>
+  <script src="ethics-quiz.js" defer></script>
+</head>
+<body class="ethics-page" data-auth="teacher" data-quiz-mode="teacher">
+  <main class="quiz-shell">
+    <header class="quiz-topbar">
+      <div class="quiz-title">
+        <p>AI 수사단</p>
+        <h1>윤리퀴즈</h1>
+      </div>
+      <div class="quiz-tools">
+        <span class="quiz-pill" data-auth-label>선생용</span>
+        <span class="quiz-pill" data-class-label>1반</span>
+        <a class="quiz-link" href="teacher.html">교사 지도로</a>
+        <button class="quiz-logout" type="button" data-logout>로그아웃</button>
+      </div>
+    </header>
+
+    <section class="quiz-layout" aria-label="AI 윤리 퀴즈">
+      <aside class="quiz-side" aria-label="문제 목록">
+        <div class="quiz-progress">
+          <div class="quiz-progress__label">
+            <span data-progress-text>선생용 미리보기</span>
+            <span data-score-text>정답 표시</span>
+          </div>
+          <div class="quiz-progress__bar" aria-hidden="true">
+            <div class="quiz-progress__fill" data-progress-fill></div>
+          </div>
+        </div>
+        <div class="quiz-nav" data-quiz-nav></div>
+        <button class="quiz-reset quiz-add-question" type="button" data-open-question-builder>문제 추가</button>
+        <button class="quiz-reset" type="button" data-reset-quiz>풀이 초기화</button>
+      </aside>
+
+      <section class="quiz-card" data-question-card aria-live="polite"></section>
+    </section>
+
+    <section class="question-builder" data-question-builder hidden aria-label="윤리퀴즈 문제 추가">
+      <div class="question-builder__head">
+        <div>
+          <p>선생님 전용</p>
+          <h2>윤리퀴즈 문제 추가</h2>
+        </div>
+        <button class="question-builder__close" type="button" data-close-question-builder>닫기</button>
+      </div>
+
+      <form class="question-builder__form" data-question-builder-form>
+        <label class="question-builder__field">
+          제목
+          <input name="topic" type="text" autocomplete="off" placeholder="예: AI 면접과 공정성" required>
+        </label>
+
+        <label class="question-builder__field">
+          정답
+          <select name="answer" required>
+            <option value="1">①</option>
+            <option value="2">②</option>
+            <option value="3">③</option>
+            <option value="4">④</option>
+          </select>
+        </label>
+
+        <label class="question-builder__field question-builder__field--wide">
+          자료 이미지 주소
+          <input name="sourceImage" type="text" autocomplete="off" placeholder="선택 사항: assets/파일명.png 또는 이미지 URL">
+        </label>
+
+        <label class="question-builder__field question-builder__field--wide">
+          배경설명
+          <textarea name="background" placeholder="한 문단씩 줄바꿈해서 입력"></textarea>
+        </label>
+
+        <label class="question-builder__field question-builder__field--wide">
+          문제
+          <textarea name="prompt" placeholder="학생에게 제시할 질문" required></textarea>
+        </label>
+
+        <div class="question-builder__options" aria-label="보기 입력">
+          <label>① <input name="option1" type="text" autocomplete="off" required></label>
+          <label>② <input name="option2" type="text" autocomplete="off" required></label>
+          <label>③ <input name="option3" type="text" autocomplete="off" required></label>
+          <label>④ <input name="option4" type="text" autocomplete="off" required></label>
+        </div>
+
+        <label class="question-builder__field question-builder__field--wide">
+          해설
+          <textarea name="explanation" placeholder="정답 해설을 입력" required></textarea>
+        </label>
+
+        <div class="question-builder__actions">
+          <p class="question-builder__message" data-question-builder-message></p>
+          <button class="question-builder__save" type="submit">추가하기</button>
+        </div>
+      </form>
+
+      <div class="custom-question-list" data-custom-question-list></div>
+    </section>
+  </main>
+</body>
+</html>

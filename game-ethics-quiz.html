@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 윤리 퀴즈</title>
+  <script src="auth.js" defer></script>
+  <link rel="stylesheet" href="ethics-quiz.css">
+  <script src="ethics-quiz.js" defer></script>
+</head>
+<body class="ethics-page" data-auth="student" data-quiz-mode="student">
+  <main class="quiz-shell">
+    <header class="quiz-topbar">
+      <div class="quiz-title">
+        <p>AI 수사단</p>
+        <h1>윤리퀴즈</h1>
+      </div>
+      <div class="quiz-tools">
+        <span class="quiz-pill" data-auth-label>학생</span>
+        <span class="quiz-pill" data-class-label>1반</span>
+        <a class="quiz-link" href="student.html">심문실로</a>
+        <button class="quiz-logout" type="button" data-logout>로그아웃</button>
+      </div>
+    </header>
+
+    <section class="quiz-layout" aria-label="AI 윤리 퀴즈">
+      <aside class="quiz-side" aria-label="문제 목록">
+        <div class="quiz-progress">
+          <div class="quiz-progress__label">
+            <span data-progress-text>0/15 완료</span>
+            <span data-score-text>정답 0개</span>
+          </div>
+          <div class="quiz-progress__bar" aria-hidden="true">
+            <div class="quiz-progress__fill" data-progress-fill></div>
+          </div>
+        </div>
+        <div class="quiz-nav" data-quiz-nav></div>
+        <button class="quiz-reset" type="button" data-reset-quiz>풀이 초기화</button>
+      </aside>
+
+      <section class="quiz-card" data-question-card aria-live="polite"></section>
+    </section>
+  </main>
+</body>
+</html>

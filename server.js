@@ -5,6 +5,8 @@ const { URL } = require("node:url");
 const chatHandler = require("./api/chat");
 const creditsHandler = require("./api/credits");
 const evidenceCodeHandler = require("./api/evidence-code");
+const ethicsQuizHandler = require("./api/ethics-quiz");
+const ethicsQuestionsHandler = require("./api/ethics-questions");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./api/personas");
 const presenceHandler = require("./api/presence");
 const ttsHandler = require("./api/tts");
@@ -1236,6 +1238,16 @@ const server = http.createServer(async (request, response) => {
 
   if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/evidence-code") {
     await handleApiModule(request, response, evidenceCodeHandler);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/ethics-quiz") {
+    await handleApiModule(request, response, ethicsQuizHandler);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST" || request.method === "DELETE") && url.pathname === "/api/ethics-questions") {
+    await handleApiModule(request, response, ethicsQuestionsHandler);
     return;
   }
 

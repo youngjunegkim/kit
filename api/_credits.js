@@ -9,6 +9,9 @@ const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
 const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
+const memoryEthicsQuizRedeemStore = globalThis.__kitEthicsQuizRedeemStore || new Map();
+const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
+const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -17,6 +20,9 @@ globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
 globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
 globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
+globalThis.__kitEthicsQuizRedeemStore = memoryEthicsQuizRedeemStore;
+globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
+globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
@@ -131,6 +137,18 @@ function evidenceRedeemKeyFor(team) {
 
 function evidenceLogKey() {
   return `kit:${storeNamespace()}:evidence-logs`;
+}
+
+function ethicsQuizRedeemKeyFor(team) {
+  return `kit:${storeNamespace()}:ethics-quiz-solved:${team}`;
+}
+
+function ethicsQuizLogKey() {
+  return `kit:${storeNamespace()}:ethics-quiz-logs`;
+}
+
+function ethicsQuestionKey() {
+  return `kit:${storeNamespace()}:ethics-custom-questions`;
 }
 
 function hasPersistentStore() {
@@ -355,6 +373,209 @@ async function clearEvidenceRedemptions() {
     redisCommand(["DEL", evidenceLogKey()]),
     ...teams.map((team) => redisCommand(["DEL", evidenceRedeemKeyFor(team)]))
   ]);
+  return removed;
+}
+
+async function redeemEthicsQuizQuestion(team, questionNumber) {
+  const normalized = normalizeTeam(team);
+  const number = cleanCredits(questionNumber);
+  if (!normalized || number < 1 || number > 200) return false;
+  const key = String(number);
+
+  if (!hasPersistentStore()) {
+    const storeKey = ethicsQuizRedeemKeyFor(normalized);
+    const redeemed = memoryEthicsQuizRedeemStore.get(storeKey) || new Set();
+    if (redeemed.has(key)) return false;
+    redeemed.add(key);
+    memoryEthicsQuizRedeemStore.set(storeKey, redeemed);
+    return true;
+  }
+
+  const added = Number(await redisCommand(["SADD", ethicsQuizRedeemKeyFor(normalized), key]));
+  return added === 1;
+}
+
+function cleanEthicsQuizEntry(entry = {}) {
+  const team = normalizeTeam(entry.team);
+  const question = cleanCredits(entry.question);
+  if (!team || question < 1 || question > 200) return null;
+
+  return {
+    id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    at: String(entry.at || new Date().toISOString()),
+    team,
+    user: String(entry.user || team).trim().slice(0, 30),
+    question,
+    added: cleanCredits(entry.added || 0),
+    remaining: cleanCredits(entry.remaining || 0),
+    namespace: String(entry.namespace || storeNamespace()).trim()
+  };
+}
+
+async function recordEthicsQuizRedemption(entry) {
+  const cleanEntry = cleanEthicsQuizEntry(entry);
+  if (!cleanEntry) return null;
+
+  if (!hasPersistentStore()) {
+    memoryEthicsQuizLogStore.unshift(cleanEntry);
+    memoryEthicsQuizLogStore.splice(maxStoredLogs);
+    return cleanEntry;
+  }
+
+  await redisCommand(["LPUSH", ethicsQuizLogKey(), JSON.stringify(cleanEntry)]);
+  await redisCommand(["LTRIM", ethicsQuizLogKey(), "0", String(maxStoredLogs - 1)]);
+  return cleanEntry;
+}
+
+async function getEthicsQuizRedemptions(team = "", limit = maxReturnedEvidenceLogs) {
+  const normalized = normalizeTeam(team);
+  const safeLimit = Math.min(maxReturnedEvidenceLogs, Math.max(1, cleanCredits(limit) || maxReturnedEvidenceLogs));
+
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    return memoryEthicsQuizLogStore
+      .filter((entry) => entry.namespace === namespace && (!normalized || entry.team === normalized))
+      .slice(0, safeLimit);
+  }
+
+  const rawLogs = await redisCommand(["LRANGE", ethicsQuizLogKey(), "0", String(maxStoredLogs - 1)]);
+  return (Array.isArray(rawLogs) ? rawLogs : [])
+    .map((item) => {
+      try {
+        return cleanEthicsQuizEntry(JSON.parse(item));
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry) => entry && (!normalized || entry.team === normalized))
+    .slice(0, safeLimit);
+}
+
+async function getEthicsQuizSolvedQuestions(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return [];
+
+  if (!hasPersistentStore()) {
+    const solved = memoryEthicsQuizRedeemStore.get(ethicsQuizRedeemKeyFor(normalized)) || new Set();
+    return [...solved].map((value) => cleanCredits(value)).filter(Boolean).sort((a, b) => a - b);
+  }
+
+  const solved = await redisCommand(["SMEMBERS", ethicsQuizRedeemKeyFor(normalized)]);
+  return (Array.isArray(solved) ? solved : []).map((value) => cleanCredits(value)).filter(Boolean).sort((a, b) => a - b);
+}
+
+async function clearEthicsQuizRedemptions(team = "") {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return [];
+
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    memoryEthicsQuizRedeemStore.delete(ethicsQuizRedeemKeyFor(normalized));
+    for (let index = memoryEthicsQuizLogStore.length - 1; index >= 0; index -= 1) {
+      const entry = memoryEthicsQuizLogStore[index];
+      if (entry?.namespace === namespace && entry.team === normalized) {
+        memoryEthicsQuizLogStore.splice(index, 1);
+      }
+    }
+    return [];
+  }
+
+  await redisCommand(["DEL", ethicsQuizRedeemKeyFor(normalized)]);
+  return [];
+}
+
+function cleanEthicsQuestionOption(option = {}, index = 0) {
+  const text = String(option.text || "").trim().slice(0, 240);
+  if (!text) return null;
+  return {
+    id: String(option.id || index + 1).trim().slice(0, 12),
+    marker: String(option.marker || `${index + 1}.`).trim().slice(0, 8),
+    text
+  };
+}
+
+function cleanEthicsQuestionRecord(record = {}) {
+  const options = Array.isArray(record.options)
+    ? record.options.map(cleanEthicsQuestionOption).filter(Boolean).slice(0, 5)
+    : [];
+  const answer = String(record.answer || "").trim().slice(0, 12);
+  const topic = String(record.topic || "").trim().slice(0, 160);
+  const prompt = String(record.prompt || "").trim().slice(0, 1000);
+  const explanation = (Array.isArray(record.explanation) ? record.explanation : [record.explanation])
+    .map((item) => String(item || "").trim().slice(0, 1000))
+    .filter(Boolean)
+    .slice(0, 8);
+
+  if (!topic || !prompt || options.length < 2 || !options.some((option) => option.id === answer) || !explanation.length) {
+    return null;
+  }
+
+  return {
+    id: String(record.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`).trim().slice(0, 80),
+    at: String(record.at || new Date().toISOString()),
+    topic,
+    type: "choice",
+    background: (Array.isArray(record.background) ? record.background : [record.background])
+      .map((item) => String(item || "").trim().slice(0, 1000))
+      .filter(Boolean)
+      .slice(0, 8),
+    prompt,
+    options,
+    answer,
+    explanation,
+    sourceImage: String(record.sourceImage || "").trim().slice(0, 500)
+  };
+}
+
+async function getCustomEthicsQuestions() {
+  if (!hasPersistentStore()) {
+    return [...(memoryEthicsQuestionStore.get(ethicsQuestionKey()) || [])];
+  }
+
+  const raw = await redisCommand(["GET", ethicsQuestionKey()]);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(cleanEthicsQuestionRecord).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function setCustomEthicsQuestions(records) {
+  const cleanRecords = (Array.isArray(records) ? records : [])
+    .map(cleanEthicsQuestionRecord)
+    .filter(Boolean)
+    .slice(0, 50);
+
+  if (!hasPersistentStore()) {
+    memoryEthicsQuestionStore.set(ethicsQuestionKey(), cleanRecords);
+    return cleanRecords;
+  }
+
+  await redisCommand(["SET", ethicsQuestionKey(), JSON.stringify(cleanRecords)]);
+  return cleanRecords;
+}
+
+async function addCustomEthicsQuestion(record) {
+  const cleanRecord = cleanEthicsQuestionRecord(record);
+  if (!cleanRecord) return null;
+  const records = await getCustomEthicsQuestions();
+  const next = [
+    ...records.filter((item) => item.id !== cleanRecord.id),
+    cleanRecord
+  ].slice(0, 50);
+  await setCustomEthicsQuestions(next);
+  return cleanRecord;
+}
+
+async function deleteCustomEthicsQuestion(id) {
+  const target = String(id || "").trim();
+  if (!target) return null;
+  const records = await getCustomEthicsQuestions();
+  const removed = records.find((item) => item.id === target) || null;
+  if (!removed) return null;
+  await setCustomEthicsQuestions(records.filter((item) => item.id !== target));
   return removed;
 }
 
@@ -600,8 +821,11 @@ async function consumeCredit(team) {
 
 module.exports = {
   addCredits,
+  addCustomEthicsQuestion,
   classLabelFor,
+  deleteCustomEthicsQuestion,
   clearEvidenceRedemptions,
+  clearEthicsQuizRedemptions,
   consumeCredit,
   clearQuestionLogs,
   currentClassId,
@@ -609,7 +833,10 @@ module.exports = {
   getAllGrantedCredits,
   getAllQuestionCounts,
   getCredits,
+  getCustomEthicsQuestions,
   getEvidenceRedemptions,
+  getEthicsQuizRedemptions,
+  getEthicsQuizSolvedQuestions,
   getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
@@ -620,10 +847,13 @@ module.exports = {
   normalizeClassId,
   normalizeTeam,
   recordEvidenceRedemption,
+  recordEthicsQuizRedemption,
   removePresence,
   requestClassId,
+  redeemEthicsQuizQuestion,
   redeemEvidenceCode,
   resetCredits,
+  setCustomEthicsQuestions,
   setGrantedCredits,
   setCredits,
   touchPresence,

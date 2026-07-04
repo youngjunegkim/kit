@@ -6,6 +6,7 @@
   <title>학생용 AI 심문실</title>
   <script src="auth.js" defer></script>
   <script src="presence.js?v=manual-presence-3" defer></script>
+  <script src="ethics-quiz.js" defer></script>
   <script src="student-interrogation.js" defer></script>
   <script src="student-notes.js" defer></script>
   <style>
@@ -467,6 +468,225 @@
       line-height: 1.45;
     }
 
+    .student-ethics-card {
+      display: grid;
+      gap: 14px;
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.98);
+      border: 1px solid rgba(225, 174, 45, 0.58);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+      padding: 16px;
+    }
+
+    .student-ethics-card[hidden] {
+      display: none;
+    }
+
+    .student-ethics-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+      border-bottom: 1px solid #e2d6b7;
+      padding-bottom: 12px;
+    }
+
+    .student-ethics-kicker {
+      margin: 0 0 5px;
+      color: #a2201c;
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .student-ethics-head h2 {
+      margin: 0;
+      color: #22170e;
+      font-size: 1.28rem;
+      line-height: 1.25;
+      font-weight: 950;
+    }
+
+    .student-ethics-meta {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #f0e5d0;
+      color: #4a3724;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .student-ethics-source {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      border: 1px solid #e2d6b7;
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    .student-ethics-source img {
+      display: block;
+      width: auto;
+      max-width: min(100%, 820px);
+      height: auto;
+      max-height: none;
+      object-fit: contain;
+      object-position: center;
+      border: 1px solid #e3ddcf;
+      border-radius: 6px;
+      background: #f8f4ec;
+    }
+
+    .student-ethics-source span {
+      color: #655748;
+      font-size: 0.78rem;
+      font-weight: 850;
+    }
+
+    .student-ethics-source-empty {
+      width: 100%;
+      border: 1px dashed #d9ccb6;
+      border-radius: 7px;
+      background: #fbf6eb;
+      padding: 18px;
+      text-align: center;
+    }
+
+    .student-ethics-copy {
+      display: grid;
+      gap: 12px;
+    }
+
+    .student-ethics-section {
+      display: grid;
+      gap: 8px;
+    }
+
+    .student-ethics-section h3 {
+      margin: 0;
+      color: #7f1715;
+      font-size: 0.9rem;
+      font-weight: 950;
+    }
+
+    .student-ethics-section p {
+      margin: 0;
+      color: #2a2118;
+      line-height: 1.58;
+      font-weight: 780;
+    }
+
+    .student-ethics-prompt {
+      border-left: 4px solid #d82923;
+      border-radius: 6px;
+      background: #fff;
+      padding: 12px 13px;
+    }
+
+    .student-ethics-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .student-ethics-option {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      border: 1px solid #e2d6b7;
+      border-radius: 8px;
+      background: #fff;
+      padding: 11px 12px;
+      color: #24180f;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .student-ethics-option input {
+      margin-top: 3px;
+      accent-color: #d82923;
+    }
+
+    .student-ethics-option.is-selected {
+      border-color: #d82923;
+      box-shadow: inset 4px 0 0 #d82923;
+    }
+
+    .student-ethics-option.is-correct {
+      border-color: #148a5b;
+      box-shadow: inset 4px 0 0 #148a5b;
+    }
+
+    .student-ethics-option.is-wrong {
+      border-color: #d82923;
+      background: #fff6f5;
+      box-shadow: inset 4px 0 0 #d82923;
+    }
+
+    .student-ethics-option.is-locked {
+      cursor: not-allowed;
+      opacity: 0.88;
+    }
+
+    .student-ethics-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .student-ethics-submit {
+      min-height: 40px;
+      border-radius: 7px;
+      background: #d82923;
+      color: #fff;
+      padding: 9px 13px;
+      font-weight: 950;
+    }
+
+    .student-ethics-submit:hover,
+    .student-ethics-submit:focus-visible {
+      background: #b3221d;
+      outline: none;
+    }
+
+    .student-ethics-submit:disabled {
+      cursor: not-allowed;
+      background: #e1d2a9;
+      color: #655748;
+      opacity: 0.8;
+    }
+
+    .student-ethics-status {
+      min-height: 24px;
+      color: #655748;
+      font-weight: 950;
+    }
+
+    .student-ethics-status.is-ok {
+      color: #116c46;
+    }
+
+    .student-ethics-status.is-bad {
+      color: #b3221d;
+    }
+
+    .student-ethics-explanation {
+      display: none;
+      gap: 8px;
+      border: 1px solid #d7e3d8;
+      border-radius: 8px;
+      background: #f6fbf5;
+      padding: 12px 13px;
+    }
+
+    .student-ethics-explanation.is-visible {
+      display: grid;
+    }
+
     @media (max-width: 980px) {
       .suspect-grid {
         grid-template-columns: 1fr;
@@ -619,6 +839,133 @@
     .student-tools button {
       width: 100%;
       justify-content: center;
+    }
+
+    .ethics-quiz-tile {
+      min-height: 86px;
+      display: grid;
+      place-items: center;
+      gap: 4px;
+      border: 1px solid rgba(231, 189, 73, 0.62);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255, 248, 225, 0.16), rgba(185, 31, 31, 0.16)),
+        rgba(255, 255, 255, 0.08);
+      color: #fff;
+      text-decoration: none;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .ethics-quiz-tile:hover,
+    .ethics-quiz-tile:focus-visible {
+      border-color: #e1ae2d;
+      background:
+        linear-gradient(180deg, rgba(255, 248, 225, 0.24), rgba(185, 31, 31, 0.22)),
+        rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 0 3px rgba(225, 174, 45, 0.18);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .ethics-quiz-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #fffaf0;
+      color: #9d1f1b;
+      font-size: 1.65rem;
+      line-height: 1;
+      font-weight: 950;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    .ethics-quiz-label {
+      color: #fff;
+      font-size: 0.95rem;
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .ethics-picker-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: end;
+      padding: 9px;
+      border: 1px solid rgba(231, 189, 73, 0.42);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .ethics-picker-field {
+      display: grid;
+      gap: 5px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.78rem;
+      font-weight: 950;
+    }
+
+    .ethics-picker-input {
+      min-width: 0;
+      min-height: 38px;
+      border: 1px solid rgba(231, 189, 73, 0.42);
+      border-radius: 7px;
+      background: #fffaf0;
+      color: #24180f;
+      padding: 8px 9px;
+      font: inherit;
+      font-weight: 950;
+    }
+
+    .ethics-picker-input:focus {
+      border-color: #e1ae2d;
+      box-shadow: 0 0 0 3px rgba(225, 174, 45, 0.16);
+      outline: none;
+    }
+
+    .ethics-picker-submit {
+      min-height: 38px;
+      border-radius: 7px;
+      background: #efe7d0;
+      color: #2c2114;
+      padding: 8px 10px;
+      font-weight: 950;
+    }
+
+    .ethics-picker-submit:hover,
+    .ethics-picker-submit:focus-visible {
+      background: #e1d2a9;
+      outline: none;
+    }
+
+    .ethics-reset-btn {
+      min-height: 36px;
+      border-radius: 7px;
+      background: rgba(255, 250, 240, 0.9);
+      color: #5a321c;
+      padding: 8px 10px;
+      font-weight: 950;
+    }
+
+    .ethics-reset-btn:hover,
+    .ethics-reset-btn:focus-visible {
+      background: #fffaf0;
+      outline: none;
+    }
+
+    .ethics-solved-summary {
+      min-height: 34px;
+      border: 1px solid rgba(231, 189, 73, 0.32);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgba(255, 255, 255, 0.84);
+      padding: 8px 9px;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      font-weight: 850;
     }
 
     .presence-menu {
@@ -1253,6 +1600,13 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
       }
 
+      .ethics-quiz-tile,
+      .ethics-picker-form,
+      .ethics-reset-btn,
+      .ethics-solved-summary {
+        grid-column: 1 / -1;
+      }
+
       .student-tools button {
         min-width: 0;
       }
@@ -1371,6 +1725,19 @@
               <div class="presence-list presence-list--menu" data-presence-list></div>
             </div>
           </div>
+          <button class="ethics-quiz-tile" type="button" data-student-ethics-open aria-controls="studentEthicsCard">
+            <span class="ethics-quiz-mark" aria-hidden="true">?</span>
+            <span class="ethics-quiz-label">윤리퀴즈</span>
+          </button>
+          <form class="ethics-picker-form" data-student-ethics-form>
+            <label class="ethics-picker-field" for="studentEthicsNumber">
+              풀 문제 번호
+              <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="number" min="1" max="99" inputmode="numeric" placeholder="1~15+">
+            </label>
+            <button class="ethics-picker-submit" type="submit">열기</button>
+          </form>
+          <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
+          <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
           <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
           <button class="logout-btn" type="button" data-logout>로그아웃</button>
         </div>
@@ -1436,6 +1803,8 @@
         </section>
       </article>
     </section>
+
+        <section class="student-ethics-card" id="studentEthicsCard" data-student-ethics-card hidden aria-live="polite"></section>
 
         <section class="evidence-vault-card" aria-label="획득한 증거카드">
           <div class="student-log-head">

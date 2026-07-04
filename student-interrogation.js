@@ -60,9 +60,13 @@
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
     classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a",
+    serverCredits: 0,
     redeeming: false,
     evidenceCards: [],
-    selectedEvidenceCode: ""
+    selectedEvidenceCode: "",
+    ethicsAnswers: {},
+    ethicsServerSolved: [],
+    ethicsCurrent: 1
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -81,6 +85,13 @@
   const caseNoteStatus = document.querySelector("[data-note-status='case']");
   const clearCaseNote = document.querySelector("[data-clear-note='case']");
   const apiStatus = document.querySelector("[data-api-status]");
+  const ethicsQuestions = Array.isArray(window.KitEthicsQuizQuestions) ? window.KitEthicsQuizQuestions : [];
+  const ethicsOpenButton = document.querySelector("[data-student-ethics-open]");
+  const ethicsForm = document.querySelector("[data-student-ethics-form]");
+  const ethicsNumberInput = document.querySelector("[data-student-ethics-number]");
+  const ethicsSolvedSummary = document.querySelector("[data-student-ethics-solved]");
+  const ethicsCard = document.querySelector("[data-student-ethics-card]");
+  const ethicsResetButton = document.querySelector("[data-student-ethics-reset]");
 
   function normalize(text) {
     return String(text || "").toLowerCase().replace(/\s+/g, "");
@@ -161,6 +172,90 @@
 
   function noteStorageKey() {
     return `kit-case-note:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function ethicsStorageKey() {
+    return `kit-ethics-quiz:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function loadEthicsAnswers() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ethicsStorageKey()) || "{}");
+      state.ethicsAnswers = saved && typeof saved === "object" ? saved : {};
+    } catch {
+      state.ethicsAnswers = {};
+    }
+  }
+
+  function saveEthicsAnswers() {
+    localStorage.setItem(ethicsStorageKey(), JSON.stringify(state.ethicsAnswers));
+  }
+
+  function ethicsQuestionByNumber(number) {
+    return ethicsQuestions.find((question) => Number(question.number) === Number(number)) || null;
+  }
+
+  function maxEthicsQuestionNumber() {
+    return ethicsQuestions.reduce((max, question) => Math.max(max, Number(question.number) || 0), 0) || 15;
+  }
+
+  function updateEthicsNumberInputRange() {
+    if (!ethicsNumberInput) return;
+    const maxNumber = maxEthicsQuestionNumber();
+    ethicsNumberInput.max = String(maxNumber);
+    ethicsNumberInput.placeholder = `1~${maxNumber}`;
+  }
+
+  function ethicsAnswerFor(question) {
+    return state.ethicsAnswers[String(question?.number || "")] || { value: "", revealed: false, rewarded: false, locked: false };
+  }
+
+  function setEthicsAnswer(question, patch) {
+    const key = String(question.number);
+    state.ethicsAnswers[key] = { ...ethicsAnswerFor(question), ...patch };
+    saveEthicsAnswers();
+  }
+
+  function isEthicsCorrect(question) {
+    return ethicsAnswerFor(question).value === question.answer;
+  }
+
+  function ethicsSolvedNumbers() {
+    const solved = new Set(state.ethicsServerSolved.map(Number).filter(Boolean));
+    ethicsQuestions.forEach((question) => {
+      const answer = ethicsAnswerFor(question);
+      if ((answer.rewarded || answer.revealed) && answer.value === question.answer) {
+        solved.add(Number(question.number));
+      }
+    });
+    return [...solved].sort((a, b) => a - b);
+  }
+
+  function ethicsAttemptedNumbers() {
+    const attempted = new Set(state.ethicsServerSolved.map(Number).filter(Boolean));
+    ethicsQuestions.forEach((question) => {
+      const answer = ethicsAnswerFor(question);
+      if (answer.revealed || answer.locked || answer.rewarded) {
+        attempted.add(Number(question.number));
+      }
+    });
+    return [...attempted].sort((a, b) => a - b);
+  }
+
+  function firstUnsolvedEthicsNumber() {
+    const attempted = new Set(ethicsAttemptedNumbers());
+    const question = ethicsQuestions.find((item) => !attempted.has(Number(item.number)));
+    return Number(question?.number || 1);
+  }
+
+  function unsyncedEthicsCreditBonus() {
+    return ethicsQuestions.reduce((total, question) => {
+      const answer = ethicsAnswerFor(question);
+      if (answer.rewarded && !answer.serverRewarded && answer.value === question.answer) {
+        return total + 3;
+      }
+      return total;
+    }, 0);
   }
 
   function evidenceFromResponse(code, evidence = {}) {
@@ -549,7 +644,8 @@
   }
 
   function applyCredits(credits) {
-    state.credits = Math.max(0, Number(credits) || 0);
+    state.serverCredits = Math.max(0, Number(credits) || 0);
+    state.credits = state.serverCredits + unsyncedEthicsCreditBonus();
     setCreditText(`${state.credits}개`);
     updateControls();
   }
@@ -561,6 +657,312 @@
       state.logs = [usage.log, ...state.logs.filter((entry) => entry.id !== usage.log.id)].slice(0, 12);
       renderStudentLogs();
     }
+  }
+
+  function createEthicsElement(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
+  }
+
+  function renderEthicsSolvedSummary() {
+    if (!ethicsSolvedSummary) return;
+    const attempted = ethicsAttemptedNumbers();
+    ethicsSolvedSummary.textContent = attempted.length
+      ? `푼 문제: ${attempted.map((number) => `${number}번`).join(", ")}`
+      : "푼 문제: 없음";
+  }
+
+  function renderEthicsParagraphs(container, paragraphs = []) {
+    paragraphs.forEach((text) => {
+      container.append(createEthicsElement("p", "", text));
+    });
+  }
+
+  function renderStudentEthicsQuestion(number = state.ethicsCurrent) {
+    if (!ethicsCard) return;
+    const question = ethicsQuestionByNumber(number);
+    ethicsCard.textContent = "";
+
+    if (!ethicsQuestions.length || !question) {
+      ethicsCard.hidden = false;
+      const status = createEthicsElement("p", "student-ethics-status is-bad", `문제 번호는 1~${maxEthicsQuestionNumber()} 사이로 입력하세요.`);
+      ethicsCard.append(status);
+      return;
+    }
+
+    state.ethicsCurrent = Number(question.number);
+    if (ethicsNumberInput) ethicsNumberInput.value = String(question.number);
+    ethicsCard.hidden = false;
+
+    const answer = ethicsAnswerFor(question);
+    const revealed = Boolean(answer.revealed);
+    const correct = answer.value === question.answer;
+    const locked = Boolean(answer.locked || answer.rewarded || (revealed && !correct));
+    const alreadySolved = ethicsAttemptedNumbers().includes(Number(question.number));
+
+    const head = createEthicsElement("div", "student-ethics-head");
+    const titleWrap = document.createElement("div");
+    titleWrap.append(
+      createEthicsElement("p", "student-ethics-kicker", `${question.number}번 문제`),
+      createEthicsElement("h2", "", question.topic)
+    );
+    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", alreadySolved ? "풀이 완료" : "미풀이"));
+
+    const source = createEthicsElement("figure", "student-ethics-source");
+    if (question.sourceImage) {
+      const image = document.createElement("img");
+      image.src = question.sourceImage;
+      image.alt = `${question.number}번 문제 자료 이미지`;
+      image.decoding = "async";
+      image.loading = "lazy";
+      source.append(image, createEthicsElement("span", "", `PDF에서 가져온 ${question.number}번 자료`));
+    } else {
+      source.append(createEthicsElement("span", "student-ethics-source-empty", "추가 자료 이미지가 없습니다."));
+    }
+
+    const copy = createEthicsElement("div", "student-ethics-copy");
+    if (question.background?.length) {
+      const section = createEthicsElement("section", "student-ethics-section");
+      section.append(createEthicsElement("h3", "", "배경설명"));
+      renderEthicsParagraphs(section, question.background);
+      copy.append(section);
+    }
+
+    const prompt = createEthicsElement("section", "student-ethics-section student-ethics-prompt");
+    prompt.append(createEthicsElement("h3", "", question.options?.length === 2 ? "퀴즈 O/X" : "퀴즈"));
+    prompt.append(createEthicsElement("p", "", question.prompt));
+    copy.append(prompt);
+
+    const options = createEthicsElement("section", "student-ethics-section");
+    options.append(createEthicsElement("h3", "", "보기"));
+    const optionList = createEthicsElement("div", "student-ethics-options");
+    question.options.forEach((option) => {
+      const label = createEthicsElement("label", "student-ethics-option");
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = `student-ethics-${question.number}`;
+      input.value = option.id;
+      input.checked = answer.value === option.id;
+      input.disabled = locked;
+      input.addEventListener("change", () => {
+        if (locked) return;
+        setEthicsAnswer(question, { value: option.id, revealed: false });
+        renderStudentEthicsQuestion(question.number);
+      });
+      label.classList.toggle("is-selected", answer.value === option.id);
+      label.classList.toggle("is-correct", revealed && option.id === question.answer);
+      label.classList.toggle("is-wrong", revealed && answer.value === option.id && option.id !== question.answer);
+      label.classList.toggle("is-locked", locked);
+      label.append(input, createEthicsElement("span", "", `${option.marker} ${option.text}`));
+      optionList.append(label);
+    });
+    options.append(optionList);
+    copy.append(options);
+
+    const explanation = createEthicsElement("section", "student-ethics-section student-ethics-explanation");
+    explanation.classList.toggle("is-visible", revealed);
+    explanation.append(createEthicsElement("h3", "", "해설"));
+    const correctOption = question.options.find((option) => option.id === question.answer);
+    explanation.append(createEthicsElement("p", "", `정답: ${correctOption ? `${correctOption.marker} ${correctOption.text}` : question.answer}`));
+    renderEthicsParagraphs(explanation, question.explanation);
+    copy.append(explanation);
+
+    const actions = createEthicsElement("div", "student-ethics-actions");
+    const submit = createEthicsElement("button", "student-ethics-submit", locked ? "풀이 완료" : "정답 확인");
+    submit.type = "button";
+    submit.disabled = locked;
+    const status = createEthicsElement("div", "student-ethics-status");
+    status.dataset.studentEthicsStatus = "";
+    if (revealed && correct) {
+      status.textContent = answer.rewarded ? "정답입니다. 질문권 3개가 바로 반영되었습니다." : "정답입니다.";
+      status.classList.add("is-ok");
+    } else if (revealed) {
+      status.textContent = "오답입니다. 이 문제는 다시 풀 수 없습니다.";
+      status.classList.add("is-bad");
+    }
+    submit.addEventListener("click", () => submitStudentEthicsAnswer(question));
+    actions.append(submit, status);
+
+    ethicsCard.append(head, source, copy, actions);
+    renderEthicsSolvedSummary();
+  }
+
+  async function submitStudentEthicsAnswer(question) {
+    const answer = ethicsAnswerFor(question);
+    const status = ethicsCard?.querySelector("[data-student-ethics-status]");
+    if (answer.locked || answer.rewarded) {
+      if (status) {
+        status.textContent = answer.value === question.answer
+          ? "이미 푼 문제입니다."
+          : "오답 처리된 문제라 다시 풀 수 없습니다.";
+        status.className = answer.value === question.answer ? "student-ethics-status is-ok" : "student-ethics-status is-bad";
+      }
+      return;
+    }
+    if (!answer.value) {
+      if (status) {
+        status.textContent = "보기를 선택하세요.";
+        status.className = "student-ethics-status is-bad";
+      }
+      return;
+    }
+
+    if (answer.value !== question.answer) {
+      setEthicsAnswer(question, { revealed: true, rewarded: false, locked: true });
+      renderStudentEthicsQuestion(question.number);
+      return;
+    }
+
+    if (ethicsAnswerFor(question).rewarded) {
+      setEthicsAnswer(question, { revealed: true });
+      renderStudentEthicsQuestion(question.number);
+      return;
+    }
+
+    setEthicsAnswer(question, { revealed: true, rewarded: true, serverRewarded: false });
+    applyCredits(state.serverCredits);
+    renderEthicsSolvedSummary();
+    renderStudentEthicsQuestion(question.number);
+
+    try {
+      const response = await fetch("/api/ethics-quiz", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          team: state.team,
+          user: state.user,
+          classId: state.classId,
+          question: question.number,
+          questionId: question.customId || "",
+          answer: answer.value
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.correct === false) throw new Error(data.error || "sync failed");
+
+      if (Array.isArray(data.solved)) state.ethicsServerSolved = data.solved;
+      setEthicsAnswer(question, { revealed: true, rewarded: true, serverRewarded: true });
+      if (data.credits !== undefined) applyCredits(data.credits);
+      renderEthicsSolvedSummary();
+      renderStudentEthicsQuestion(question.number);
+    } catch {
+      renderStudentEthicsQuestion(question.number);
+    }
+  }
+
+  async function syncEthicsSolvedWithServer() {
+    if (!state.team) {
+      renderEthicsSolvedSummary();
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/ethics-quiz?team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "sync failed");
+      state.ethicsServerSolved = Array.isArray(data.solved) ? data.solved : [];
+      state.ethicsServerSolved.forEach((number) => {
+        const question = ethicsQuestionByNumber(number);
+        if (question) {
+          const current = ethicsAnswerFor(question);
+          setEthicsAnswer(question, { value: current.value || question.answer, rewarded: true, serverRewarded: true, revealed: true });
+        }
+      });
+      renderEthicsSolvedSummary();
+      if (data.credits !== undefined) applyCredits(data.credits);
+    } catch {
+      renderEthicsSolvedSummary();
+    }
+  }
+
+  async function resetStudentEthicsQuiz() {
+    const password = window.prompt("윤리퀴즈 풀이 기록을 초기화하려면 비밀번호를 입력하세요.");
+    if (password === null) return;
+    if (password !== "kit") {
+      window.alert("비밀번호가 맞지 않습니다.");
+      return;
+    }
+
+    state.ethicsAnswers = {};
+    state.ethicsServerSolved = [];
+    localStorage.removeItem(ethicsStorageKey());
+    applyCredits(state.serverCredits);
+    renderEthicsSolvedSummary();
+    if (ethicsCard) {
+      ethicsCard.hidden = true;
+      ethicsCard.textContent = "";
+    }
+
+    try {
+      await fetch("/api/ethics-quiz", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "reset",
+          password: "kit",
+          team: state.team,
+          user: state.user,
+          classId: state.classId
+        })
+      });
+    } catch {
+      // Local reset is enough for offline/static-server classroom use.
+    }
+  }
+
+  function setupStudentEthicsQuiz() {
+    loadEthicsAnswers();
+    renderEthicsSolvedSummary();
+
+    updateEthicsNumberInputRange();
+
+    window.addEventListener("kit-ethics-questions-updated", () => {
+      updateEthicsNumberInputRange();
+      renderEthicsSolvedSummary();
+      if (ethicsCard && !ethicsCard.hidden) {
+        renderStudentEthicsQuestion(state.ethicsCurrent);
+      }
+    });
+
+    ethicsOpenButton?.addEventListener("click", () => {
+      const number = Number(ethicsNumberInput?.value || "") || firstUnsolvedEthicsNumber();
+      renderStudentEthicsQuestion(number);
+      ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+      ethicsNumberInput?.focus({ preventScroll: true });
+    });
+
+    ethicsForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const number = Number(ethicsNumberInput?.value || "");
+      renderStudentEthicsQuestion(number);
+      ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    ethicsResetButton?.addEventListener("click", resetStudentEthicsQuiz);
+
+    syncEthicsSolvedWithServer();
   }
 
   async function refreshCredits() {
@@ -809,6 +1211,7 @@
   renderEvidenceBoard();
   syncEvidenceCardsWithServer();
   setupCaseNote();
+  setupStudentEthicsQuiz();
   renderStudentLogs();
 
   panels.forEach((panel) => {
