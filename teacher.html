@@ -313,6 +313,8 @@
     }
 
     .case-note-action {
+      display: grid;
+      gap: 14px;
       width: min(100%, 1360px);
       margin: 18px auto 0;
     }
@@ -412,6 +414,30 @@
       object-fit: cover;
       object-position: 47% 54%;
       filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.3));
+    }
+
+    .case-note-button--ethics {
+      background:
+        linear-gradient(90deg, rgba(22, 31, 28, 0.96) 0%, rgba(42, 71, 55, 0.95) 48%, rgba(222, 207, 150, 0.96) 100%);
+    }
+
+    .case-note-button--ethics .case-note-button__icon {
+      display: grid;
+      place-items: center;
+      border-color: #0e8f67;
+      color: #fff;
+      font-size: 2.2rem;
+      font-weight: 950;
+      line-height: 1;
+    }
+
+    .case-note-button--ethics .case-note-button__icon::before {
+      content: "?";
+      transform: translateY(-1px);
+    }
+
+    .case-note-button--ethics .case-note-button__icon::after {
+      display: none;
     }
 
     .score-board {
@@ -1128,6 +1154,16 @@
           <span class="case-note-button__copy">
             <strong>사건노트 최종 유사도 측정</strong>
             <span>학생들의 최종 추리와 사건 기록을 대조합니다</span>
+          </span>
+          <span class="case-note-button__mascot" aria-hidden="true">
+            <img src="assets/characters/detective-note-mascot.png" alt="">
+          </span>
+        </a>
+        <a class="case-note-button case-note-button--ethics" href="teacher-ethics-manager.html" aria-label="윤리퀴즈 관리 화면으로 이동">
+          <span class="case-note-button__icon" aria-hidden="true"></span>
+          <span class="case-note-button__copy">
+            <strong>윤리퀴즈 관리칸</strong>
+            <span>학생용 윤리퀴즈 문제를 추가, 수정, 삭제합니다</span>
           </span>
           <span class="case-note-button__mascot" aria-hidden="true">
             <img src="assets/characters/detective-note-mascot.png" alt="">

@@ -19,6 +19,7 @@
   const cardLightboxImage = document.querySelector("[data-card-lightbox-image]");
   const closeCardButton = document.querySelector("[data-close-card]");
   const chatTokenLimit = 200;
+  const similaritySentenceLimit = 500;
 
   const greetings = {
     kangWoojin: "안녕하세요. 강우진입니다. 무슨 일 때문에 저를 부른 건지부터 말해 주세요.",
@@ -37,16 +38,16 @@
     unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
   const evidenceCatalog = {
-    K9F2W7V: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", image: "assets/evidence-rooms/broadcast.png", position: "84% 58%" },
-    R4B8X1M: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", image: "assets/evidence-rooms/broadcast.png", position: "18% 55%" },
-    Z7N3P6D: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", image: "assets/evidence-rooms/art.png", position: "72% 46%" },
-    L1V9T4C: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", image: "assets/evidence-rooms/art.png", position: "22% 70%" },
-    H5Q2G8S: { room: "교무실", roomId: "office", index: 1, evidence: "교무실 앞 CCTV", image: "assets/evidence-rooms/office.png", position: "20% 16%" },
-    B3K7J1W: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
-    X6M4F9P: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
-    V2D8R5Y: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
-    N7C3G1T: { room: "체육관", roomId: "gym", index: 1, evidence: "연습 노트", image: "assets/evidence-rooms/gym.png", position: "37% 76%" },
-    P5W9K2M: { room: "체육관", roomId: "gym", index: 2, evidence: "AI의 USB 오인식 결과", image: "assets/evidence-rooms/gym.png", position: "72% 65%" }
+    39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", image: "assets/evidence-rooms/broadcast.png", position: "84% 58%" },
+    26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", image: "assets/evidence-rooms/broadcast.png", position: "18% 55%" },
+    65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", image: "assets/evidence-rooms/art.png", position: "72% 46%" },
+    40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", image: "assets/evidence-rooms/art.png", position: "22% 70%" },
+    91648: { room: "교무실", roomId: "office", index: 1, evidence: "교무실 앞 CCTV", image: "assets/evidence-rooms/office.png", position: "20% 16%" },
+    11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
+    79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
+    61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
+    87143: { room: "체육관", roomId: "gym", index: 1, evidence: "연습 노트", image: "assets/evidence-rooms/gym.png", position: "37% 76%" },
+    13450: { room: "체육관", roomId: "gym", index: 2, evidence: "AI의 USB 오인식 결과", image: "assets/evidence-rooms/gym.png", position: "72% 65%" }
   };
 
   const state = {
@@ -66,7 +67,9 @@
     selectedEvidenceCode: "",
     ethicsAnswers: {},
     ethicsServerSolved: [],
-    ethicsCurrent: 1
+    ethicsCurrent: 1,
+    ethicsUnlocked: false,
+    ethicsSubmitting: false
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -88,10 +91,17 @@
   const ethicsQuestions = Array.isArray(window.KitEthicsQuizQuestions) ? window.KitEthicsQuizQuestions : [];
   const ethicsOpenButton = document.querySelector("[data-student-ethics-open]");
   const ethicsForm = document.querySelector("[data-student-ethics-form]");
+  const ethicsPasswordInput = document.querySelector("[data-student-ethics-password]");
   const ethicsNumberInput = document.querySelector("[data-student-ethics-number]");
   const ethicsSolvedSummary = document.querySelector("[data-student-ethics-solved]");
   const ethicsCard = document.querySelector("[data-student-ethics-card]");
   const ethicsResetButton = document.querySelector("[data-student-ethics-reset]");
+  const ethicsAccessPassword = String.fromCharCode(107, 105, 116);
+  const similarityForm = document.querySelector("[data-similarity-form]");
+  const similarityInput = document.querySelector("[data-similarity-sentence]");
+  const similarityCount = document.querySelector("[data-similarity-count]");
+  const similaritySubmit = document.querySelector("[data-similarity-submit]");
+  const similarityStatus = document.querySelector("[data-similarity-status]");
 
   function normalize(text) {
     return String(text || "").toLowerCase().replace(/\s+/g, "");
@@ -166,6 +176,13 @@
     evidenceMessage.classList.toggle("is-bad", type === "bad");
   }
 
+  function setSimilarityStatus(text, type = "") {
+    if (!similarityStatus) return;
+    similarityStatus.textContent = text;
+    similarityStatus.classList.toggle("is-ok", type === "ok");
+    similarityStatus.classList.toggle("is-bad", type === "bad");
+  }
+
   function evidenceStorageKey() {
     return `kit-evidence-cards:${state.classId}:${state.team || state.user || "guest"}`;
   }
@@ -176,6 +193,38 @@
 
   function ethicsStorageKey() {
     return `kit-ethics-quiz:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function ethicsUnlockStorageKey() {
+    return `kit-ethics-quiz-unlocked:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function loadEthicsUnlockState() {
+    state.ethicsUnlocked = false;
+    sessionStorage.removeItem(ethicsUnlockStorageKey());
+  }
+
+  function unlockEthicsQuiz() {
+    state.ethicsUnlocked = true;
+    sessionStorage.removeItem(ethicsUnlockStorageKey());
+    if (ethicsPasswordInput) ethicsPasswordInput.value = "";
+  }
+
+  function expireEthicsAccess() {
+    state.ethicsUnlocked = false;
+    sessionStorage.removeItem(ethicsUnlockStorageKey());
+    if (ethicsPasswordInput) ethicsPasswordInput.value = "";
+  }
+
+  function closeStudentEthicsQuestion(nextNumber = "") {
+    expireEthicsAccess();
+    if (ethicsCard) {
+      ethicsCard.hidden = true;
+      ethicsCard.textContent = "";
+    }
+    if (ethicsNumberInput && nextNumber) ethicsNumberInput.value = String(nextNumber);
+    renderEthicsSolvedSummary();
+    ethicsPasswordInput?.focus({ preventScroll: true });
   }
 
   function loadEthicsAnswers() {
@@ -245,7 +294,24 @@
   function firstUnsolvedEthicsNumber() {
     const attempted = new Set(ethicsAttemptedNumbers());
     const question = ethicsQuestions.find((item) => !attempted.has(Number(item.number)));
-    return Number(question?.number || 1);
+    return question ? Number(question.number) : null;
+  }
+
+  function sequentialEthicsNumber(number) {
+    return Number(number) || firstUnsolvedEthicsNumber() || 1;
+  }
+
+  function selectedEthicsNumber() {
+    const selected = Number(ethicsNumberInput?.value || "");
+    return selected || firstUnsolvedEthicsNumber() || state.ethicsCurrent || 1;
+  }
+
+  function nextUnsolvedEthicsNumberAfter(currentNumber) {
+    const attempted = new Set(ethicsAttemptedNumbers());
+    const current = Number(currentNumber) || 0;
+    const afterCurrent = ethicsQuestions.find((item) => Number(item.number) > current && !attempted.has(Number(item.number)));
+    if (afterCurrent) return Number(afterCurrent.number);
+    return firstUnsolvedEthicsNumber();
   }
 
   function unsyncedEthicsCreditBonus() {
@@ -490,6 +556,70 @@
     });
   }
 
+  function updateSimilarityCounter() {
+    if (!similarityInput || !similarityCount) return;
+    const length = String(similarityInput.value || "").length;
+    similarityCount.textContent = `${length}/${similaritySentenceLimit}`;
+    similarityCount.classList.toggle("is-bad", length > similaritySentenceLimit);
+  }
+
+  async function submitSimilaritySentence(event) {
+    event.preventDefault();
+    if (!similarityInput) return;
+
+    const sentence = String(similarityInput.value || "").replace(/\s+/g, " ").trim();
+    if (!state.team) {
+      setSimilarityStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    if (!sentence) {
+      setSimilarityStatus("보낼 문장을 입력하세요.", "bad");
+      similarityInput.focus();
+      return;
+    }
+    if (sentence.length > similaritySentenceLimit) {
+      setSimilarityStatus(`${similaritySentenceLimit}자 이하로 줄여 주세요.`, "bad");
+      similarityInput.focus();
+      return;
+    }
+
+    if (similaritySubmit) similaritySubmit.disabled = true;
+    setSimilarityStatus("선생님 화면으로 전송 중입니다.");
+
+    try {
+      const response = await fetch("/api/similarity-sentences", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          classId: state.classId,
+          team: state.team,
+          user: state.user,
+          sentence
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.error || "전송 실패");
+
+      setSimilarityStatus("선생님 화면으로 전송했습니다.", "ok");
+    } catch (error) {
+      setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
+    } finally {
+      if (similaritySubmit) similaritySubmit.disabled = false;
+    }
+  }
+
+  function setupSimilaritySentenceForm() {
+    updateSimilarityCounter();
+    similarityInput?.addEventListener("input", updateSimilarityCounter);
+    similarityForm?.addEventListener("submit", submitSimilaritySentence);
+  }
+
   function updateEvidenceControls() {
     const disabled = state.redeeming || !state.team;
     if (evidenceInput) evidenceInput.disabled = disabled;
@@ -680,9 +810,48 @@
     });
   }
 
+  function renderEthicsAccessGate(message = "윤리퀴즈 비밀번호를 입력한 뒤 시작하세요.") {
+    if (!ethicsCard) return;
+    ethicsCard.textContent = "";
+    ethicsCard.hidden = false;
+
+    const head = createEthicsElement("div", "student-ethics-head");
+    const titleWrap = document.createElement("div");
+    titleWrap.append(
+      createEthicsElement("p", "student-ethics-kicker", "윤리퀴즈"),
+      createEthicsElement("h2", "", "비밀번호 확인")
+    );
+    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", "잠김"));
+
+    const status = createEthicsElement("p", "student-ethics-status is-bad", message);
+    ethicsCard.append(head, status);
+  }
+
+  function requireEthicsAccess() {
+    if (state.ethicsUnlocked) return true;
+
+    const password = String(ethicsPasswordInput?.value || "").trim();
+    if (password === ethicsAccessPassword) {
+      unlockEthicsQuiz();
+      return true;
+    }
+
+    renderEthicsAccessGate(password ? "비밀번호가 맞지 않습니다." : "윤리퀴즈 비밀번호를 입력한 뒤 시작하세요.");
+    if (ethicsPasswordInput) {
+      ethicsPasswordInput.value = "";
+      ethicsPasswordInput.focus({ preventScroll: true });
+    }
+    return false;
+  }
+
   function renderStudentEthicsQuestion(number = state.ethicsCurrent) {
     if (!ethicsCard) return;
-    const question = ethicsQuestionByNumber(number);
+    if (!state.ethicsUnlocked) {
+      renderEthicsAccessGate();
+      return;
+    }
+
+    const question = ethicsQuestionByNumber(sequentialEthicsNumber(number));
     ethicsCard.textContent = "";
 
     if (!ethicsQuestions.length || !question) {
@@ -775,17 +944,36 @@
     submit.disabled = locked;
     const status = createEthicsElement("div", "student-ethics-status");
     status.dataset.studentEthicsStatus = "";
+    const nextNumber = nextUnsolvedEthicsNumberAfter(question.number);
     if (revealed && correct) {
-      status.textContent = answer.rewarded ? "정답입니다. 질문권 3개가 바로 반영되었습니다." : "정답입니다.";
+      if (answer.rewarded && !nextNumber) {
+        status.textContent = "정답입니다. 모든 윤리퀴즈를 완료했습니다.";
+      } else if (answer.rewarded) {
+        status.textContent = "정답입니다. 질문권 3개가 바로 반영되었습니다.";
+      } else {
+        status.textContent = "정답입니다.";
+      }
       status.classList.add("is-ok");
     } else if (revealed) {
-      status.textContent = "오답입니다. 이 문제는 다시 풀 수 없습니다.";
+      status.textContent = nextNumber ? "오답입니다. 이 문제는 다시 풀 수 없습니다." : "오답입니다. 모든 윤리퀴즈를 완료했습니다.";
       status.classList.add("is-bad");
     }
     submit.addEventListener("click", () => submitStudentEthicsAnswer(question));
     actions.append(submit, status);
+    if (locked) {
+      const next = createEthicsElement("button", "student-ethics-next", nextNumber && nextNumber !== Number(question.number) ? "다음 문제" : "닫기");
+      next.type = "button";
+      next.addEventListener("click", () => {
+        closeStudentEthicsQuestion(nextNumber && nextNumber !== Number(question.number) ? nextNumber : "");
+      });
+      actions.append(next);
+    }
+    copy.append(actions);
 
-    ethicsCard.append(head, source, copy, actions);
+    const layout = createEthicsElement("div", "student-ethics-question-layout");
+    layout.append(source, copy);
+    ethicsCard.append(head, layout);
+    if (locked && !state.ethicsSubmitting) expireEthicsAccess();
     renderEthicsSolvedSummary();
   }
 
@@ -810,8 +998,11 @@
     }
 
     if (answer.value !== question.answer) {
+      state.ethicsSubmitting = true;
       setEthicsAnswer(question, { revealed: true, rewarded: false, locked: true });
       renderStudentEthicsQuestion(question.number);
+      state.ethicsSubmitting = false;
+      expireEthicsAccess();
       return;
     }
 
@@ -821,6 +1012,7 @@
       return;
     }
 
+    state.ethicsSubmitting = true;
     setEthicsAnswer(question, { revealed: true, rewarded: true, serverRewarded: false });
     applyCredits(state.serverCredits);
     renderEthicsSolvedSummary();
@@ -852,9 +1044,12 @@
       setEthicsAnswer(question, { revealed: true, rewarded: true, serverRewarded: true });
       if (data.credits !== undefined) applyCredits(data.credits);
       renderEthicsSolvedSummary();
-      renderStudentEthicsQuestion(question.number);
+      if (ethicsCard && !ethicsCard.hidden) renderStudentEthicsQuestion(question.number);
     } catch {
-      renderStudentEthicsQuestion(question.number);
+      if (ethicsCard && !ethicsCard.hidden) renderStudentEthicsQuestion(question.number);
+    } finally {
+      state.ethicsSubmitting = false;
+      expireEthicsAccess();
     }
   }
 
@@ -894,7 +1089,7 @@
   async function resetStudentEthicsQuiz() {
     const password = window.prompt("윤리퀴즈 풀이 기록을 초기화하려면 비밀번호를 입력하세요.");
     if (password === null) return;
-    if (password !== "kit") {
+    if (password !== ethicsAccessPassword) {
       window.alert("비밀번호가 맞지 않습니다.");
       return;
     }
@@ -921,7 +1116,7 @@
         },
         body: JSON.stringify({
           action: "reset",
-          password: "kit",
+          password: ethicsAccessPassword,
           team: state.team,
           user: state.user,
           classId: state.classId
@@ -933,9 +1128,9 @@
   }
 
   function setupStudentEthicsQuiz() {
+    loadEthicsUnlockState();
     loadEthicsAnswers();
     renderEthicsSolvedSummary();
-
     updateEthicsNumberInputRange();
 
     window.addEventListener("kit-ethics-questions-updated", () => {
@@ -947,16 +1142,23 @@
     });
 
     ethicsOpenButton?.addEventListener("click", () => {
-      const number = Number(ethicsNumberInput?.value || "") || firstUnsolvedEthicsNumber();
-      renderStudentEthicsQuestion(number);
+      if (!state.ethicsUnlocked) {
+        renderEthicsAccessGate();
+        ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+        ethicsPasswordInput?.focus({ preventScroll: true });
+        return;
+      }
+      renderStudentEthicsQuestion(selectedEthicsNumber());
       ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
-      ethicsNumberInput?.focus({ preventScroll: true });
     });
 
     ethicsForm?.addEventListener("submit", (event) => {
       event.preventDefault();
-      const number = Number(ethicsNumberInput?.value || "");
-      renderStudentEthicsQuestion(number);
+      if (!requireEthicsAccess()) {
+        ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      renderStudentEthicsQuestion(selectedEthicsNumber());
       ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 
@@ -1211,6 +1413,7 @@
   renderEvidenceBoard();
   syncEvidenceCardsWithServer();
   setupCaseNote();
+  setupSimilaritySentenceForm();
   setupStudentEthicsQuiz();
   renderStudentLogs();
 

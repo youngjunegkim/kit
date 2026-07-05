@@ -71,6 +71,9 @@
     applyTeamCount: document.querySelector("[data-apply-team-count]"),
     addTeam: document.querySelector("[data-add-team]"),
     scoreAll: document.querySelector("[data-score-all]"),
+    importStudentSentences: document.querySelector("[data-import-student-sentences]"),
+    clearStudentSentences: document.querySelector("[data-clear-student-sentences]"),
+    studentSentenceStatus: document.querySelector("[data-student-sentence-status]"),
     exportCsv: document.querySelector("[data-export-csv]"),
     resetAll: document.querySelector("[data-reset-all]"),
     teamTotal: document.querySelector("[data-team-total]"),
@@ -111,6 +114,157 @@
       note: "",
       result: null
     };
+  }
+
+  function classId() {
+    return sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  }
+
+  function setStudentSentenceStatus(text, type = "") {
+    if (!elements.studentSentenceStatus) return;
+    elements.studentSentenceStatus.textContent = text;
+    elements.studentSentenceStatus.classList.toggle("is-ok", type === "ok");
+    elements.studentSentenceStatus.classList.toggle("is-bad", type === "bad");
+  }
+
+  function teamKey(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .replace(/\s+/g, "")
+      .replace(/팀$/, "")
+      .toLowerCase();
+  }
+
+  function sentenceLabel(entry) {
+    return String(entry.team || entry.user || "학생").trim();
+  }
+
+  function latestSentenceEntries(entries = []) {
+    const seen = new Set();
+    const latest = [];
+    entries.forEach((entry) => {
+      const sentence = String(entry?.sentence || "").trim();
+      const label = sentenceLabel(entry);
+      const key = teamKey(label);
+      if (!sentence || !key || seen.has(key)) return;
+      seen.add(key);
+      latest.push({ ...entry, sentence, label });
+    });
+    return latest;
+  }
+
+  function targetTeamForSentence(entry) {
+    const key = teamKey(entry.label);
+    return state.teams.find((team) => teamKey(team.name) === key) ||
+      state.teams.find((team) => !String(team.note || "").trim()) ||
+      null;
+  }
+
+  async function importStudentSentences() {
+    if (!elements.importStudentSentences) return;
+    syncFromDom();
+    elements.importStudentSentences.disabled = true;
+    const clearWasDisabled = Boolean(elements.clearStudentSentences?.disabled);
+    if (elements.clearStudentSentences) elements.clearStudentSentences.disabled = true;
+    const originalText = elements.importStudentSentences.textContent;
+    elements.importStudentSentences.textContent = "불러오는 중";
+    setStudentSentenceStatus("학생 문장을 불러오는 중입니다.");
+
+    try {
+      const response = await fetch(`/api/similarity-sentences?classId=${encodeURIComponent(classId())}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "teacher",
+          "x-kit-class": classId()
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(data.sentences)) {
+        throw new Error(data.error || "학생 문장을 불러오지 못했습니다.");
+      }
+
+      const entries = latestSentenceEntries(data.sentences);
+      if (!entries.length) {
+        setStudentSentenceStatus("아직 학생이 보낸 문장이 없습니다.", "bad");
+        return;
+      }
+
+      const willOverwrite = entries.some((entry) => {
+        const target = state.teams.find((team) => teamKey(team.name) === teamKey(entry.label));
+        return target && String(target.note || "").trim() && target.note.trim() !== entry.sentence;
+      });
+      if (willOverwrite && !window.confirm("같은 팀 이름의 기존 입력문을 학생이 보낸 문장으로 바꿀까요?")) {
+        setStudentSentenceStatus("학생 문장 받기를 취소했습니다.", "bad");
+        return;
+      }
+
+      let imported = 0;
+      entries.forEach((entry) => {
+        let team = targetTeamForSentence(entry);
+        if (!team) {
+          team = createTeam(entry.label, state.teams.length + 1);
+          state.teams.push(team);
+        }
+        team.name = entry.label;
+        team.note = entry.sentence;
+        team.result = null;
+        imported += 1;
+      });
+
+      state.reports = [];
+      saveState();
+      renderTeams();
+      renderRanking();
+      renderReports([], `학생 문장 ${imported}개를 입력칸에 반영했습니다. 바로 유사도 측정을 누를 수 있습니다.`);
+      setStudentSentenceStatus(`학생 문장 ${imported}개를 받았습니다. 바로 측정할 수 있습니다.`, "ok");
+    } catch (error) {
+      setStudentSentenceStatus(error.message || "학생 문장 받기에 실패했습니다.", "bad");
+    } finally {
+      elements.importStudentSentences.disabled = false;
+      if (elements.clearStudentSentences) elements.clearStudentSentences.disabled = clearWasDisabled;
+      elements.importStudentSentences.textContent = originalText;
+    }
+  }
+
+  async function clearStudentSentences() {
+    if (!elements.clearStudentSentences) return;
+    if (!window.confirm("학생들이 보낸 유사도 측정 문장을 모두 초기화할까요? 입력칸에 이미 가져온 문장은 유지됩니다.")) return;
+
+    elements.clearStudentSentences.disabled = true;
+    const importWasDisabled = Boolean(elements.importStudentSentences?.disabled);
+    if (elements.importStudentSentences) elements.importStudentSentences.disabled = true;
+    const originalText = elements.clearStudentSentences.textContent;
+    elements.clearStudentSentences.textContent = "초기화 중";
+    setStudentSentenceStatus("학생 문장을 초기화하는 중입니다.");
+
+    try {
+      const response = await fetch("/api/similarity-sentences", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "teacher",
+          "x-kit-class": classId()
+        },
+        body: JSON.stringify({
+          action: "clear",
+          classId: classId()
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "학생 문장 초기화에 실패했습니다.");
+      }
+
+      const removed = data.removed || 0;
+      const storageNote = data.persistent ? "" : " 공유 저장소가 연결되지 않아 현재 서버 기준으로 처리했습니다.";
+      setStudentSentenceStatus(`학생 문장 ${removed}개를 초기화했습니다.${storageNote}`, data.persistent ? "ok" : "bad");
+    } catch (error) {
+      setStudentSentenceStatus(error.message || "학생 문장 초기화에 실패했습니다.", "bad");
+    } finally {
+      elements.clearStudentSentences.disabled = false;
+      if (elements.importStudentSentences) elements.importStudentSentences.disabled = importWasDisabled;
+      elements.clearStudentSentences.textContent = originalText;
+    }
   }
 
   function normalize(text) {
@@ -1022,6 +1176,8 @@
     elements.applyTeamCount.addEventListener("click", () => setTeamCount(elements.teamCount.value));
     elements.addTeam.addEventListener("click", addTeam);
     elements.scoreAll.addEventListener("click", scoreAll);
+    elements.importStudentSentences?.addEventListener("click", importStudentSentences);
+    elements.clearStudentSentences?.addEventListener("click", clearStudentSentences);
     elements.exportCsv.addEventListener("click", exportCsv);
     elements.resetAll.addEventListener("click", resetAll);
     elements.readAllReports?.addEventListener("click", () => {

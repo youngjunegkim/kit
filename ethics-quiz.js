@@ -327,6 +327,27 @@
     localStorage.setItem(customQuestionStorageKey(), JSON.stringify(records));
   }
 
+  function customQuestionSignature(records) {
+    return JSON.stringify((Array.isArray(records) ? records : []).map((record) => ({
+      id: String(record?.id || ""),
+      topic: String(record?.topic || ""),
+      background: Array.isArray(record?.background) ? record.background : splitCustomParagraphs(record?.background),
+      prompt: String(record?.prompt || ""),
+      options: Array.isArray(record?.options) ? record.options.map((option) => ({
+        id: String(option?.id || ""),
+        marker: String(option?.marker || ""),
+        text: String(option?.text || "")
+      })) : [],
+      answer: String(record?.answer || ""),
+      explanation: Array.isArray(record?.explanation) ? record.explanation : splitCustomParagraphs(record?.explanation),
+      sourceImage: String(record?.sourceImage || ""),
+      baseNumber: Number(record?.baseNumber || 0) || 0
+    })));
+  }
+
+  const savedCustomQuestionRecords = loadCustomQuestionRecords();
+  let customQuestionsFingerprint = customQuestionSignature(savedCustomQuestionRecords);
+
   function customQuestionHeaders(role = "") {
     const resolvedRole = role || document.body?.dataset.auth || sessionStorage.getItem("kit-auth-role") || "student";
     return {
@@ -338,17 +359,17 @@
   function applyCustomQuestionRecords(records) {
     const validRecords = (Array.isArray(records) ? records : [])
       .filter((record) => normalizeCustomQuestion(record, 0));
+    const nextFingerprint = customQuestionSignature(validRecords);
+    if (nextFingerprint === customQuestionsFingerprint) return false;
+    customQuestionsFingerprint = nextFingerprint;
     saveCustomQuestionRecords(validRecords);
 
-    const normalized = validRecords
-      .map(normalizeCustomQuestion)
-      .filter(Boolean)
-      .map((question, index) => ({ ...question, number: baseQuestionCount + index + 1 }));
-    questions.splice(baseQuestionCount, questions.length - baseQuestionCount, ...normalized);
+    rebuildEthicsQuestions(validRecords);
     window.KitEthicsQuizQuestions = questions;
     window.dispatchEvent(new CustomEvent("kit-ethics-questions-updated", {
       detail: { count: questions.length }
     }));
+    return true;
   }
 
   async function refreshCustomQuestionsFromServer() {
@@ -364,6 +385,10 @@
     } catch {
       // Local custom questions still work when the page is opened without the Node API server.
     }
+  }
+
+  if (typeof window !== "undefined") {
+    window.KitRefreshEthicsQuestions = refreshCustomQuestionsFromServer;
   }
 
   async function saveCustomQuestionToServer(record) {
@@ -417,6 +442,20 @@
     return splitCustomParagraphs(value);
   }
 
+  function cloneQuestion(question) {
+    return {
+      ...question,
+      background: Array.isArray(question.background) ? [...question.background] : [],
+      options: Array.isArray(question.options) ? question.options.map((option) => ({ ...option })) : [],
+      explanation: Array.isArray(question.explanation) ? [...question.explanation] : []
+    };
+  }
+
+  function normalizedBaseNumber(record) {
+    const number = Number(record?.baseNumber || 0);
+    return Number.isInteger(number) && number >= 1 && number <= baseQuestionCount ? number : 0;
+  }
+
   function normalizeCustomQuestion(record, index) {
     const options = Array.isArray(record.options)
       ? record.options
@@ -436,9 +475,11 @@
       return null;
     }
 
+    const baseNumber = normalizedBaseNumber(record);
     return {
-      number: baseQuestionCount + index + 1,
-      custom: true,
+      number: baseNumber || baseQuestionCount + index + 1,
+      baseNumber,
+      custom: !baseNumber,
       customId: String(record.id || `custom-${index}`),
       topic,
       type: "choice",
@@ -451,19 +492,56 @@
     };
   }
 
-  const customQuestions = loadCustomQuestionRecords()
-    .map(normalizeCustomQuestion)
-    .filter(Boolean)
-    .map((question, index) => ({ ...question, number: baseQuestionCount + index + 1 }));
-  questions.push(...customQuestions);
+  const updatedSourceImages = {
+    3: "assets/ethics_updates/q03_webtoon.png",
+    6: "assets/ethics_updates/q06_medical_bias.png",
+    7: "assets/ethics_updates/q07_publicity.png",
+    8: "assets/ethics_updates/q08_hallucination.png",
+    9: "assets/ethics_updates/q09_autonomous_crash.png",
+    11: "assets/ethics_updates/q11_smart_glasses.png"
+  };
 
   questions.forEach((question) => {
+    if (!question.custom && updatedSourceImages[question.number]) {
+      question.sourceImage = updatedSourceImages[question.number];
+      return;
+    }
     if (!question.sourceImage && !question.custom) {
       question.sourceImage = `assets/ethics-quiz-images/q${String(question.number).padStart(2, "0")}.png`;
     }
   });
+  const baseQuestionTemplates = questions.slice(0, baseQuestionCount).map(cloneQuestion);
+
+  function rebuildEthicsQuestions(records) {
+    const nextBaseQuestions = baseQuestionTemplates.map(cloneQuestion);
+    const nextCustomQuestions = [];
+    (Array.isArray(records) ? records : []).forEach((record) => {
+      const normalized = normalizeCustomQuestion(record, nextCustomQuestions.length);
+      if (!normalized) return;
+      if (normalized.baseNumber) {
+        nextBaseQuestions[normalized.baseNumber - 1] = {
+          ...normalized,
+          number: normalized.baseNumber,
+          custom: false
+        };
+        return;
+      }
+      nextCustomQuestions.push({
+        ...normalized,
+        number: baseQuestionCount + nextCustomQuestions.length + 1,
+        custom: true
+      });
+    });
+    questions.splice(0, questions.length, ...nextBaseQuestions, ...nextCustomQuestions);
+  }
+
+  rebuildEthicsQuestions(savedCustomQuestionRecords);
+  window.KitEthicsBaseQuestions = baseQuestionTemplates.map(cloneQuestion);
   window.KitEthicsQuizQuestions = questions;
   refreshCustomQuestionsFromServer();
+  if (typeof window !== "undefined") {
+    window.setInterval(refreshCustomQuestionsFromServer, 30000);
+  }
 
   const page = document.body;
   if (!page?.classList.contains("ethics-page")) return;

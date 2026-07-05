@@ -18,16 +18,16 @@ const {
 } = require("./_credits");
 
 const evidenceCodes = {
-  K9F2W7V: { room: "방송실", evidence: "방송실 장비 점검표", person: "서하린" },
-  R4B8X1M: { room: "방송실", evidence: "AI 자료 열람 기록", person: "서하린" },
-  Z7N3P6D: { room: "미술실", evidence: "기말고사 유의사항 포스터 파일", person: "서하린" },
-  L1V9T4C: { room: "미술실", evidence: "삭제된 AI 프롬프트 기록", person: "강우진" },
-  H5Q2G8S: { room: "교무실", evidence: "교무실 앞 CCTV", person: "강우진" },
-  B3K7J1W: { room: "교무실", evidence: "책상 위 기말고사 문제지", person: "강우진" },
-  X6M4F9P: { room: "과학실", evidence: "실험 보고서 제출 기록", person: "최다니엘" },
-  V2D8R5Y: { room: "과학실", evidence: "과학실 분실물함 기록", person: "최다니엘" },
-  N7C3G1T: { room: "체육관", evidence: "연습 노트", person: "강우진" },
-  P5W9K2M: { room: "체육관", evidence: "AI의 USB 오인식 결과", person: "최다니엘" }
+  39275: { room: "방송실", evidence: "방송실 장비 점검표", person: "서하린" },
+  26547: { room: "방송실", evidence: "AI 자료 열람 기록", person: "서하린" },
+  65927: { room: "미술실", evidence: "기말고사 유의사항 포스터 파일", person: "서하린" },
+  40018: { room: "미술실", evidence: "삭제된 AI 프롬프트 기록", person: "강우진" },
+  91648: { room: "교무실", evidence: "교무실 앞 CCTV", person: "강우진" },
+  11582: { room: "교무실", evidence: "책상 위 기말고사 문제지", person: "강우진" },
+  79610: { room: "과학실", evidence: "실험 보고서 제출 기록", person: "최다니엘" },
+  61408: { room: "과학실", evidence: "과학실 분실물함 기록", person: "최다니엘" },
+  87143: { room: "체육관", evidence: "연습 노트", person: "강우진" },
+  13450: { room: "체육관", evidence: "AI의 USB 오인식 결과", person: "최다니엘" }
 };
 
 function sendJson(response, statusCode, body) {

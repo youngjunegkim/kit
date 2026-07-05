@@ -12,6 +12,7 @@ const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
 const memoryEthicsQuizRedeemStore = globalThis.__kitEthicsQuizRedeemStore || new Map();
 const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
+const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore || [];
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -23,9 +24,12 @@ globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
 globalThis.__kitEthicsQuizRedeemStore = memoryEthicsQuizRedeemStore;
 globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
+globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
+const maxEthicsSourceImageLength = 300000;
+const maxSimilaritySentenceLength = 500;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
 const defaultClassId = "class-a";
 
@@ -149,6 +153,10 @@ function ethicsQuizLogKey() {
 
 function ethicsQuestionKey() {
   return `kit:${storeNamespace()}:ethics-custom-questions`;
+}
+
+function similaritySentenceKey() {
+  return `kit:${storeNamespace()}:similarity-sentences`;
 }
 
 function hasPersistentStore() {
@@ -495,6 +503,7 @@ function cleanEthicsQuestionOption(option = {}, index = 0) {
 }
 
 function cleanEthicsQuestionRecord(record = {}) {
+  const baseNumber = cleanCredits(record.baseNumber);
   const options = Array.isArray(record.options)
     ? record.options.map(cleanEthicsQuestionOption).filter(Boolean).slice(0, 5)
     : [];
@@ -511,8 +520,9 @@ function cleanEthicsQuestionRecord(record = {}) {
   }
 
   return {
-    id: String(record.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`).trim().slice(0, 80),
+    id: String(record.id || (baseNumber ? `base-${baseNumber}` : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)).trim().slice(0, 80),
     at: String(record.at || new Date().toISOString()),
+    baseNumber: baseNumber >= 1 && baseNumber <= 200 ? baseNumber : 0,
     topic,
     type: "choice",
     background: (Array.isArray(record.background) ? record.background : [record.background])
@@ -523,7 +533,7 @@ function cleanEthicsQuestionRecord(record = {}) {
     options,
     answer,
     explanation,
-    sourceImage: String(record.sourceImage || "").trim().slice(0, 500)
+    sourceImage: String(record.sourceImage || "").trim().slice(0, maxEthicsSourceImageLength)
   };
 }
 
@@ -561,10 +571,10 @@ async function addCustomEthicsQuestion(record) {
   const cleanRecord = cleanEthicsQuestionRecord(record);
   if (!cleanRecord) return null;
   const records = await getCustomEthicsQuestions();
-  const next = [
-    ...records.filter((item) => item.id !== cleanRecord.id),
-    cleanRecord
-  ].slice(0, 50);
+  const existingIndex = records.findIndex((item) => item.id === cleanRecord.id);
+  const next = existingIndex >= 0
+    ? records.map((item) => item.id === cleanRecord.id ? cleanRecord : item)
+    : [...records, cleanRecord].slice(0, 50);
   await setCustomEthicsQuestions(next);
   return cleanRecord;
 }
@@ -576,6 +586,76 @@ async function deleteCustomEthicsQuestion(id) {
   const removed = records.find((item) => item.id === target) || null;
   if (!removed) return null;
   await setCustomEthicsQuestions(records.filter((item) => item.id !== target));
+  return removed;
+}
+
+function cleanSimilaritySentenceEntry(entry = {}) {
+  const team = normalizeTeam(entry.team);
+  const sentence = String(entry.sentence || "").replace(/\s+/g, " ").trim().slice(0, maxSimilaritySentenceLength);
+  if (!team || !sentence) return null;
+
+  return {
+    id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    at: String(entry.at || new Date().toISOString()),
+    team,
+    user: String(entry.user || team).trim().slice(0, 40),
+    sentence,
+    namespace: String(entry.namespace || storeNamespace()).trim()
+  };
+}
+
+async function recordSimilaritySentence(entry) {
+  const cleanEntry = cleanSimilaritySentenceEntry(entry);
+  if (!cleanEntry) return null;
+
+  if (!hasPersistentStore()) {
+    memorySimilaritySentenceStore.unshift(cleanEntry);
+    memorySimilaritySentenceStore.splice(maxStoredLogs);
+    return cleanEntry;
+  }
+
+  await redisCommand(["LPUSH", similaritySentenceKey(), JSON.stringify(cleanEntry)]);
+  await redisCommand(["LTRIM", similaritySentenceKey(), "0", String(maxStoredLogs - 1)]);
+  return cleanEntry;
+}
+
+async function getSimilaritySentences(limit = maxReturnedEvidenceLogs) {
+  const safeLimit = Math.min(maxReturnedEvidenceLogs, Math.max(1, cleanCredits(limit) || maxReturnedEvidenceLogs));
+
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    return memorySimilaritySentenceStore
+      .filter((entry) => entry.namespace === namespace)
+      .slice(0, safeLimit);
+  }
+
+  const rawLogs = await redisCommand(["LRANGE", similaritySentenceKey(), "0", String(maxStoredLogs - 1)]);
+  return (Array.isArray(rawLogs) ? rawLogs : [])
+    .map((item) => {
+      try {
+        return cleanSimilaritySentenceEntry(JSON.parse(item));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .slice(0, safeLimit);
+}
+
+async function clearSimilaritySentences() {
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    const removed = memorySimilaritySentenceStore.filter((entry) => entry.namespace === namespace);
+    for (let index = memorySimilaritySentenceStore.length - 1; index >= 0; index -= 1) {
+      if (memorySimilaritySentenceStore[index]?.namespace === namespace) {
+        memorySimilaritySentenceStore.splice(index, 1);
+      }
+    }
+    return removed;
+  }
+
+  const removed = await getSimilaritySentences(maxReturnedEvidenceLogs);
+  await redisCommand(["DEL", similaritySentenceKey()]);
   return removed;
 }
 
@@ -825,6 +905,7 @@ module.exports = {
   classLabelFor,
   deleteCustomEthicsQuestion,
   clearEvidenceRedemptions,
+  clearSimilaritySentences,
   clearEthicsQuizRedemptions,
   consumeCredit,
   clearQuestionLogs,
@@ -840,6 +921,7 @@ module.exports = {
   getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
+  getSimilaritySentences,
   getPresence,
   grantCredits,
   hasPersistentStore,
@@ -848,6 +930,7 @@ module.exports = {
   normalizeTeam,
   recordEvidenceRedemption,
   recordEthicsQuizRedemption,
+  recordSimilaritySentence,
   removePresence,
   requestClassId,
   redeemEthicsQuizQuestion,

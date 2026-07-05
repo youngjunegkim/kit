@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>윤리퀴즈 관리</title>
+  <script src="auth.js" defer></script>
+  <script src="ethics-quiz.js" defer></script>
+  <script src="teacher-ethics-manager.js" defer></script>
+  <style>
+    :root {
+      --bg: #101826;
+      --panel: #fffaf0;
+      --panel-strong: #fff;
+      --ink: #17202c;
+      --muted: #687487;
+      --line: #d9c9a4;
+      --red: #c91f24;
+      --green: #0d7a51;
+      --gold: #e1ae2d;
+      --shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
+      font-family: "Arial", "Malgun Gothic", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(225, 174, 45, 0.16), transparent 32%),
+        linear-gradient(135deg, #101826 0%, #201315 100%);
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .manager-shell {
+      width: min(100%, 1360px);
+      margin: 0 auto;
+      padding: 28px 22px 40px;
+    }
+
+    .manager-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+      color: #fff8eb;
+    }
+
+    .manager-title {
+      min-width: 0;
+    }
+
+    .manager-title p {
+      margin: 0 0 6px;
+      color: var(--gold);
+      font-size: 0.86rem;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+    }
+
+    .manager-title h1 {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      line-height: 1.08;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .manager-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .manager-pill,
+    .manager-link,
+    .manager-tools button {
+      min-height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 7px;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff8eb;
+      font-weight: 900;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .manager-link,
+    .manager-tools button {
+      background: #fff1d0;
+      color: #261a12;
+    }
+
+    .manager-panel {
+      display: grid;
+      gap: 16px;
+      border: 1px solid rgba(231, 196, 134, 0.72);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .ethics-manage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(217, 201, 164, 0.8);
+    }
+
+    .ethics-manage-head h2 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 1.18rem;
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .ethics-manage-actions-top {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ethics-manage-actions-top button,
+    .ethics-manage-actions button,
+    .ethics-manage-item-actions button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 7px;
+      padding: 9px 13px;
+      background: #ece3d0;
+      color: #2b2117;
+      font-weight: 950;
+    }
+
+    .ethics-manage-actions-top [data-ethics-manager-new],
+    .ethics-manage-actions button[type="submit"] {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .ethics-manage-body {
+      display: grid;
+      grid-template-columns: minmax(380px, 0.95fr) minmax(0, 1.05fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .ethics-manage-form {
+      display: grid;
+      gap: 12px;
+      border: 1px solid #d8c59d;
+      border-radius: 8px;
+      background: var(--panel-strong);
+      padding: 16px;
+    }
+
+    .ethics-manage-form[hidden] {
+      display: none;
+    }
+
+    .ethics-manage-field {
+      display: grid;
+      gap: 6px;
+      color: #362a1c;
+      font-size: 0.9rem;
+      font-weight: 950;
+    }
+
+    .ethics-manage-field input,
+    .ethics-manage-field textarea,
+    .ethics-manage-field select {
+      width: 100%;
+      border: 1px solid #cdbb94;
+      border-radius: 7px;
+      padding: 10px 11px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 0.95rem;
+      font-weight: 750;
+      resize: vertical;
+    }
+
+    .ethics-manage-field textarea {
+      min-height: 96px;
+      line-height: 1.45;
+    }
+
+    .ethics-manage-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .ethics-manage-remove {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #514535;
+      font-size: 0.9rem;
+      font-weight: 900;
+    }
+
+    .ethics-manage-preview {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+    }
+
+    .ethics-manage-preview[hidden] {
+      display: none;
+    }
+
+    .ethics-manage-preview img {
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      border: 1px solid #d8c59d;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .ethics-manage-preview figcaption {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 850;
+    }
+
+    .ethics-manage-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 4px;
+    }
+
+    .ethics-manage-list-wrap {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .ethics-manage-status {
+      min-height: 21px;
+      margin: 0;
+      color: #514535;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      font-weight: 900;
+    }
+
+    .ethics-manage-status.is-ok {
+      color: var(--green);
+    }
+
+    .ethics-manage-status.is-bad {
+      color: var(--red);
+    }
+
+    .ethics-manage-list {
+      display: grid;
+      gap: 10px;
+      max-height: 640px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .ethics-manage-item {
+      display: grid;
+      gap: 8px;
+      border: 1px solid #dfcfaa;
+      border-radius: 8px;
+      background: #fff;
+      padding: 13px;
+    }
+
+    .ethics-manage-item__meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .ethics-manage-item strong {
+      color: var(--ink);
+      font-size: 1rem;
+      line-height: 1.25;
+      font-weight: 950;
+    }
+
+    .ethics-manage-item p,
+    .ethics-manage-empty {
+      margin: 0;
+      color: #28303c;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      font-weight: 850;
+    }
+
+    .ethics-manage-item-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ethics-manage-item-actions button:last-child {
+      background: #a71318;
+      color: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .manager-topbar,
+      .ethics-manage-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .manager-tools,
+      .ethics-manage-actions-top {
+        justify-content: flex-start;
+      }
+
+      .ethics-manage-body {
+        grid-template-columns: 1fr;
+      }
+
+      .ethics-manage-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .manager-shell {
+        padding: 18px 12px 28px;
+      }
+
+      .manager-panel {
+        padding: 13px;
+      }
+    }
+  </style>
+</head>
+<body data-auth="teacher">
+  <main class="manager-shell">
+    <header class="manager-topbar">
+      <div class="manager-title">
+        <p>AI 수사단</p>
+        <h1>윤리퀴즈 관리</h1>
+      </div>
+      <div class="manager-tools">
+        <span class="manager-pill" data-auth-label>선생용</span>
+        <span class="manager-pill" data-class-label>1반</span>
+        <a class="manager-link" href="teacher.html">교사 지도로</a>
+        <button type="button" data-logout>로그아웃</button>
+      </div>
+    </header>
+
+    <section class="manager-panel" data-ethics-manager aria-label="윤리퀴즈 관리">
+      <div class="ethics-manage-head">
+        <h2>윤리퀴즈 문제 관리</h2>
+        <div class="ethics-manage-actions-top">
+          <button type="button" data-ethics-manager-refresh>새로고침</button>
+          <button type="button" data-ethics-manager-new>새 문제</button>
+        </div>
+      </div>
+
+      <div class="ethics-manage-body">
+        <form class="ethics-manage-form" data-ethics-manager-form hidden>
+          <input type="hidden" name="id" data-ethics-manager-id>
+          <input type="hidden" name="baseNumber" data-ethics-manager-base-number>
+          <label class="ethics-manage-field">
+            제목
+            <input name="topic" type="text" autocomplete="off" placeholder="예: AI 면접과 공정성" required>
+          </label>
+          <label class="ethics-manage-field">
+            배경설명
+            <textarea name="background" placeholder="학생에게 보여줄 설명을 입력하세요. 여러 문단은 줄바꿈으로 구분합니다."></textarea>
+          </label>
+          <label class="ethics-manage-field">
+            문제
+            <textarea name="prompt" placeholder="객관식 질문을 입력하세요." required></textarea>
+          </label>
+          <div class="ethics-manage-options" aria-label="보기 입력">
+            <label class="ethics-manage-field">① 보기<input name="option1" type="text" autocomplete="off" required></label>
+            <label class="ethics-manage-field">② 보기<input name="option2" type="text" autocomplete="off" required></label>
+            <label class="ethics-manage-field">③ 보기<input name="option3" type="text" autocomplete="off"></label>
+            <label class="ethics-manage-field">④ 보기<input name="option4" type="text" autocomplete="off"></label>
+            <label class="ethics-manage-field">⑤ 보기<input name="option5" type="text" autocomplete="off"></label>
+          </div>
+          <label class="ethics-manage-field">
+            정답
+            <select name="answer" required>
+              <option value="1">①</option>
+              <option value="2">②</option>
+              <option value="3">③</option>
+              <option value="4">④</option>
+              <option value="5">⑤</option>
+            </select>
+          </label>
+          <label class="ethics-manage-field">
+            해설
+            <textarea name="explanation" placeholder="정답 해설을 입력하세요. 여러 문단은 줄바꿈으로 구분합니다." required></textarea>
+          </label>
+          <label class="ethics-manage-field">
+            사진 주소
+            <input name="sourceImage" type="text" autocomplete="off" placeholder="assets/파일명.png 또는 이미지 URL">
+          </label>
+          <label class="ethics-manage-field">
+            사진 파일
+            <input name="sourceFile" type="file" accept="image/*">
+          </label>
+          <label class="ethics-manage-remove">
+            <input name="removeImage" type="checkbox">
+            저장된 사진 제거
+          </label>
+          <figure class="ethics-manage-preview" data-ethics-manager-preview hidden>
+            <img alt="윤리퀴즈 사진 미리보기">
+            <figcaption>현재 사진</figcaption>
+          </figure>
+          <div class="ethics-manage-actions">
+            <button type="button" data-ethics-manager-cancel>취소</button>
+            <button type="submit">저장</button>
+          </div>
+        </form>
+
+        <div class="ethics-manage-list-wrap">
+          <p class="ethics-manage-status" data-ethics-manager-status></p>
+          <div class="ethics-manage-list" data-ethics-manager-list></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

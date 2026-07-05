@@ -9,6 +9,7 @@ const ethicsQuizHandler = require("./api/ethics-quiz");
 const ethicsQuestionsHandler = require("./api/ethics-questions");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./api/personas");
 const presenceHandler = require("./api/presence");
+const similaritySentencesHandler = require("./api/similarity-sentences");
 const ttsHandler = require("./api/tts");
 
 const rootDir = __dirname;
@@ -202,11 +203,11 @@ function trimToThreeSentences(text) {
   return sentences.slice(0, 3).join(" ").slice(0, 420).trim();
 }
 
-async function readBody(request) {
+async function readBody(request, maxLength = 16_384) {
   let body = "";
   for await (const chunk of request) {
     body += chunk;
-    if (body.length > 16_384) {
+    if (body.length > maxLength) {
       throw new Error("Request body too large");
     }
   }
@@ -1169,7 +1170,8 @@ async function handleGenerateImage(request, response) {
 
 async function handleApiModule(request, response, handler) {
   if (request.method !== "GET" && request.method !== "HEAD") {
-    request.body = await readBody(request);
+    const maxLength = String(request.url || "").startsWith("/api/ethics-questions") ? 750_000 : 64_000;
+    request.body = await readBody(request, maxLength);
   }
   await handler(request, response);
 }
@@ -1253,6 +1255,11 @@ const server = http.createServer(async (request, response) => {
 
   if ((request.method === "GET" || request.method === "POST" || request.method === "DELETE") && url.pathname === "/api/presence") {
     await handleApiModule(request, response, presenceHandler);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST" || request.method === "DELETE") && url.pathname === "/api/similarity-sentences") {
+    await handleApiModule(request, response, similaritySentencesHandler);
     return;
   }
 

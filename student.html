@@ -526,10 +526,23 @@
       padding: 12px;
     }
 
+    .student-ethics-question-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .student-ethics-question-layout .student-ethics-source {
+      position: sticky;
+      top: 14px;
+      align-self: start;
+    }
+
     .student-ethics-source img {
       display: block;
-      width: auto;
-      max-width: min(100%, 820px);
+      width: 100%;
+      max-width: 100%;
       height: auto;
       max-height: none;
       object-fit: contain;
@@ -638,6 +651,21 @@
       align-items: center;
     }
 
+    .student-ethics-next {
+      min-height: 40px;
+      border-radius: 7px;
+      background: #24180f;
+      color: #fffaf0;
+      padding: 9px 13px;
+      font-weight: 950;
+    }
+
+    .student-ethics-next:hover,
+    .student-ethics-next:focus-visible {
+      background: #3a281a;
+      outline: none;
+    }
+
     .student-ethics-submit {
       min-height: 40px;
       border-radius: 7px;
@@ -685,6 +713,16 @@
 
     .student-ethics-explanation.is-visible {
       display: grid;
+    }
+
+    @media (max-width: 980px) {
+      .student-ethics-question-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .student-ethics-question-layout .student-ethics-source {
+        position: static;
+      }
     }
 
     @media (max-width: 980px) {
@@ -901,11 +939,16 @@
     }
 
     .ethics-picker-field {
+      min-width: 0;
       display: grid;
       gap: 5px;
       color: rgba(255, 255, 255, 0.78);
       font-size: 0.78rem;
       font-weight: 950;
+    }
+
+    .ethics-picker-field:first-child {
+      grid-column: 1 / -1;
     }
 
     .ethics-picker-input {
@@ -927,6 +970,7 @@
     }
 
     .ethics-picker-submit {
+      min-width: 66px;
       min-height: 38px;
       border-radius: 7px;
       background: #efe7d0;
@@ -1353,6 +1397,73 @@
       min-height: 420px;
     }
 
+    .similarity-submit-box {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      border: 1px solid #d6c49b;
+      border-radius: 8px;
+      background: #fffaf0;
+      padding: 10px;
+    }
+
+    .similarity-submit-box label {
+      color: #5a321c;
+      font-size: 0.86rem;
+      font-weight: 950;
+    }
+
+    .similarity-submit-input {
+      width: 100%;
+      min-height: 78px;
+      resize: vertical;
+      border: 1px solid #d6c49b;
+      border-radius: 7px;
+      background: #fff;
+      color: #24180f;
+      padding: 9px 10px;
+      font: inherit;
+      line-height: 1.45;
+      font-weight: 780;
+    }
+
+    .similarity-submit-input:focus {
+      border-color: #b91f1f;
+      box-shadow: 0 0 0 3px rgba(185, 31, 31, 0.12);
+      outline: none;
+    }
+
+    .similarity-submit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .similarity-submit-count,
+    .similarity-submit-status {
+      color: #6b563a;
+      font-size: 0.78rem;
+      font-weight: 850;
+    }
+
+    .similarity-submit-status {
+      min-height: 20px;
+    }
+
+    .similarity-submit-status.is-ok {
+      color: #116c46;
+    }
+
+    .similarity-submit-status.is-bad {
+      color: #b3221d;
+    }
+
+    .similarity-submit-count.is-bad {
+      color: #b3221d;
+    }
+
     .evidence-vault-card {
       border: 1px solid rgba(255, 255, 255, 0.62);
       border-radius: 8px;
@@ -1730,11 +1841,15 @@
             <span class="ethics-quiz-label">윤리퀴즈</span>
           </button>
           <form class="ethics-picker-form" data-student-ethics-form>
-            <label class="ethics-picker-field" for="studentEthicsNumber">
-              풀 문제 번호
-              <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="number" min="1" max="99" inputmode="numeric" placeholder="1~15+">
+            <label class="ethics-picker-field" for="studentEthicsPassword">
+              윤리퀴즈 비밀번호
+              <input class="ethics-picker-input" id="studentEthicsPassword" data-student-ethics-password type="password" autocomplete="off" placeholder="비밀번호 입력">
             </label>
-            <button class="ethics-picker-submit" type="submit">열기</button>
+            <label class="ethics-picker-field" for="studentEthicsNumber">
+              문제 번호
+              <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="number" min="1" max="99" inputmode="numeric" placeholder="1">
+            </label>
+            <button class="ethics-picker-submit" type="submit">시작</button>
           </form>
           <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
           <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
@@ -1827,6 +1942,15 @@
             <span data-note-status="case">자동 저장</span>
             <button class="clear-note" type="button" data-clear-note="case">비우기</button>
           </div>
+          <form class="similarity-submit-box" data-similarity-form>
+            <label for="similaritySentence">유사도 측정 문장 보내기</label>
+            <textarea class="similarity-submit-input" id="similaritySentence" data-similarity-sentence maxlength="500" placeholder="선생님에게 보낼 최종 문장을 500자 안으로 입력하세요."></textarea>
+            <div class="similarity-submit-actions">
+              <span class="similarity-submit-count" data-similarity-count>0/500</span>
+              <button class="clear-note" type="submit" data-similarity-submit>전송</button>
+            </div>
+            <p class="similarity-submit-status" data-similarity-status></p>
+          </form>
         </aside>
       </div>
     </div>

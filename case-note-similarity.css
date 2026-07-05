@@ -324,6 +324,22 @@ textarea {
   box-shadow: 0 12px 24px rgba(243, 52, 47, 0.24);
 }
 
+.student-sentence-status {
+  min-height: 20px;
+  color: rgba(255, 248, 235, 0.72);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.student-sentence-status.is-ok {
+  color: #7fe4b4;
+}
+
+.student-sentence-status.is-bad {
+  color: #ffd7d5;
+}
+
 .toolbar .danger-btn,
 .team-card .remove-team-btn {
   background: rgba(243, 52, 47, 0.16);

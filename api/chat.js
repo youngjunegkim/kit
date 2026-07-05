@@ -430,7 +430,26 @@ function questionFocusFor(message) {
 
 function isSimpleGreeting(message) {
   const raw = String(message || "").trim();
-  return includesAny(raw, [/^안녕[.!?\s]*$/, /^ㅎㅇ[.!?\s]*$/, /^하이[.!?\s]*$/, /^반가워[.!?\s]*$/i]);
+  return includesAny(raw, [
+    /^안녕(?:하세요|하십니까)?[.!?\s]*$/,
+    /^ㅎㅇ[.!?\s]*$/,
+    /^하이[.!?\s]*$/i,
+    /^반가워(?:요|요\.)?[.!?\s]*$/,
+    /^반갑습니다[.!?\s]*$/,
+    /^hello[.!?\s]*$/i,
+    /^hi[.!?\s]*$/i
+  ]);
+}
+
+function greetingReplyFor(payload = {}) {
+  const personaId = personaIdFor(payload);
+  if (personaId === "seoHarin") {
+    return "네, 서하린입니다. 사건과 관련된 증거를 말해 주면 제가 아는 범위에서 차분히 답할게요.";
+  }
+  if (personaId === "choiDaniel") {
+    return "네, 최다니엘입니다. 사건과 관련된 증거나 장면을 말해 주면 제가 아는 범위에서 답할게요.";
+  }
+  return "네, 강우진입니다. 갑자기 불려와서 좀 당황했지만, 사건과 관련해서 물어볼 게 있으면 말해 주세요.";
 }
 
 function isJailbreakQuestion(message) {
@@ -460,7 +479,8 @@ function buildQuestionGuide(message) {
     "- 완전 자백이나 최종 수사일지 문장으로 답하지 않는다.",
     "- '네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하되 질문 속 증거부터 다룬다.",
     "- 학생에게 되묻기만 하지 말고 최소 한 가지 상황 설명을 제공한다.",
-    "- 물음표나 말줄임표로 끝나는 답변을 쓰지 않는다.",
+    "- 필요하면 짧은 반문은 허용하지만, 되묻기만 하는 답변은 쓰지 않는다.",
+    "- 말줄임표나 끊긴 문장으로 끝나는 답변을 쓰지 않는다.",
     "- 2~3문장의 완결된 한국어로 답한다."
   ];
 
@@ -486,7 +506,8 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
     "- 질문이 틀렸다면 인물의 성격에 맞게 부인, 축소, 정정, 억울함, 당황으로 반응한다.",
     "- 학생에게 되묻기만 하지 말고 최소 한 가지 상황 설명이나 입장 표명을 제공한다.",
     "- 완전 자백, 최종 범인 공개, 학생이 얻지 않은 증거카드 세부 내용 공개는 금지한다.",
-    "- 물음표나 말줄임표로 끝나는 답변을 쓰지 않는다.",
+    "- 필요하면 짧은 반문은 허용하지만, 되묻기만 하는 답변은 쓰지 않는다.",
+    "- 말줄임표나 끊긴 문장으로 끝나는 답변을 쓰지 않는다.",
     "- 2~3문장의 완결된 한국어로 답한다."
   ];
 
@@ -554,50 +575,17 @@ function safetyReplyFor(message) {
   return "";
 }
 
-function scriptedReplyFor(message, payload = {}) {
-  const personaId = personaIdFor(payload);
-  const raw = String(message || "").trim();
-  const compact = normalize(raw);
-
-  const asksGreeting = includesAny(raw, [/^안녕/, /^야$/, /반가워/, /하이/i]);
-  const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름\s*(뭐|알려|말해|소개)/, /이름이\s*뭐/, /소개/]);
-  const asksTruncated = includesAny(raw, [/말.*끊/, /끊어.*말/, /끝까지/, /다\s*말/, /왜\s*끊/]);
-  const asksAccusation = includesAny(raw, [/너\s*맞/, /네가\s*했/, /니가\s*했/, /범인/, /맞지/, /했지/]);
-  const asksContradiction = includesAny(raw, [/증거/, /기록/, /다르/, /틀렸/, /거짓말/, /방금\s*말/]);
-
-  if (personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel") {
-    return "";
-  }
-
-  return "";
-}
-
-function assistantTurnCount(payload = {}) {
-  if (!Array.isArray(payload.history)) return 0;
-  return payload.history.filter((item) => item?.role === "assistant" || item?.role === "bot").length;
-}
-
-function defaultReplyFor(payload = {}) {
-  const personaId = personaIdFor(payload);
-  if (personaId === "seoHarin") {
-    return "그 질문만으로는 뭐라고 답하기 어려워. 어떤 증거를 보고 그렇게 생각했는지 말해 줄래?";
-  }
-  if (personaId === "choiDaniel") {
-    return "그 질문만으로는 정확히 답하기 어려워. 어떤 증거를 보고 그렇게 생각했는지 말해 줄래?";
-  }
-  return "그 질문에는 지금 바로 답하기 어렵습니다. 사건과 관련된 증거를 바탕으로 다시 질문해 주세요.";
-}
-
 function priorityScriptedReplyFor(message, payload = {}) {
   const personaId = personaIdFor(payload);
   const raw = String(message || "").trim();
   const jailbreakReply = jailbreakReplyFor(raw);
   if (jailbreakReply) return jailbreakReply;
-  if (personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel") return "";
 
-  const asksGreeting = includesAny(raw, [/^안녕/, /^ㅎㅇ/, /반가/, /하이/i]);
-  const asksIdentity = includesAny(raw, [/누구야/, /너\s*누구/, /이름\s*(뭐|알려|말해|소개)/, /이름이\s*뭐/, /소개/]);
-  const asksTruncated = includesAny(raw, [/말.*끊/, /끊어.*말/, /끝까지/, /왜\s*말/, /다\s*말/]);
+  if (isSimpleGreeting(raw)) {
+    return greetingReplyFor(payload);
+  }
+
+  if (personaId === "kangWoojin" || personaId === "seoHarin" || personaId === "choiDaniel") return "";
 
   return "";
 }
@@ -706,10 +694,6 @@ function replyQualityIssue(reply, message, payload = {}, history = []) {
     return "학생 질문에 답하지 않고 다시 질문을 요구했다.";
   }
 
-  if (!canRequestEvidence && !isSimpleGreeting(rawMessage) && /[?？]\s*$/.test(text)) {
-    return "학생 질문에 답하지 않고 확인 질문으로 되물었다.";
-  }
-
   if (!isSimpleGreeting(rawMessage) && /(말씀이세요|말이군요|얘기군요|궁금한 거군요)[.!?。！？]?$/.test(text) && text.length < 90) {
     return "학생 질문에 답하지 않고 확인만 했다.";
   }
@@ -749,9 +733,10 @@ function buildRepairInstruction(issue, badReply, message) {
     `사용하면 안 되는 이전 답변: ${String(badReply || "").slice(0, 500)}`,
     focus.labels.length ? `감지된 질문 초점: ${focus.labels.slice(0, 3).join(", ")}` : "",
     "같은 페르소나로 다시 답하라.",
+    "역할극 대사처럼 자연스럽게 말하되, 서버 오류 안내문이나 해설문처럼 쓰지 말라.",
     "학생 질문의 핵심 단어를 첫 문장에 직접 언급하라.",
     "다른 주제로 돌리지 말고 질문에 맞는 상황만 답하라.",
-    "확인 질문으로 되묻지 말고, 인물이 아는 범위에서 바로 해명하라.",
+    "필요하면 짧게 반문할 수 있지만, 반문만 하지 말고 인물이 아는 범위에서 바로 해명하라.",
     "'네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하라.",
     "정답을 완전히 자백하지 말고, 단서가 드러나는 정도로 답하라.",
     "말줄임표나 끊긴 문장으로 끝내지 말고 완결된 문장으로 답하라.",
@@ -763,99 +748,18 @@ function canUseSoftQualityReply(reply, issue) {
   return /^학생 질문의 초점/.test(String(issue || "")) && !looksIncompleteReply(reply);
 }
 
-function polishedLastResortReply(reply) {
-  let text = String(reply || "").replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  if (/^(안녕하세요|안녕|반가워)/.test(text)) return "";
-  if (/(말씀이세요|말이군요|얘기군요|궁금한 거군요)[.!?。！？]?$/.test(text)) return "";
-  if (/[?？]\s*$/.test(text)) return "";
-  if (/system_instruction|API\s*키|모델\s*지시|개발자\s*지시/i.test(text)) return "";
-  if (/제가\s*범인|제가\s*훔쳤습니다|범인은\s*강우진|강우진이\s*범인/.test(text)) return "";
-
-  text = text.replace(/(…|\.{3,}|⋯)+[.!?。！？]?$/, "").trim();
-  if (text.length < 20) return "";
-
-  if (!/[.!?。！？]$/.test(text)) {
-    if (/(건|것|듯|중|때문|려고|으려|하려|하며|하면서|기록에|순서에|USB를|AI가)$/.test(text)) {
-      text = `${text} 그렇게 단정할 수는 없어요.`;
-    } else {
-      text = `${text}.`;
+function lowQualityReplyResult(model, issue, repairAttempts = 0) {
+  return {
+    statusCode: 502,
+    body: {
+      error: "ChatGPT가 질문에 맞는 답변을 안정적으로 만들지 못했습니다.",
+      code: "LOW_QUALITY_REPLY",
+      fallback: true,
+      model,
+      qualityWarning: issue,
+      repairAttempts
     }
-  }
-  return text;
-}
-
-function qualityFallbackReplyFor(message, payload = {}, issue = "", history = []) {
-  const personaId = personaIdFor(payload);
-  const name = personaNameFor(payload);
-  const raw = String(message || "").trim();
-  const matchedEvidence = evidenceMatchesFor(history, raw);
-  const hasEvidence = matchedEvidence.length > 0;
-  const asksOffice = /교무실|목격|봤|보였|CCTV|씨씨티비/.test(raw);
-  const asksAi = /AI|예상\s*문제|학습\s*도우미|프롬프트|만들|올렸|추천/.test(raw);
-  const asksUsb = /USB|유에스비|저장\s*장치|작은\s*물건/.test(raw);
-  const asksAccusation = /범인|네가|니가|너가|했지|맞지|훔쳤|유출|찍었|삭제|조작/.test(raw);
-  const asksAbsurd = /순간\s*이동|시간\s*여행|초능력|마법|투명|분신|복제|말도\s*안/.test(raw);
-
-  if (isSimpleGreeting(raw)) {
-    return `${name}입니다. 가지고 있는 장소 증거카드 내용을 말해 주면, 제가 아는 범위에서 답할게요.`;
-  }
-
-  if (!hasEvidence) {
-    if (personaId === "seoHarin") {
-      if (asksOffice) {
-        return "교무실에서 봤다는 말은 제 입장에서는 맞지 않아요. 누가 그렇게 말했는지는 몰라도, 그 말만으로 제가 사건을 벌였다고 몰아가는 건 억울해요.";
-      }
-      if (asksAi) {
-        return "AI를 다룰 줄 안다고 제가 예상 문제를 만든 건 아니에요. 이상한 자료를 확인하려고 본 것과 직접 만들었다는 건 완전히 다른 말이에요.";
-      }
-      if (asksAccusation || asksAbsurd) {
-        return "그렇게 몰아가면 억울해요. 저는 사건을 숨기려고 움직인 게 아니라 이상한 점을 확인하려고 했던 거예요.";
-      }
-      return "그 말은 제 입장과 맞지 않아요. 제가 아는 범위에서는 그런 행동을 한 적 없고, 추측만으로 단정하면 안 된다고 생각해요.";
-    }
-
-    if (personaId === "choiDaniel") {
-      if (asksOffice) {
-        return "교무실 쪽에서 봤다는 말만으로는 제가 뭘 훔쳤다는 뜻이 아니에요. 수상해 보일 수 있는 장면이 있어도, 그걸 범행으로 단정하는 건 너무 앞서간 말이라고 생각해요.";
-      }
-      if (asksUsb) {
-        return "USB라고 단정하면 곤란해요. 저는 저장장치를 숨기거나 연결한 적 없고, 어떤 장면이 다르게 해석됐을 가능성은 있다고 생각해요.";
-      }
-      if (asksAi) {
-        return "AI 예상 문제를 만들었다는 말은 저랑 맞지 않아요. 저는 그런 자료를 만들거나 올린 적 없고, 그쪽 행동은 제 성격하고도 다릅니다.";
-      }
-      if (asksAccusation || asksAbsurd) {
-        return "그렇게 단정해서 말하면 곤란해요. 저는 의심받는 게 당황스럽지만, 하지 않은 일을 했다고 인정할 수는 없어요.";
-      }
-      return "그 말만으로는 저를 범행과 연결하기 어렵다고 생각해요. 저는 제가 한 행동과 하지 않은 행동은 분명히 구분해서 말하고 싶어요.";
-    }
-
-    if (personaId === "kangWoojin") {
-      if (asksOffice) {
-        return "교무실 쪽에서 봤다는 말만으로 저를 바로 몰아가면 곤란해요. 거기 갔던 이유가 있었다고 해도, 그게 곧 예상 문제를 만든 거라는 뜻은 아니잖아요.";
-      }
-      if (asksAi) {
-        return "AI 얘기만 나오면 바로 저한테 붙이면 억울하죠. 저는 그런 자료가 왜 그렇게 보였는지까지 다 알지는 못하고, 그걸 전부 제 탓처럼 말하는 건 너무 앞서간 거예요.";
-      }
-      if (asksAccusation || asksAbsurd) {
-        return "그렇게 단정하면 곤란해요. 제가 당황한 건 맞지만, 처음부터 문제를 퍼뜨리려고 한 사람처럼 말하는 건 너무해요.";
-      }
-      return "그 말은 좀 억지 같아요. 제가 수상해 보이는 부분이 있을 수는 있어도, 그걸 바로 사건 전체랑 묶는 건 너무 빠른 판단이에요.";
-    }
-    return `그 질문만으로는 정확히 답하기 어려워요. 가지고 있는 장소 증거카드 내용을 말해 주면 그 부분에 대해 답할게요.`;
-  }
-
-  if (personaId === "seoHarin") {
-    return `그 장소 증거는 제가 오해받을 수 있는 부분이라 조심스럽게 봐야 해요. 확인한 행동과 예상 문제를 만든 행동은 같은 뜻이 아니라고 말하고 싶어요.`;
-  }
-  if (personaId === "choiDaniel") {
-    return `그 장소 증거 때문에 제가 수상해 보일 수는 있어요. 하지만 그 기록만으로 제가 시험지나 AI 예상 문제를 만들었다고 단정하면 안 된다고 생각해요.`;
-  }
-  if (/범인|네가|니가|했지|맞지|훔쳤|유출/.test(raw)) {
-    return `그 증거만으로 저를 바로 범인처럼 말하면 곤란해요. 제가 당황한 부분은 있지만, 처음부터 문제를 퍼뜨리려고 한 건 아니었어요.`;
-  }
-  return `그 장소 증거는 그냥 넘기기 어려운 건 맞아요. 그래도 제가 한 행동이 어디까지였는지는 증거를 더 연결해서 봐야 해요.`;
+  };
 }
 
 function getOpenAiKey() {
@@ -944,17 +848,23 @@ async function callOpenAi(message, history, payload = {}) {
     const issue = replyQualityIssue(reply, message, payload, history);
 
     if (issue) {
-      const repairInstruction = buildRepairInstruction(issue, reply, message);
-      const { response: repairResponse, data: repairData } = await requestOpenAiCandidate(
-        apiKey,
-        model,
-        message,
-        history,
-        payload,
-        repairInstruction
-      );
+      let latestReply = reply;
+      let latestIssue = issue;
+      let repairAttempts = 0;
 
-      if (repairResponse.ok) {
+      for (repairAttempts = 1; repairAttempts <= 2; repairAttempts += 1) {
+        const repairInstruction = buildRepairInstruction(latestIssue, latestReply, message);
+        const { response: repairResponse, data: repairData } = await requestOpenAiCandidate(
+          apiKey,
+          model,
+          message,
+          history,
+          payload,
+          repairInstruction
+        );
+
+        if (!repairResponse.ok) break;
+
         const repairedReply = trimToThreeSentences(extractOpenAiText(repairData));
         const repairIssue = replyQualityIssue(repairedReply, message, payload, history);
         if (!repairIssue) {
@@ -965,7 +875,7 @@ async function callOpenAi(message, history, payload = {}) {
               source: "openai",
               model,
               repaired: true,
-              repairAttempts: 1
+              repairAttempts
             }
           };
         }
@@ -978,37 +888,17 @@ async function callOpenAi(message, history, payload = {}) {
               source: "openai",
               model,
               repaired: true,
-              repairAttempts: 1,
+              repairAttempts,
               qualityWarning: repairIssue
             }
           };
         }
 
-        const polishedReply = polishedLastResortReply(repairedReply);
-        if (polishedReply && !replyQualityIssue(polishedReply, message, payload, history)) {
-          return {
-            statusCode: 200,
-            body: {
-              reply: safetyReplyFor(polishedReply) || polishedReply,
-              source: "openai",
-              model,
-              repaired: true,
-              repairAttempts: 1
-            }
-          };
-        }
+        latestReply = repairedReply;
+        latestIssue = repairIssue;
       }
 
-      return {
-        statusCode: 200,
-        body: {
-          reply: qualityFallbackReplyFor(message, payload, issue, history),
-          source: "openai",
-          model,
-          qualityFallback: true,
-          qualityWarning: issue
-        }
-      };
+      return lowQualityReplyResult(model, latestIssue, Math.min(repairAttempts, 2));
     }
 
     return {
