@@ -222,7 +222,10 @@
       ethicsCard.hidden = true;
       ethicsCard.textContent = "";
     }
-    if (ethicsNumberInput && nextNumber) ethicsNumberInput.value = String(nextNumber);
+    updateEthicsNumberInputRange();
+    if (ethicsNumberInput && nextNumber && Number(nextNumber) === firstUnsolvedEthicsNumber()) {
+      ethicsNumberInput.value = String(nextNumber);
+    }
     renderEthicsSolvedSummary();
     ethicsPasswordInput?.focus({ preventScroll: true });
   }
@@ -251,8 +254,14 @@
   function updateEthicsNumberInputRange() {
     if (!ethicsNumberInput) return;
     const maxNumber = maxEthicsQuestionNumber();
+    const nextNumber = firstUnsolvedEthicsNumber();
+    ethicsNumberInput.type = "text";
+    ethicsNumberInput.readOnly = true;
+    ethicsNumberInput.inputMode = "numeric";
+    ethicsNumberInput.min = "1";
     ethicsNumberInput.max = String(maxNumber);
-    ethicsNumberInput.placeholder = `1~${maxNumber}`;
+    ethicsNumberInput.placeholder = nextNumber ? `${nextNumber}` : "완료";
+    ethicsNumberInput.value = nextNumber ? String(nextNumber) : "";
   }
 
   function ethicsAnswerFor(question) {
@@ -302,8 +311,21 @@
   }
 
   function selectedEthicsNumber() {
-    const selected = Number(ethicsNumberInput?.value || "");
-    return selected || firstUnsolvedEthicsNumber() || state.ethicsCurrent || 1;
+    return Number(ethicsNumberInput?.value || "") || firstUnsolvedEthicsNumber() || state.ethicsCurrent || 1;
+  }
+
+  function ethicsSequenceGateMessage(number) {
+    if (state.ethicsSubmitting) return "";
+
+    const requested = Number(number) || firstUnsolvedEthicsNumber() || 1;
+    const nextNumber = firstUnsolvedEthicsNumber();
+    if (!nextNumber) return "모든 윤리퀴즈를 완료했습니다.";
+    if (requested === nextNumber) return "";
+
+    if (ethicsAttemptedNumbers().includes(requested)) {
+      return `${requested}번은 이미 풀이가 끝나 다시 열람할 수 없습니다. 현재 풀 차례는 ${nextNumber}번입니다.`;
+    }
+    return `윤리퀴즈는 순서대로 풀어야 합니다. 현재 풀 차례는 ${nextNumber}번입니다.`;
   }
 
   function nextUnsolvedEthicsNumberAfter(currentNumber) {
@@ -857,7 +879,16 @@
       return;
     }
 
-    const question = ethicsQuestionByNumber(sequentialEthicsNumber(number));
+    const targetNumber = sequentialEthicsNumber(number);
+    const sequenceMessage = ethicsSequenceGateMessage(targetNumber);
+    if (sequenceMessage) {
+      expireEthicsAccess();
+      updateEthicsNumberInputRange();
+      renderEthicsAccessGate(sequenceMessage);
+      return;
+    }
+
+    const question = ethicsQuestionByNumber(targetNumber);
     ethicsCard.textContent = "";
 
     if (!ethicsQuestions.length || !question) {
@@ -1009,6 +1040,7 @@
       renderStudentEthicsQuestion(question.number);
       state.ethicsSubmitting = false;
       expireEthicsAccess();
+      updateEthicsNumberInputRange();
       return;
     }
 
@@ -1050,12 +1082,14 @@
       setEthicsAnswer(question, { revealed: true, rewarded: true, serverRewarded: true });
       if (data.credits !== undefined) applyCredits(data.credits);
       renderEthicsSolvedSummary();
+      updateEthicsNumberInputRange();
       if (ethicsCard && !ethicsCard.hidden) renderStudentEthicsQuestion(question.number);
     } catch {
       if (ethicsCard && !ethicsCard.hidden) renderStudentEthicsQuestion(question.number);
     } finally {
       state.ethicsSubmitting = false;
       expireEthicsAccess();
+      updateEthicsNumberInputRange();
     }
   }
 
@@ -1086,9 +1120,11 @@
         }
       });
       renderEthicsSolvedSummary();
+      updateEthicsNumberInputRange();
       if (data.credits !== undefined) applyCredits(data.credits);
     } catch {
       renderEthicsSolvedSummary();
+      updateEthicsNumberInputRange();
     }
   }
 
@@ -1105,6 +1141,7 @@
     localStorage.removeItem(ethicsStorageKey());
     applyCredits(state.serverCredits);
     renderEthicsSolvedSummary();
+    updateEthicsNumberInputRange();
     if (ethicsCard) {
       ethicsCard.hidden = true;
       ethicsCard.textContent = "";
