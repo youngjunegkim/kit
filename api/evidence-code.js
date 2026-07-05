@@ -22,12 +22,12 @@ const evidenceCodes = {
   26547: { room: "방송실", evidence: "AI 자료 열람 기록", person: "서하린" },
   65927: { room: "미술실", evidence: "기말고사 유의사항 포스터 파일", person: "서하린" },
   40018: { room: "미술실", evidence: "삭제된 AI 프롬프트 기록", person: "강우진" },
-  91648: { room: "교무실", evidence: "교무실 앞 CCTV", person: "강우진" },
+  91648: { room: "교무실", evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진" },
   11582: { room: "교무실", evidence: "책상 위 기말고사 문제지", person: "강우진" },
   79610: { room: "과학실", evidence: "실험 보고서 제출 기록", person: "최다니엘" },
   61408: { room: "과학실", evidence: "과학실 분실물함 기록", person: "최다니엘" },
-  87143: { room: "체육관", evidence: "연습 노트", person: "강우진" },
-  13450: { room: "체육관", evidence: "AI의 USB 오인식 결과", person: "최다니엘" }
+  87143: { room: "체육관", evidence: "전교 1등 전 여자친구의 메시지", person: "강우진" },
+  13450: { room: "체육관", evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
 };
 
 function sendJson(response, statusCode, body) {
@@ -116,13 +116,18 @@ function evidenceCreditTotals(logs = []) {
   }, {});
 }
 
+function evidenceByCode(code) {
+  return evidenceCodes[cleanCode(code)] || null;
+}
+
 function publicEvidenceLog(entry = {}) {
+  const catalog = evidenceByCode(entry.code);
   return {
     team: normalizeTeam(entry.team),
     user: String(entry.user || entry.team || "").trim().slice(0, 40),
     code: cleanCode(entry.code),
-    room: String(entry.room || "").trim().slice(0, 40),
-    evidence: String(entry.evidence || "").trim().slice(0, 80),
+    room: String(catalog?.room || entry.room || "").trim().slice(0, 40),
+    evidence: String(catalog?.evidence || entry.evidence || "").trim().slice(0, 80),
     added: Math.max(0, Number(entry.added) || 0),
     at: entry.at || ""
   };

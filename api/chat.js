@@ -240,11 +240,11 @@ const evidenceDisclosureRules = [
   },
   {
     id: "officeCctv",
-    label: "교무실 증거카드: 교무실 앞 CCTV",
+    label: "교무실 증거카드: CCTV에 찍힌 강우진의 태블릿",
     minScore: 2,
-    directPatterns: [/교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|교무실\s*앞에?\s*있/],
-    patterns: [/교무실/, /CCTV|씨씨티비|복도|앞에?\s*있|도착|담당\s*선생님/],
-    leakPatterns: [/교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|담당\s*선생님을?\s*찾/]
+    directPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*태블릿|강우진.*태블릿|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV/],
+    patterns: [/교무실/, /CCTV|씨씨티비|태블릿|복도|앞에?\s*있|도착|담당\s*선생님/],
+    leakPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*태블릿|강우진.*태블릿|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|담당\s*선생님을?\s*찾/]
   },
   {
     id: "officeExamPaper",
@@ -272,19 +272,19 @@ const evidenceDisclosureRules = [
   },
   {
     id: "gymPracticeNote",
-    label: "체육관 증거카드: 연습 노트",
+    label: "체육관 증거카드: 전교 1등 전 여자친구의 메시지",
     minScore: 2,
-    directPatterns: [/연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐/],
-    patterns: [/체육관/, /연습\s*노트|연습장|이번\s*시험|다시\s*다르게\s*봐|전\s*여자친구|전교\s*1등|성적\s*압박/],
-    leakPatterns: [/연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐|전\s*여자친구|전교\s*1등/]
+    directPatterns: [/전교\s*1등\s*전\s*여자친구의?\s*메시지|전\s*여자친구.*메시지|전여자친구.*메시지|연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐/],
+    patterns: [/체육관/, /전교\s*1등|전\s*여자친구|전여자친구|메시지|인정받|성적\s*압박|연습\s*노트|연습장|이번\s*시험|다시\s*다르게\s*봐/],
+    leakPatterns: [/전교\s*1등\s*전\s*여자친구의?\s*메시지|전\s*여자친구.*메시지|전여자친구.*메시지|전\s*여자친구|전여자친구|전교\s*1등|인정받|연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐/]
   },
   {
     id: "gymUsbMisread",
-    label: "체육관 증거카드: AI의 USB 오인식 결과",
+    label: "체육관 증거카드: CCTV에 찍힌 최다니엘의 USB",
     minScore: 2,
-    directPatterns: [/USB\s*오인식|AI의?\s*USB\s*오인식|USB로\s*오인식|USB로\s*잘못/],
-    patterns: [/체육관/, /USB|유에스비|오인식|보안\s*AI|검은색\s*(통\s*)?(물건|립스틱)|작은\s*물건/],
-    leakPatterns: [/USB\s*오인식|USB로\s*오인식|USB로\s*잘못|보안\s*AI.*USB/]
+    directPatterns: [/CCTV에?\s*찍힌\s*최다니엘의?\s*USB|최다니엘.*USB|USB\s*오인식|AI의?\s*USB\s*오인식|USB로\s*오인식|USB로\s*잘못/],
+    patterns: [/체육관/, /USB|유에스비|최다니엘|CCTV|씨씨티비|오인식|보안\s*AI|검은색\s*(통\s*)?(물건|립스틱)|작은\s*물건/],
+    leakPatterns: [/CCTV에?\s*찍힌\s*최다니엘의?\s*USB|최다니엘.*USB|USB\s*오인식|USB로\s*오인식|USB로\s*잘못|보안\s*AI.*USB/]
   }
 ];
 
@@ -315,7 +315,7 @@ function buildEvidenceDisclosureGuide(history, message) {
     "[증거 공개 잠금 - 이번 질문에 적용]",
     "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 유출, 자동 추천이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
     `- 학생이 지금까지 직접 말한 증거카드: ${allowed.length ? allowed.join(", ") : "없음"}`,
-    "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 연습장 메모, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
+    "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 전 여자친구 메시지, 태블릿, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
     allowed.length
       ? "- 답변은 위에 허용된 증거카드와 학생의 마지막 질문에 직접 관련된 범위로만 제한한다."
       : "- 이번 질문은 증거카드 없는 일반 추궁이다. 새 단서를 제공하지 말고, 인물의 성격에 맞게 부인, 축소, 정정, 억울함으로 답한다. 단순히 다시 질문해 달라고만 끝내지 않는다."
