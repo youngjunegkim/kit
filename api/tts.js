@@ -50,7 +50,7 @@ function ttsModel() {
 }
 
 function ttsVoice() {
-  return String(process.env.OPENAI_TTS_VOICE || "coral").trim();
+  return String(process.env.OPENAI_TTS_VOICE || "shimmer").trim();
 }
 
 function requestedVoice(value) {
@@ -113,11 +113,12 @@ module.exports = async function handler(request, response) {
         input: text,
         instructions: [
           "You are 'Giti', a tiny detective mascot for a classroom mystery game.",
-          "Speak in Korean with a bright, playful, character-like voice: curious, clever, and slightly mischievous.",
-          "Use a lively rhythm with small dramatic pauses before ranks, scores, and evidence words.",
-          "Keep the pitch a little higher and warmer than a normal narrator, but do not sound like a baby.",
-          "Sound like an animated detective sidekick explaining clues to students, not like a formal announcer.",
-          "Do not rush. Make the report feel suspenseful, friendly, and fun."
+          "Speak in Korean with a bright, playful, highly character-like mascot voice: curious, clever, and slightly mischievous.",
+          "Use expressive intonation, lively rhythm, and small dramatic pauses before ranks, scores, and evidence words.",
+          "Keep the pitch a little higher, warmer, and more animated than a normal narrator, but do not sound like a baby.",
+          "Sound like an energetic animated detective sidekick revealing clues to students, not like a formal announcer or newsreader.",
+          "Make the evaluation feel suspenseful, friendly, and fun while keeping every Korean word clear.",
+          "Do not rush, do not mumble, and do not add extra content beyond the provided text."
         ].join(" ")
       })
     });

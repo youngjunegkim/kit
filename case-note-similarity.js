@@ -561,13 +561,28 @@
 
   function reportSpeechText(report) {
     const rankText = report.rank ? `${report.rank}위. ` : "";
-    return `${rankText}${report.name}. 유사도 ${report.score}퍼센트. ${report.report}`;
+    return `기티 평가 시작. ${rankText}${report.name}. 유사도 ${report.score}퍼센트. ${report.report}`;
+  }
+
+  function revealSpeechText(report, index, total) {
+    const lead = total <= 1
+      ? "기티 최종 판정입니다."
+      : index === 0
+        ? "두구두구, 꼴등팀부터 공개합니다."
+        : report.rank === 1
+          ? "이번엔 최종 1등 후보를 확인합니다."
+          : "다음 팀 판정입니다.";
+    const rankText = report.rank ? `${report.rank}위, ` : "";
+    const comment = report.report || "기티가 판정 근거를 정리하지 못했습니다.";
+    return `${lead} ${rankText}${report.name}. 유사도는 ${report.score}퍼센트입니다. 기티 평가. ${comment}`;
   }
 
   function KoreanVoice() {
     if (!speechSupported()) return null;
     const voices = window.speechSynthesis.getVoices();
-    return voices.find((voice) => /^ko(-|_)?/i.test(voice.lang))
+    const koreanVoices = voices.filter((voice) => /^ko(-|_)?/i.test(voice.lang) || /Korean|한국/i.test(voice.name));
+    return koreanVoices.find((voice) => /SunHi|Yuna|Sora|Heami|Natural|Online|Google|Microsoft/i.test(voice.name))
+      || koreanVoices[0]
       || voices.find((voice) => /Korean|한국/i.test(voice.name))
       || null;
   }
@@ -631,8 +646,8 @@
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "ko-KR";
-    utterance.rate = 0.94;
-    utterance.pitch = 1.05;
+    utterance.rate = 1;
+    utterance.pitch = 1.18;
     utterance.volume = 1;
     const voice = KoreanVoice();
     if (voice) utterance.voice = voice;
@@ -670,6 +685,7 @@
       },
       body: JSON.stringify({
         role: "teacher",
+        voice: "shimmer",
         text
       })
     });
@@ -861,6 +877,7 @@
     const report = state.revealReports[index];
     if (!report) return;
 
+    stopSpeech();
     state.revealIndex = index;
     state.revealAnimating = true;
     if (elements.revealNext) elements.revealNext.disabled = true;
@@ -880,11 +897,13 @@
     setRevealText(elements.revealSummary, `${report.name}팀 유사도 ${report.score}%`);
     setRevealText(elements.revealReport, report.report || "기티가 판정 근거를 정리하지 못했습니다.");
 
+    const speechText = revealSpeechText(report, index, total);
     if (elements.revealNext) {
       elements.revealNext.disabled = false;
       elements.revealNext.textContent = index >= total - 1 ? "전체 결과 보기" : "다음 팀 공개";
     }
     state.revealAnimating = false;
+    speakReport(speechText, `reveal-${index}`).catch(() => {});
   }
 
   async function openRevealPresentation(reports = state.reports) {
@@ -901,6 +920,7 @@
 
   function closeReveal(showReports = true) {
     if (state.revealAnimating) return;
+    stopSpeech();
     if (elements.revealStage) elements.revealStage.hidden = true;
     document.body.classList.remove("reveal-open");
     state.revealReports = [];
