@@ -1,5 +1,6 @@
 const { addCredits, consumeCredit, logQuestion, normalizeTeam, requestClassId, withClassScope } = require("./_credits");
 const { buildKangWoojinPrompt, buildSeoHarinPrompt, buildChoiDanielPrompt } = require("./personas");
+const { DEFAULT_CHAT_TOKEN_LIMIT, estimateTokens } = require("../token-estimator");
 
 const safetyReplies = {
   sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
@@ -10,7 +11,14 @@ const safetyReplies = {
 
 const rateWindowMs = 60 * 1000;
 const rateLimitPerWindow = Number(process.env.CHAT_RATE_LIMIT_PER_MINUTE || 12);
-const maxMessageChars = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 200);
+const configuredMaxMessageChars = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 800);
+const maxMessageChars = Number.isFinite(configuredMaxMessageChars) && configuredMaxMessageChars > 0
+  ? configuredMaxMessageChars
+  : 800;
+const configuredMaxMessageTokens = Number(process.env.CHAT_MAX_MESSAGE_TOKENS || DEFAULT_CHAT_TOKEN_LIMIT);
+const maxMessageTokens = Number.isFinite(configuredMaxMessageTokens) && configuredMaxMessageTokens > 0
+  ? configuredMaxMessageTokens
+  : DEFAULT_CHAT_TOKEN_LIMIT;
 const maxRequestBytes = Number(process.env.CHAT_MAX_REQUEST_BYTES || 25000);
 const rateBuckets = new Map();
 
@@ -964,6 +972,17 @@ async function handleChat(request, response) {
   }
   if (message.length > maxMessageChars) {
     sendJson(response, 413, { error: "Message is too long.", fallback: true });
+    return;
+  }
+  const messageTokenCount = estimateTokens(message);
+  if (messageTokenCount > maxMessageTokens) {
+    sendJson(response, 413, {
+      error: `질문이 너무 깁니다. ${maxMessageTokens} 예상 토큰 이하로 줄여 주세요.`,
+      code: "MESSAGE_TOKEN_LIMIT",
+      tokenCount: messageTokenCount,
+      tokenLimit: maxMessageTokens,
+      fallback: true
+    });
     return;
   }
 

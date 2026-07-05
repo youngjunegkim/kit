@@ -18,7 +18,12 @@
   const cardLightbox = document.querySelector("[data-card-lightbox]");
   const cardLightboxImage = document.querySelector("[data-card-lightbox-image]");
   const closeCardButton = document.querySelector("[data-close-card]");
-  const chatTokenLimit = 200;
+  const tokenEstimator = window.KitTokenEstimator || {
+    DEFAULT_CHAT_TOKEN_LIMIT: 120,
+    estimateTokens: (text) => Math.ceil(String(text || "").trim().length / 2) || 0
+  };
+  const chatTokenLimit = tokenEstimator.DEFAULT_CHAT_TOKEN_LIMIT || 120;
+  const chatMaxInputChars = 800;
   const similaritySentenceLimit = 500;
 
   const greetings = {
@@ -714,7 +719,7 @@
 
   function ensureTokenCounter(panel) {
     if (!panel.input) return;
-    panel.input.maxLength = chatTokenLimit;
+    panel.input.maxLength = chatMaxInputChars;
     panel.input.dataset.tokenLimit = String(chatTokenLimit);
     if (!panel.counter) {
       const counter = document.createElement("span");
@@ -729,20 +734,28 @@
   function updateTokenCounter(panel) {
     if (!panel.input || !panel.counter) return;
     const limit = Number(panel.input.dataset.tokenLimit || chatTokenLimit);
-    const count = panel.input.value.length;
-    panel.counter.textContent = `${count}/${limit} TOKEN`;
-    panel.counter.classList.toggle("is-warn", count >= Math.floor(limit * 0.8) && count < limit);
-    panel.counter.classList.toggle("is-full", count >= limit);
+    const count = tokenEstimator.estimateTokens(panel.input.value);
+    panel.counter.textContent = `${count}/${limit} 예상 토큰`;
+    panel.counter.classList.toggle("is-warn", count >= Math.floor(limit * 0.8) && count <= limit);
+    panel.counter.classList.toggle("is-full", count > limit);
+    panel.counter.title = "실제 모델 토큰과 완전히 같지는 않은 예상값입니다.";
+  }
+
+  function isOverTokenLimit(input) {
+    return tokenEstimator.estimateTokens(input?.value || "") > chatTokenLimit;
   }
 
   function updateControls() {
     const locked = state.role === "student" && state.credits <= 0;
     panels.forEach((panel) => {
-      const disabled = locked || state.requesting || panel.waiting;
-      panel.input.disabled = disabled;
-      panel.submit.disabled = disabled;
+      const overTokenLimit = isOverTokenLimit(panel.input);
+      const inputDisabled = locked || state.requesting || panel.waiting;
+      panel.input.disabled = inputDisabled;
+      panel.submit.disabled = inputDisabled || overTokenLimit;
       updateTokenCounter(panel);
-      panel.input.placeholder = locked ? "질문권 받기를 눌러 확인하세요" : `${panel.name}에게 질문하기`;
+      panel.input.placeholder = locked
+        ? "질문권 받기를 눌러 확인하세요"
+        : `${panel.name}에게 질문하기`;
     });
     setRefreshBusy(false);
     updateEvidenceControls();
@@ -1394,6 +1407,9 @@
         applyCredits(0);
         return "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 눌러주세요.";
       }
+      if (response.status === 413 && data.code === "MESSAGE_TOKEN_LIMIT") {
+        return data.error || "질문이 너무 깁니다. 조금 줄여서 다시 질문해 주세요.";
+      }
       if (response.ok && data.reply) return data.reply;
 
       const errorText = data.error || "AI 응답을 받지 못했습니다.";
@@ -1415,6 +1431,12 @@
   async function submitQuestion(panel) {
     const text = panel.input.value.trim();
     if (!text || state.requesting || panel.waiting) return;
+    const tokenCount = tokenEstimator.estimateTokens(text);
+    if (tokenCount > chatTokenLimit) {
+      setPanelState(panel, `토큰 초과 ${tokenCount}/${chatTokenLimit}`);
+      updateTokenCounter(panel);
+      return;
+    }
     if (state.role === "student" && state.credits <= 0) {
       addMessage(panel, "bot", "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 눌러주세요.");
       updateControls();

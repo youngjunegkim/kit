@@ -83,7 +83,12 @@
     tokenCounter: document.querySelector("[data-token-counter]"),
     chatSubmit: document.querySelector("[data-chat-submit]")
   };
-  const chatTokenLimit = 200;
+  const tokenEstimator = window.KitTokenEstimator || {
+    DEFAULT_CHAT_TOKEN_LIMIT: 120,
+    estimateTokens: (text) => Math.ceil(String(text || "").trim().length / 2) || 0
+  };
+  const chatTokenLimit = tokenEstimator.DEFAULT_CHAT_TOKEN_LIMIT || 120;
+  const chatMaxInputChars = 800;
 
   function encoded(value) {
     return encodeURIComponent(String(value || ""));
@@ -104,7 +109,7 @@
 
   function ensureTokenCounter() {
     if (!nodes.chatInput) return;
-    nodes.chatInput.maxLength = chatTokenLimit;
+    nodes.chatInput.maxLength = chatMaxInputChars;
     nodes.chatInput.dataset.tokenLimit = String(chatTokenLimit);
     if (!nodes.tokenCounter) {
       const counter = document.createElement("span");
@@ -119,10 +124,15 @@
   function updateTokenCounter() {
     if (!nodes.chatInput || !nodes.tokenCounter) return;
     const limit = Number(nodes.chatInput.dataset.tokenLimit || chatTokenLimit);
-    const count = nodes.chatInput.value.length;
-    nodes.tokenCounter.textContent = `${count}/${limit} TOKEN`;
-    nodes.tokenCounter.classList.toggle("is-warn", count >= Math.floor(limit * 0.8) && count < limit);
-    nodes.tokenCounter.classList.toggle("is-full", count >= limit);
+    const count = tokenEstimator.estimateTokens(nodes.chatInput.value);
+    nodes.tokenCounter.textContent = `${count}/${limit} 예상 토큰`;
+    nodes.tokenCounter.classList.toggle("is-warn", count >= Math.floor(limit * 0.8) && count <= limit);
+    nodes.tokenCounter.classList.toggle("is-full", count > limit);
+    nodes.tokenCounter.title = "실제 모델 토큰과 완전히 같지는 않은 예상값입니다.";
+  }
+
+  function isOverTokenLimit() {
+    return tokenEstimator.estimateTokens(nodes.chatInput?.value || "") > chatTokenLimit;
   }
 
   function setApiStatus(text, type = "") {
@@ -252,6 +262,7 @@
     const creditRequired = state.role === "student";
     const noCredits = creditRequired && state.credits <= 0;
     const chatLocked = state.requesting || noTeam || noCredits;
+    const overTokenLimit = isOverTokenLimit();
     const canRedeemCode = (state.role === "student" && state.team) || (isTeacher && state.evidenceTeam);
 
     if (nodes.chatInput) {
@@ -263,7 +274,7 @@
           : `${suspects[state.currentSuspect].name}에게 질문`;
       updateTokenCounter();
     }
-    if (nodes.chatSubmit) nodes.chatSubmit.disabled = chatLocked;
+    if (nodes.chatSubmit) nodes.chatSubmit.disabled = chatLocked || overTokenLimit;
     if (nodes.suspectSelect) nodes.suspectSelect.disabled = state.requesting;
 
     const codeLocked = state.requesting || !canRedeemCode;
@@ -621,6 +632,12 @@
     const suspectId = ensureSuspect(state.currentSuspect);
     const text = String(nodes.chatInput?.value || "").trim();
     if (!text || state.requesting) return;
+    const tokenCount = tokenEstimator.estimateTokens(text);
+    if (tokenCount > chatTokenLimit) {
+      setChatState(`토큰 초과 ${tokenCount}/${chatTokenLimit}`);
+      updateTokenCounter();
+      return;
+    }
     const targetTeam = evidenceTeam();
 
     if (state.role === "student" && !targetTeam) {
