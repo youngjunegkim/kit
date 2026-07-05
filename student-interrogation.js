@@ -38,16 +38,16 @@
     unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
   const evidenceCatalog = {
-    39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", image: "assets/evidence-rooms/broadcast.png", position: "84% 58%" },
-    26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", image: "assets/evidence-rooms/broadcast.png", position: "18% 55%" },
-    65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", image: "assets/evidence-rooms/art.png", position: "72% 46%" },
-    40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", image: "assets/evidence-rooms/art.png", position: "22% 70%" },
-    91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", image: "assets/evidence-cards/office-tablet-cctv.png", position: "center" },
-    11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
-    79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
-    61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
-    87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", image: "assets/evidence-cards/gym-ex-message.png", position: "center" },
-    13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", image: "assets/evidence-cards/gym-daniel-usb-cctv.png", position: "center" }
+    39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린", image: "assets/evidence-rooms/broadcast.png", position: "84% 58%" },
+    26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린", image: "assets/evidence-rooms/broadcast.png", position: "18% 55%" },
+    65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", person: "서하린", image: "assets/evidence-rooms/art.png", position: "72% 46%" },
+    40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", person: "강우진", image: "assets/evidence-rooms/art.png", position: "22% 70%" },
+    91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진", image: "assets/evidence-cards/office-tablet-cctv.png", position: "center" },
+    11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", person: "강우진", image: "assets/evidence-rooms/office.png", position: "62% 78%" },
+    79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", person: "최다니엘", image: "assets/evidence-rooms/science.png", position: "31% 72%" },
+    61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", person: "최다니엘", image: "assets/evidence-rooms/science.png", position: "76% 45%" },
+    87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진", image: "assets/evidence-cards/gym-ex-message.png", position: "center" },
+    13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘", image: "assets/evidence-cards/gym-daniel-usb-cctv.png", position: "center" }
   };
 
   const state = {
@@ -336,6 +336,7 @@
       roomId: catalog.roomId || "",
       index: Number(catalog.index) || Number(evidence.index) || 1,
       evidence: catalog.evidence || evidence.evidence || "증거카드",
+      person: evidence.person || catalog.person || "",
       image: catalog.image || "",
       position: catalog.position || "center",
       at: new Date().toISOString()
@@ -367,7 +368,8 @@
       .filter((entry) => entry?.code && entry?.evidence)
       .map((entry) => evidenceFromResponse(entry.code, {
         room: entry.room,
-        evidence: entry.evidence
+        evidence: entry.evidence,
+        person: entry.person
       }));
   }
 
@@ -480,8 +482,10 @@
       meta.textContent = `${item.room} · 증거 카드 ${item.index}`;
       const name = document.createElement("strong");
       name.textContent = item.evidence;
+      const person = document.createElement("em");
+      person.textContent = item.person ? `관련 인물: ${item.person}` : "관련 인물: 확인 필요";
 
-      body.append(meta, name);
+      body.append(meta, name, person);
       row.append(thumb, body);
       list.append(row);
     });
@@ -529,8 +533,10 @@
 
       const title = document.createElement("strong");
       title.textContent = card.evidence;
+      const person = document.createElement("em");
+      person.textContent = card.person ? `관련 인물: ${card.person}` : "관련 인물: 확인 필요";
 
-      body.append(meta, title);
+      body.append(meta, title, person);
       item.append(thumb, body);
       evidenceBoard.append(item);
     });
@@ -1244,7 +1250,8 @@
       if (!response.ok) {
         if (data.code === "ALREADY_REDEEMED" && data.evidence) {
           const card = storeEvidenceCard(code, data.evidence);
-          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}를 표시했습니다.`, "bad");
+          const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
+          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}${personText}`, "bad");
           if (evidenceInput) evidenceInput.value = "";
           return;
         }
@@ -1258,7 +1265,8 @@
 
       applyCredits(data.credits);
       const card = storeEvidenceCard(code, data.evidence);
-      setEvidenceMessage(`${state.team}팀 질문권 ${Number(data.added || 3)}개 추가 · ${card.room} 증거 카드 ${card.index}`, "ok");
+      const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
+      setEvidenceMessage(`${state.team}팀 질문권 ${Number(data.added || 3)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
       if (evidenceInput) evidenceInput.value = "";
     } catch (error) {
       setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");

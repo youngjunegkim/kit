@@ -128,6 +128,7 @@ function publicEvidenceLog(entry = {}) {
     code: cleanCode(entry.code),
     room: String(catalog?.room || entry.room || "").trim().slice(0, 40),
     evidence: String(catalog?.evidence || entry.evidence || "").trim().slice(0, 80),
+    person: String(catalog?.person || entry.person || "").trim().slice(0, 40),
     added: Math.max(0, Number(entry.added) || 0),
     at: entry.at || ""
   };
@@ -136,7 +137,8 @@ function publicEvidenceLog(entry = {}) {
 function publicEvidence(evidence = {}) {
   return {
     room: String(evidence.room || "").trim().slice(0, 40),
-    evidence: String(evidence.evidence || "").trim().slice(0, 80)
+    evidence: String(evidence.evidence || "").trim().slice(0, 80),
+    person: String(evidence.person || "").trim().slice(0, 40)
   };
 }
 
