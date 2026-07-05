@@ -274,17 +274,17 @@ const evidenceDisclosureRules = [
     id: "gymPracticeNote",
     label: "체육관 증거카드: 전교 1등 전 여자친구의 메시지",
     minScore: 2,
-    directPatterns: [/전교\s*1등\s*전\s*여자친구의?\s*메시지|전\s*여자친구.*메시지|전여자친구.*메시지|연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐/],
-    patterns: [/체육관/, /전교\s*1등|전\s*여자친구|전여자친구|메시지|인정받|성적\s*압박|연습\s*노트|연습장|이번\s*시험|다시\s*다르게\s*봐/],
-    leakPatterns: [/전교\s*1등\s*전\s*여자친구의?\s*메시지|전\s*여자친구.*메시지|전여자친구.*메시지|전\s*여자친구|전여자친구|전교\s*1등|인정받|연습\s*노트|연습장|이번\s*시험만\s*잘\s*보면|다시\s*다르게\s*봐/]
+    directPatterns: [/전교\s*1등\s*전\s*여자친구의?\s*메시지|전\s*여자친구.*메시지|전여자친구.*메시지|다시\s*인정|다시\s*다르게\s*봐/],
+    patterns: [/체육관/, /전교\s*1등|전\s*여자친구|전여자친구|메시지|인정받|성적\s*압박|시험\s*압박|다시\s*다르게\s*봐/],
+    leakPatterns: [/전교\s*1등\s*전\s*여자친구의?\s*메시지|전\s*여자친구.*메시지|전여자친구.*메시지|전\s*여자친구|전여자친구|전교\s*1등|인정받|다시\s*인정|다시\s*다르게\s*봐/]
   },
   {
     id: "gymUsbMisread",
     label: "체육관 증거카드: CCTV에 찍힌 최다니엘의 USB",
     minScore: 2,
-    directPatterns: [/CCTV에?\s*찍힌\s*최다니엘의?\s*USB|최다니엘.*USB|USB\s*오인식|AI의?\s*USB\s*오인식|USB로\s*오인식|USB로\s*잘못/],
-    patterns: [/체육관/, /USB|유에스비|최다니엘|CCTV|씨씨티비|오인식|보안\s*AI|검은색\s*(통\s*)?(물건|립스틱)|작은\s*물건/],
-    leakPatterns: [/CCTV에?\s*찍힌\s*최다니엘의?\s*USB|최다니엘.*USB|USB\s*오인식|USB로\s*오인식|USB로\s*잘못|보안\s*AI.*USB/]
+    directPatterns: [/CCTV에?\s*찍힌\s*최다니엘의?\s*USB|최다니엘.*USB|체육관.*USB|USB.*최다니엘/],
+    patterns: [/체육관/, /USB|유에스비|최다니엘|CCTV|씨씨티비|검은색\s*(통\s*)?(물건|립스틱)|작은\s*물건/],
+    leakPatterns: [/CCTV에?\s*찍힌\s*최다니엘의?\s*USB|최다니엘.*USB|체육관.*USB|USB.*최다니엘/]
   }
 ];
 
@@ -313,7 +313,7 @@ function buildEvidenceDisclosureGuide(history, message) {
   const allowed = matches.map((rule) => rule.label);
   return [
     "[증거 공개 잠금 - 이번 질문에 적용]",
-    "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 유출, 자동 추천이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
+    "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 문제지, 유출이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
     `- 학생이 지금까지 직접 말한 증거카드: ${allowed.length ? allowed.join(", ") : "없음"}`,
     "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 전 여자친구 메시지, 태블릿, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
     allowed.length
@@ -350,9 +350,9 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   if (
     personaIdFor(payload) === "kangWoojin" &&
     !(allowed.has("officeExamPaper") && allowed.has("artDeletedPrompt")) &&
-    /(태블릿|촬영|문제지.{0,24}(AI|입력|넣)|AI.{0,24}(문제지|시험지|넣)|공개되는\s*줄|자료\s*목록에\s*올라)/.test(text)
+    /(태블릿|촬영|문제지.{0,24}(AI|입력|넣)|AI.{0,24}(문제지|시험지|넣)|공개되는\s*줄|유출)/.test(text)
   ) {
-    return "강우진의 교무실 문제지와 미술실 AI 프롬프트 연결을 충분한 증거 없이 공개했다.";
+    return "강우진의 교무실 문제지와 삭제된 AI 대화 기록 연결을 충분한 증거 없이 공개했다.";
   }
 
   return "";
@@ -368,10 +368,10 @@ const focusRules = [
   },
   {
     id: "office",
-    label: "교무실/보안 PC/접속 기록",
-    patterns: [/교무실/, /보안\s*PC/i, /접속\s*기록/, /6\s*시\s*42/, /오후\s*6/, /학생\s*계정/],
-    answerPatterns: [/교무실/, /보안\s*PC/i, /접속/, /기록/, /근처/, /계정/],
-    instruction: "교무실, 보안 PC, 접속 기록에 대해 먼저 답한다."
+    label: "교무실/태블릿/CCTV",
+    patterns: [/교무실/, /태블릿/, /교무실\s*복도/, /교무실\s*앞/, /CCTV/i, /씨씨티비/],
+    answerPatterns: [/교무실/, /태블릿/, /CCTV/i, /씨씨티비/, /복도/, /근처/],
+    instruction: "교무실, 태블릿, CCTV 질문이면 그 장소와 물건에 대해 먼저 답한다."
   },
   {
     id: "usb",
@@ -382,28 +382,28 @@ const focusRules = [
   },
   {
     id: "motive",
-    label: "성적 압박/전 애인/인정 욕구",
-    patterns: [/성적/, /압박/, /상담/, /전\s*애인/, /애인/, /인정/, /재회/, /헤어/, /차였/],
-    answerPatterns: [/성적/, /압박/, /전\s*애인/, /인정/, /마음/, /상담/, /헤어/],
+    label: "성적 압박/전 여자친구/인정 욕구",
+    patterns: [/성적/, /압박/, /상담/, /전\s*여자친구/, /전여자친구/, /여자친구/, /인정/, /재회/, /헤어/, /차였/],
+    answerPatterns: [/성적/, /압박/, /전\s*여자친구/, /전여자친구/, /여자친구/, /인정/, /마음/, /상담/, /헤어/],
     instruction: "동기 질문이면 감정선을 짧게 인정하되, 자극적으로 말하지 않는다."
   },
   {
     id: "cctv",
-    label: "CCTV/AI 분석/작은 물건",
-    patterns: [/CCTV/i, /영상/, /AI\s*분석/i, /작은\s*물건/, /이어폰/, /케이스/, /복도/, /두리번/],
-    answerPatterns: [/CCTV/i, /영상/, /AI/i, /분석/, /이어폰/, /케이스/, /복도/, /물건/],
-    instruction: "CCTV와 AI 분석 질문이면 원본 장면과 AI 해석의 차이를 먼저 설명한다."
+    label: "CCTV/USB/작은 물건",
+    patterns: [/CCTV/i, /영상/, /USB/i, /유에스비/, /작은\s*물건/, /검은색\s*물건/, /복도/, /두리번/],
+    answerPatterns: [/CCTV/i, /영상/, /USB/i, /유에스비/, /복도/, /물건/],
+    instruction: "CCTV와 USB 질문이면 원본 장면과 물건의 정체를 단정할 수 있는지부터 답한다."
   },
   {
     id: "recommendation",
-    label: "자동 추천/문제 유출 경로",
-    patterns: [/자동\s*추천/, /추천\s*설정/, /2\s*학년\s*전체/, /전체\s*학생/, /퍼졌/, /유출\s*경로/, /추천\s*자료/],
-    answerPatterns: [/추천/, /전체/, /퍼졌/, /유출/, /자료/, /AI/i],
-    instruction: "추천 설정이나 유출 경로 질문이면 AI가 만든 자료가 어떻게 퍼졌는지에 대해 답한다."
+    label: "시험 예상 문제 유출",
+    patterns: [/퍼졌/, /유출\s*경로/, /유출/, /노출/, /공개/, /공유/],
+    answerPatterns: [/퍼졌/, /유출/, /노출/, /공개/, /공유/, /AI/i],
+    instruction: "유출 경로 질문이면 시험 예상 문제가 유출된 사실과 자신이 아는 범위만 답한다."
   },
   {
     id: "comparison",
-    label: "AI 추천 문제와 실제 시험 비교",
+    label: "AI 예상 문제와 실제 시험 비교",
     patterns: [/비교표/, /실제\s*시험/, /보기\s*구성/, /서술형/, /문제\s*순서/, /유사/, /비슷/],
     answerPatterns: [/비교/, /실제\s*시험/, /보기/, /서술형/, /문제/, /유사/, /비슷/],
     instruction: "문제 비교 질문이면 AI가 만든 예상 문제와 실제 시험의 유사성을 중심으로 답한다."
@@ -411,8 +411,8 @@ const focusRules = [
   {
     id: "otherSuspects",
     label: "서하린/최다니엘 의심 단서와 알리바이",
-    patterns: [/서하린/, /시스템\s*접속/, /작업\s*내역/, /방송\s*장비/, /최다니엘/, /열쇠고리/, /AI\s*영상\s*분석/i],
-    answerPatterns: [/서하린/, /최다니엘/, /시스템/, /작업/, /방송/, /CCTV/i, /영상/, /열쇠고리/, /AI/i],
+    patterns: [/서하린/, /시스템\s*접속/, /작업\s*내역/, /방송\s*장비/, /최다니엘/, /보고서/, /분실물함/, /CCTV/i],
+    answerPatterns: [/서하린/, /최다니엘/, /시스템/, /작업/, /방송/, /CCTV/i, /영상/, /보고서/, /분실물/],
     instruction: "다른 용의자 단서가 나오면 처음에는 의심을 돌리되, 알리바이 카드가 나오면 단정하지 못하고 말끝을 흐린다."
   }
 ];
