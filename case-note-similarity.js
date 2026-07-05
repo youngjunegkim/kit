@@ -1,61 +1,66 @@
 (function () {
   const STORAGE_KEY = "kit-case-note-similarity-v1";
-  const standardNote = "범인은 강우진이다. 강우진은 기말고사 전날 교무실 보안 PC 앞에서 시험지 USB를 훔치거나 시험지 일부를 확보한 뒤, 학교 학습 도우미 AI에 입력했다. 그는 AI에게 실제 시험과 비슷한 예상 문제를 만들게 했고, 그 결과물이 자동 추천 기능을 통해 2학년 전체 학생에게 퍼졌다. 강우진은 시험 성적에 대한 압박과 전교 1등이던 전 여자친구에게 다시 인정받고 싶은 마음 때문에 범행을 저질렀다.";
+  const standardNote = [
+    "범인은 강우진이고, 사건 장소는 교무실이다.",
+    "범인은 학교 학습 도우미 AI를 사용해 교무실에서 본 기말고사 문제지를 기반으로 비슷한 유형의 기말 예상 문제지를 만드는 방식으로 범행을 저지르다가 시험 예상 문제가 유출되었다.",
+    "그 근거는 전 여자친구에 의한 시험 압박, 오후 6시에 학교 학습 도우미 AI에 접속, 교무실 복도 앞에 있는 모습이 찍힌 CCTV, 오후 6시 15분에 \"기말고사 문제지를 기반으로 비슷한 유형의 기말 예상 문제지를 만들어줘\"라는 AI 대화 기록 일부이다.",
+    "범인에게 가장 부족했던 AI 윤리 역량은 주체성이며, 그 이유는 시험 점수를 위해 AI를 부정행위라는 잘못된 목적에 사용하기로 스스로 결정하였기 때문이다."
+  ].join("\n");
 
   const rubric = [
     {
       id: "culprit",
       label: "범인 지목",
+      max: 16,
+      checks: [
+        { label: "강우진을 범인으로 지목", points: 16, patterns: [/강\s*우\s*진/, /우진/] }
+      ]
+    },
+    {
+      id: "place",
+      label: "사건 장소",
+      max: 10,
+      checks: [
+        { label: "사건 장소를 교무실로 제시", points: 10, patterns: [/교무실/] }
+      ]
+    },
+    {
+      id: "method",
+      label: "범행 방식",
       max: 22,
       checks: [
-        { label: "강우진을 범인으로 지목", points: 22, patterns: [/강\s*우\s*진/, /우진/] }
+        { label: "학교 학습 도우미 AI 사용", points: 6, patterns: [/학습\s*도우미/, /학교\s*ai/i, /ai/i, /인공지능/] },
+        { label: "교무실에서 본 기말고사 문제지 기반", points: 8, patterns: [/교무실.*(기말|시험|문제지)/, /(기말|시험|문제지).*교무실/, /문제지.*기반/, /기반.*문제지/, /문제지.*봤/, /문제지.*보았/] },
+        { label: "비슷한 유형의 기말 예상 문제 생성", points: 8, patterns: [/비슷한\s*유형/, /비슷.*문제/, /유사.*문제/, /기말.*예상/, /예상\s*문제/, /문제.*만들/, /만들어줘/, /생성/] }
       ]
     },
     {
-      id: "acquisition",
-      label: "시험지 확보 경로",
+      id: "leak",
+      label: "유출 결과",
+      max: 8,
+      checks: [
+        { label: "시험 예상 문제가 유출됨", points: 8, patterns: [/유출/, /퍼졌/, /노출/, /공개/, /공유/, /새어\s*나/] }
+      ]
+    },
+    {
+      id: "evidence",
+      label: "근거 제시",
+      max: 26,
+      checks: [
+        { label: "전 여자친구에 의한 시험 압박", points: 6, patterns: [/전\s*여자친구/, /전여친/, /여친/, /시험\s*압박/, /압박/, /성적/, /점수/] },
+        { label: "오후 6시 학교 학습 도우미 AI 접속", points: 6, patterns: [/6\s*시.*(ai|학습\s*도우미|접속)/i, /(ai|학습\s*도우미|접속).*6\s*시/i] },
+        { label: "교무실 복도 앞 CCTV", points: 6, patterns: [/교무실.*(복도|앞).*cctv/i, /cctv.*교무실/i, /복도.*cctv/i] },
+        { label: "오후 6시 15분 AI 대화 기록", points: 8, patterns: [/6\s*시\s*15\s*분/i, /6:15/, /18:15/, /대화\s*기록/, /기록\s*일부/, /문제지.*만들어줘/, /비슷한\s*유형.*만들/] }
+      ]
+    },
+    {
+      id: "ethics",
+      label: "AI 윤리 역량",
       max: 18,
       checks: [
-        { label: "교무실 또는 보안 PC 언급", points: 6, patterns: [/교무실/, /보안\s*pc/i, /보안\s*피시/, /교무실.*pc/i] },
-        { label: "시험지, USB, 시험 정보 언급", points: 6, patterns: [/시험지/, /문제지/, /usb/i, /유에스비/, /비공개\s*시험/, /시험\s*정보/] },
-        { label: "훔침, 확보, 촬영, 가져감 등 확보 행위", points: 6, patterns: [/훔치/, /가져/, /확보/, /촬영/, /사진/, /빼내/, /얻었/, /봤다/, /보았다/, /몰래/] }
-      ]
-    },
-    {
-      id: "aiInput",
-      label: "AI 입력",
-      max: 18,
-      checks: [
-        { label: "학교 학습 도우미 AI 또는 AI 언급", points: 8, patterns: [/학습\s*도우미/, /학교\s*ai/i, /ai/i, /인공지능/] },
-        { label: "입력, 넣음, 업로드, 요청 언급", points: 7, patterns: [/입력/, /넣/, /업로드/, /전달/, /요청/, /활용/, /사용/] },
-        { label: "시험지 내용을 바탕으로 했다는 점", points: 3, patterns: [/시험지.*기반/, /기반.*시험지/, /시험지.*내용/, /실제\s*시험/, /자료를\s*바탕/] }
-      ]
-    },
-    {
-      id: "generated",
-      label: "예상 문제 생성",
-      max: 14,
-      checks: [
-        { label: "실제 시험과 비슷하거나 유사함", points: 7, patterns: [/비슷/, /유사/, /닮/, /같은\s*유형/, /비슷한\s*유형/] },
-        { label: "예상 문제를 만들거나 변형함", points: 7, patterns: [/예상\s*문제/, /기말.*예상/, /문제.*만들/, /만들게/, /생성/, /바꾸/, /변형/] }
-      ]
-    },
-    {
-      id: "spread",
-      label: "유출 경로",
-      max: 14,
-      checks: [
-        { label: "자동 추천 기능 또는 자료 목록", points: 8, patterns: [/자동\s*추천/, /추천\s*기능/, /추천\s*자료/, /자료\s*목록/, /공개\s*범위/] },
-        { label: "2학년 전체 학생에게 퍼짐", points: 6, patterns: [/2\s*학년/, /이\s*학년/, /전체\s*학생/, /전교생/, /퍼졌/, /퍼짐/, /유출/, /공개/, /공유/] }
-      ]
-    },
-    {
-      id: "motive",
-      label: "동기",
-      max: 14,
-      checks: [
-        { label: "시험 성적 압박", points: 6, patterns: [/성적/, /점수/, /시험\s*압박/, /압박/, /기말고사.*잘/, /시험.*잘/] },
-        { label: "전교 1등 전 여자친구에게 인정받고 싶은 마음", points: 8, patterns: [/전\s*여자친구/, /전여친/, /여친/, /전교\s*1\s*등/, /인정/, /다르게\s*봐/, /다시\s*봐/, /재회/] }
+        { label: "부족한 AI 윤리 역량을 주체성으로 제시", points: 8, patterns: [/주체성/] },
+        { label: "시험 점수 또는 부정행위라는 잘못된 목적", points: 6, patterns: [/시험\s*점수/, /점수/, /부정\s*행위/, /잘못된\s*목적/, /나쁜\s*목적/, /부적절한\s*목적/] },
+        { label: "AI 사용을 스스로 결정한 책임", points: 4, patterns: [/스스로\s*결정/, /직접\s*결정/, /자신이\s*결정/, /사용하기로/, /선택/, /책임/] }
       ]
     }
   ];
@@ -397,7 +402,7 @@
               <input class="team-name-input" type="text" value="${escapeHtml(team.name)}" aria-label="${index + 1}번째 팀 이름" data-team-name>
               <button class="remove-team-btn" type="button" data-remove-team>삭제</button>
             </div>
-            <textarea class="team-note-input" aria-label="${escapeHtml(team.name)} 사건노트" placeholder="예: 범인은 OOO이라고 생각합니다. 시험지 내용을 AI에 입력해 예상 문제가 퍼졌다..." data-team-note>${escapeHtml(team.note)}</textarea>
+            <textarea class="team-note-input" aria-label="${escapeHtml(team.name)} 사건노트" placeholder="예: 범인은 강우진이고 장소는 교무실입니다. 기말고사 문제지를 기반으로 AI에 예상 문제 생성을 요청했고, 부족한 AI 윤리 역량은 주체성입니다..." data-team-note>${escapeHtml(team.note)}</textarea>
           </div>
           <div class="team-card__score">
             <div class="score-badge">
@@ -1124,7 +1129,7 @@
     calculateAll();
     renderTeams();
     renderRanking();
-    const rows = [["순위", "팀", "유사도", "범인", "확보 경로", "AI 입력", "예상 문제", "유출 경로", "동기", "사건노트"]];
+    const rows = [["순위", "팀", "유사도", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
     let rank = 0;
     let previousScore = null;
     let seen = 0;
@@ -1141,11 +1146,11 @@
         team.name,
         team.note.trim() ? `${score}%` : "",
         detailMap.culprit,
-        detailMap.acquisition,
-        detailMap.aiInput,
-        detailMap.generated,
-        detailMap.spread,
-        detailMap.motive,
+        detailMap.place,
+        detailMap.method,
+        detailMap.leak,
+        detailMap.evidence,
+        detailMap.ethics,
         team.note
       ]);
     });
