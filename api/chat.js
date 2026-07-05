@@ -242,9 +242,9 @@ const evidenceDisclosureRules = [
     id: "officeCctv",
     label: "교무실 증거카드: CCTV에 찍힌 강우진의 태블릿",
     minScore: 2,
-    directPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*태블릿|강우진.*태블릿|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV/],
-    patterns: [/교무실/, /CCTV|씨씨티비|태블릿|복도|앞에?\s*있|도착|담당\s*선생님/],
-    leakPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*태블릿|강우진.*태블릿|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|담당\s*선생님을?\s*찾/]
+    directPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*(태블릿|테블릿)|강우진.*(태블릿|테블릿)|(CCTV|씨씨티비).{0,24}(태블릿|테블릿)|(태블릿|테블릿).{0,24}(CCTV|씨씨티비)|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV/],
+    patterns: [/교무실/, /CCTV|씨씨티비/, /태블릿|테블릿/, /복도|앞에?\s*있|도착|담당\s*선생님/],
+    leakPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*(태블릿|테블릿)|강우진.*(태블릿|테블릿)|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|담당\s*선생님을?\s*찾/]
   },
   {
     id: "officeExamPaper",
@@ -339,20 +339,25 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
     return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
   }
 
-  if (
-    personaIdFor(payload) === "kangWoojin" &&
-    !allowed.has("artDeletedPrompt") &&
-    /(태블릿|촬영|문제지.{0,20}(AI|입력)|AI.{0,20}(비슷한\s*유형|바꿔|만들)|공개되는\s*줄|대화\s*기록.{0,12}(삭제|지웠))/.test(text)
-  ) {
-    return "강우진의 핵심 범행 방식이나 AI 입력 사실을 증거 없이 공개했다.";
-  }
+  if (personaIdFor(payload) === "kangWoojin") {
+    const hasTabletEvidence = allowed.has("officeCctv");
+    const hasPhotoEvidence = allowed.has("officeCctv") && allowed.has("officeExamPaper");
+    const hasAiInputEvidence = allowed.has("officeExamPaper") && allowed.has("artDeletedPrompt");
 
-  if (
-    personaIdFor(payload) === "kangWoojin" &&
-    !(allowed.has("officeExamPaper") && allowed.has("artDeletedPrompt")) &&
-    /(태블릿|촬영|문제지.{0,24}(AI|입력|넣)|AI.{0,24}(문제지|시험지|넣)|공개되는\s*줄|유출)/.test(text)
-  ) {
-    return "강우진의 교무실 문제지와 삭제된 AI 대화 기록 연결을 충분한 증거 없이 공개했다.";
+    if (!hasTabletEvidence && /(태블릿|테블릿)/.test(text)) {
+      return "강우진의 태블릿 증거를 학생이 제시하기 전에 공개했다.";
+    }
+
+    if (!hasPhotoEvidence && /(촬영|찍었|찍은|찍어|사진)/.test(text)) {
+      return "강우진이 문제지를 태블릿으로 촬영했다는 연결을 충분한 증거 없이 공개했다.";
+    }
+
+    if (
+      !hasAiInputEvidence &&
+      /(문제지.{0,24}(AI|입력|넣|기반)|AI.{0,24}(문제지|시험지|넣|기반|비슷한\s*유형|바꿔|만들)|공개되는\s*줄|유출|대화\s*기록.{0,12}(삭제|지웠))/.test(text)
+    ) {
+      return "강우진이 찍은 문제지 내용을 AI에 넣어 유출로 이어진 연결을 충분한 증거 없이 공개했다.";
+    }
   }
 
   return "";
@@ -362,16 +367,16 @@ const focusRules = [
   {
     id: "aiDialogue",
     label: "AI 대화 기록과 문항 변형",
-    patterns: [/AI\s*입력/i, /입력\s*로그/, /학습\s*도우미/i, /시험지.*AI/i, /AI.*시험지/i, /삭제.*대화/, /대화.*삭제/, /문항\s*순서/, /비슷하게/, /다시\s*만들/, /바꿔/, /프롬프트/, /예상\s*문제/],
-    answerPatterns: [/입력/, /로그/, /학습\s*도우미/i, /시험지/, /대화/, /문항/, /순서/, /비슷/, /다시/, /AI/i, /프롬프트/, /예상/, /바꿔/, /삭제/],
-    instruction: "AI 입력 로그, 시험지 자료 입력, 문항 순서 변경, 비슷하게 다시 만들기, AI 사용 흔적을 중심으로 답한다. 교무실 위치 이야기로만 돌리지 않는다."
+    patterns: [/AI\s*입력/i, /입력\s*로그/, /학습\s*도우미/i, /시험지.*AI/i, /AI.*시험지/i, /문제지.*AI/i, /AI.*문제지/i, /문제지.*기반/, /삭제.*대화/, /대화.*삭제/, /문항\s*순서/, /비슷하게/, /다시\s*만들/, /바꿔/, /프롬프트/, /예상\s*문제/],
+    answerPatterns: [/입력/, /로그/, /학습\s*도우미/i, /시험지/, /문제지/, /기반/, /대화/, /문항/, /순서/, /비슷/, /다시/, /AI/i, /프롬프트/, /예상/, /바꿔/, /삭제/],
+    instruction: "AI 입력 로그, 태블릿으로 찍은 시험지 자료 입력, 문항 순서 변경, 비슷하게 다시 만들기, AI 사용 흔적을 중심으로 답한다. 교무실 위치 이야기로만 돌리지 않는다."
   },
   {
     id: "office",
     label: "교무실/태블릿/CCTV",
-    patterns: [/교무실/, /태블릿/, /교무실\s*복도/, /교무실\s*앞/, /CCTV/i, /씨씨티비/],
-    answerPatterns: [/교무실/, /태블릿/, /CCTV/i, /씨씨티비/, /복도/, /근처/],
-    instruction: "교무실, 태블릿, CCTV 질문이면 그 장소와 물건에 대해 먼저 답한다."
+    patterns: [/교무실/, /태블릿/, /테블릿/, /촬영/, /찍었|찍은|찍어/, /사진/, /교무실\s*복도/, /교무실\s*앞/, /CCTV/i, /씨씨티비/],
+    answerPatterns: [/교무실/, /태블릿/, /테블릿/, /촬영/, /찍었|찍은|찍어/, /사진/, /CCTV/i, /씨씨티비/, /복도/, /근처/],
+    instruction: "교무실, 태블릿, CCTV, 문제지 촬영 질문이면 그 장소와 물건에 대해 먼저 답한다."
   },
   {
     id: "usb",
