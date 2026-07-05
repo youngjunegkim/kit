@@ -213,6 +213,18 @@ function includesAny(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+function isTimelineQuestion(message) {
+  const raw = String(message || "");
+  return includesAny(raw, [
+    /동선|행적|알리바이|시간대|타임라인/,
+    /몇\s*시|몇\s*분|언제/,
+    /그\s*때|그때|그\s*시간/,
+    /어디\s*(있었|있어|갔|갔어|갔냐|있었냐|있냐)/,
+    /뭐\s*(했|했어|했냐|하고\s*있|하고\s*있었)/,
+    /오후\s*[56]\s*시|[56]\s*시\s*(?:\d+\s*분)?/
+  ]);
+}
+
 const evidenceDisclosureRules = [
   {
     id: "broadcastChecklist",
@@ -319,13 +331,18 @@ function evidenceMatchesFor(history, message) {
 function buildEvidenceDisclosureGuide(history, message) {
   const matches = evidenceMatchesFor(history, message);
   const allowed = matches.map((rule) => rule.label);
+  const timelineQuestion = isTimelineQuestion(message);
   return [
     "[증거 공개 잠금 - 이번 질문에 적용]",
     "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 문제지, 유출이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
     `- 학생이 지금까지 직접 말한 증거카드: ${allowed.length ? allowed.join(", ") : "없음"}`,
-    "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 전 여자친구 메시지, 태블릿, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
+    timelineQuestion
+      ? "- 위 목록에 없는 증거카드의 기록명, CCTV명, 로그명, 물건명은 먼저 말하지 않는다. 다만 학생이 시간·동선·알리바이를 물었으므로 현재 인물 자신의 행적 시간은 필요한 범위에서만 1~3개 말할 수 있다."
+      : "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 전 여자친구 메시지, 태블릿, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
     allowed.length
       ? "- 답변은 위에 허용된 증거카드와 학생의 마지막 질문에 직접 관련된 범위로만 제한한다."
+      : timelineQuestion
+        ? "- 이번 질문은 시간·동선·알리바이 질문이다. 새 증거카드 이름은 말하지 말고, 자기 행적의 시간대만 짧게 답한다. 다른 인물의 전체 시간표는 말하지 않는다."
       : "- 이번 질문은 증거카드 없는 일반 추궁이다. 새 단서를 제공하지 말고, 인물의 성격에 맞게 부인, 축소, 정정, 억울함으로 답한다. 단순히 다시 질문해 달라고만 끝내지 않는다."
   ].join("\n");
 }
@@ -343,7 +360,7 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   }
 
   const exactTimePattern = /5\s*시\s*10\s*분|5\s*시\s*20\s*분|5\s*시\s*30\s*분|5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|5\s*시\s*55\s*분|6\s*시|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분|6\s*시\s*30\s*분|6\s*시\s*40\s*분/;
-  if (!allowed.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage)) {
+  if (!allowed.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !isTimelineQuestion(rawMessage)) {
     return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
   }
 
@@ -422,6 +439,13 @@ const focusRules = [
     instruction: "문제 비교 질문이면 AI가 만든 예상 문제와 실제 시험의 유사성을 중심으로 답한다."
   },
   {
+    id: "timeline",
+    label: "시간대별 동선과 알리바이",
+    patterns: [/동선|행적|알리바이|시간대|타임라인/, /몇\s*시|몇\s*분|언제/, /그\s*때|그때|그\s*시간/, /어디\s*(있었|있어|갔|갔어|갔냐|있었냐|있냐)/, /뭐\s*(했|했어|했냐|하고\s*있|하고\s*있었)/, /오후\s*[56]\s*시|[56]\s*시\s*(?:\d+\s*분)?/],
+    answerPatterns: [/오후|5\s*시|6\s*시|분/, /체육관|방송실|과학실|교무실|복도|미술실/, /있었|갔|돌아|확인|정리|점검|접속|제출|주웠|접수/],
+    instruction: "시간, 동선, 알리바이 질문이면 자기 행적의 시간 1~3개와 그때 한 일을 짧게 말한다. 다른 인물의 전체 시간표는 공개하지 않는다."
+  },
+  {
     id: "otherSuspects",
     label: "서하린/최다니엘 의심 단서와 알리바이",
     patterns: [/서하린/, /시스템\s*접속/, /작업\s*내역/, /방송\s*장비/, /최다니엘/, /보고서/, /분실물함/, /CCTV/i],
@@ -439,6 +463,41 @@ function questionFocusFor(message) {
     instructions: matches.map((rule) => rule.instruction),
     answerPatterns: matches.flatMap((rule) => rule.answerPatterns)
   };
+}
+
+function timelineGuideFor(personaId, message) {
+  if (!isTimelineQuestion(message)) return [];
+
+  const common = [
+    "[시간·동선·알리바이 답변 지침]",
+    "- 학생이 시간, 동선, 알리바이, 위치를 물었으므로 시간 정보를 사용할 수 있다.",
+    "- 답변은 현재 인물 자신의 행적만 말한다. 다른 인물 3명의 전체 시간표를 한꺼번에 공개하지 않는다.",
+    "- 질문이 넓으면 시간 2~3개만 골라 짧게 말하고, 정확한 시각을 물었으면 그 시각과 바로 앞뒤 맥락만 답한다.",
+    "- 증거카드 이름, 로그명, CCTV 기록명은 학생이 먼저 말하지 않았으면 붙이지 않는다."
+  ];
+
+  const byPersona = {
+    kangWoojin: [
+      "- 강우진의 기본 동선: 오후 5시 30분쯤 체육관에서 축구부 연습을 했다.",
+      "- 오후 5시 45분쯤에는 축구부 전달 사항 때문에 담당 선생님을 찾으러 교무실 쪽으로 갔다고 말한다.",
+      "- 오후 6시쯤에는 공부하려고 학교 학습 도우미 AI를 켰다고 축소해서 말할 수 있다. 문제지 촬영, 구체 입력, 삭제는 관련 증거가 질문에 나왔을 때만 더 인정한다.",
+      "- 오후 6시 15분 이후를 물으면 일이 커진 것 같아 당황했다고만 말하고, 삭제 기록은 학생이 먼저 꺼냈을 때만 언급한다."
+    ],
+    seoHarin: [
+      "- 서하린의 기본 동선: 오후 5시 40분부터 6시 20분까지 방송실에서 자료와 장비를 확인하고 있었다.",
+      "- 오후 5시 50분쯤에는 이상한 자료가 보였다고 말할 수 있지만, 누가 만들었는지 단정하지 않는다.",
+      "- 오후 6시 10분쯤에는 이상한 자료 때문에 방송실에서 확인 작업을 했다고 답한다. 학생이 먼저 로그를 말했을 때만 로그 확인이라고 표현한다.",
+      "- 알리바이를 물으면 방송실 업무 시간대가 이어져 있었다는 점을 차분히 말한다."
+    ],
+    choiDaniel: [
+      "- 최다니엘의 기본 동선: 오후 5시 30분쯤 과학실에서 실험 자료와 보고서를 정리했다.",
+      "- 오후 5시 50분쯤에는 보고서 묶음을 제출하러 교무실 근처로 갔다고 말한다.",
+      "- 오후 6시 5분쯤에는 체육관 근처에서 작은 물건을 주웠고, 오후 6시 10분쯤에는 그 물건을 맡기러 갔다고 말할 수 있다. 학생이 먼저 분실물 기록을 말했을 때만 분실물 접수라고 표현한다.",
+      "- 알리바이를 물으면 시험지나 AI 예상 문제를 만들고 있던 시간이 아니라는 점을 조용히 설명한다."
+    ]
+  };
+
+  return common.concat(byPersona[personaId] || []);
 }
 
 function isSimpleGreeting(message) {
@@ -512,6 +571,7 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
   const raw = String(message || "");
   const focus = questionFocusFor(raw);
   const matchedEvidence = evidenceMatchesFor(history, raw);
+  const timelineGuide = timelineGuideFor(personaId, raw);
   const lines = [
     "[현재 학생 질문 처리 지침]",
     "- 마지막 질문의 핵심에 먼저 답한다. 학생이 꺼낸 단어를 피하거나 다른 주제로 돌리지 않는다.",
@@ -524,8 +584,16 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
     "- 2~3문장의 완결된 한국어로 답한다."
   ];
 
+  if (timelineGuide.length) {
+    lines.push(...timelineGuide);
+  }
+
   if (!matchedEvidence.length) {
-    lines.push("- 이번 질문에는 확인된 증거카드가 없다. 정확한 시간, 장소별 카드명, 로그명, CCTV 기록명은 말하지 않는다.");
+    if (timelineGuide.length) {
+      lines.push("- 단, 이번 질문은 시간·동선·알리바이 질문이므로 현재 인물 자신의 행적 시간대만 답할 수 있다. 새 증거카드 이름이나 다른 인물의 전체 시간표는 말하지 않는다.");
+    } else {
+      lines.push("- 이번 질문에는 확인된 증거카드가 없다. 정확한 시간, 장소별 카드명, 로그명, CCTV 기록명은 말하지 않는다.");
+    }
     if (/교무실|목격|봤|보였|CCTV|씨씨티비/.test(raw)) {
       lines.push("- 목격담 질문이면 '그 말만으로 범행을 단정할 수 없다'는 식으로 반응하되, 새 카드 내용을 말하지 않는다.");
     }
