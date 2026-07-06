@@ -1,5 +1,6 @@
 (function () {
-  const STORAGE_KEY = "kit-case-note-similarity-v1";
+  const classId = sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  const STORAGE_KEY = `kit-case-note-similarity-v1:${classId}`;
   const standardNote = [
     "범인은 강우진이고, 사건 장소는 교무실이다.",
     "범인은 학교 학습 도우미 AI를 사용해 교무실에서 기말고사 문제지를 태블릿으로 촬영한 뒤, 그 내용을 기반으로 비슷한 유형의 기말 예상 문제지를 만드는 방식으로 범행을 저지르다가 시험 예상 문제가 유출되었다.",
@@ -122,8 +123,8 @@
     };
   }
 
-  function classId() {
-    return sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  function currentClassId() {
+    return classId;
   }
 
   function setStudentSentenceStatus(text, type = "") {
@@ -177,11 +178,11 @@
     setStudentSentenceStatus("학생 문장을 불러오는 중입니다.");
 
     try {
-      const response = await fetch(`/api/similarity-sentences?classId=${encodeURIComponent(classId())}`, {
+      const response = await fetch(`/api/similarity-sentences?classId=${encodeURIComponent(currentClassId())}`, {
         cache: "no-store",
         headers: {
           "x-kit-role": "teacher",
-          "x-kit-class": classId()
+          "x-kit-class": currentClassId()
         }
       });
       const data = await response.json().catch(() => ({}));
@@ -249,11 +250,11 @@
         headers: {
           "content-type": "application/json",
           "x-kit-role": "teacher",
-          "x-kit-class": classId()
+          "x-kit-class": currentClassId()
         },
         body: JSON.stringify({
           action: "clear",
-          classId: classId()
+          classId: currentClassId()
         })
       });
       const data = await response.json().catch(() => ({}));
