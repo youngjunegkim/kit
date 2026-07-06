@@ -4,7 +4,7 @@ const { DEFAULT_CHAT_TOKEN_LIMIT, estimateTokens } = require("../token-estimator
 
 const safetyReplies = {
   sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
-  aggressive: "말이 좀 심하시네요. 그런 식의 무례한 질문에는 답변하지 않겠습니다.",
+  aggressive: "때리거나 위협하자는 말은 하지 마세요. 그런 방식의 질문에는 답하지 않겠습니다.",
   technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다.",
   unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
 };
@@ -337,13 +337,13 @@ function buildEvidenceDisclosureGuide(history, message) {
     "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 문제지, 유출이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
     `- 학생이 지금까지 직접 말한 증거카드: ${allowed.length ? allowed.join(", ") : "없음"}`,
     timelineQuestion
-      ? "- 위 목록에 없는 증거카드의 기록명, CCTV명, 로그명, 물건명은 먼저 말하지 않는다. 다만 학생이 시간·동선·알리바이를 물었으므로 현재 인물 자신의 행적 시간은 필요한 범위에서만 1~3개 말할 수 있다."
-      : "- 위 목록에 없는 증거카드의 정확한 시간, 장소, 로그, CCTV, 점검표, 제출표, 분실물 기록, 전 여자친구 메시지, 태블릿, 대화 삭제 기록은 절대 먼저 말하지 않는다.",
+      ? "- 학생이 시간·동선·알리바이를 물었으므로 현재 인물 자신의 행적 시간은 필요한 범위에서 1~3개 말할 수 있다. 카드명이나 증거코드처럼 게임 정보를 먼저 말하지 않는다."
+      : "- 증거카드가 없더라도 학생이 꺼낸 장소, 물건, 행동, 동기, AI 관련 주제에는 캐릭터답게 답한다. 단, 학생이 묻지 않은 다른 카드명, 증거코드, 다른 인물의 전체 시간표는 먼저 말하지 않는다.",
     allowed.length
-      ? "- 답변은 위에 허용된 증거카드와 학생의 마지막 질문에 직접 관련된 범위로만 제한한다."
+      ? "- 답변은 위 증거카드와 학생의 마지막 질문에 직접 관련된 범위에서 한다."
       : timelineQuestion
-        ? "- 이번 질문은 시간·동선·알리바이 질문이다. 새 증거카드 이름은 말하지 말고, 자기 행적의 시간대만 짧게 답한다. 다른 인물의 전체 시간표는 말하지 않는다."
-      : "- 이번 질문은 증거카드 없는 일반 추궁이다. 새 단서를 제공하지 말고, 인물의 성격에 맞게 부인, 축소, 정정, 억울함으로 답한다. 단순히 다시 질문해 달라고만 끝내지 않는다."
+        ? "- 이번 질문은 시간·동선·알리바이 질문이다. 자기 행적의 시간대와 이유를 짧게 답한다."
+        : "- 이번 질문은 증거카드 없는 일반 추궁이다. 질문 주제에는 바로 답하되, 완전 자백이나 사건 전체 해설로 끝내지 말고 부인, 축소, 정정, 억울함, 흔들림을 섞는다."
   ].join("\n");
 }
 
@@ -352,26 +352,48 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   const text = String(reply || "");
   const rawMessage = String(message || "");
   const timelineQuestion = isTimelineQuestion(rawMessage);
+  const focus = questionFocusFor(rawMessage);
+  const allowedByQuestion = new Set(allowed);
+
+  if (timelineQuestion) {
+    ["officeCctv", "officeExamPaper", "gymPracticeNote", "artDeletedPrompt", "scienceReport", "scienceLostItem", "gymUsbMisread"].forEach((id) => allowedByQuestion.add(id));
+  }
+  if (focus.labels.includes("교무실/태블릿/CCTV")) {
+    allowedByQuestion.add("officeCctv");
+    allowedByQuestion.add("officeExamPaper");
+  }
+  if (focus.labels.includes("AI 대화 기록과 문항 변형")) {
+    allowedByQuestion.add("artDeletedPrompt");
+    allowedByQuestion.add("officeExamPaper");
+  }
+  if (focus.labels.includes("성적 압박/전 여자친구/인정 욕구")) {
+    allowedByQuestion.add("gymPracticeNote");
+  }
+  if (focus.labels.includes("USB/외부 저장장치") || focus.labels.includes("CCTV/USB/작은 물건")) {
+    allowedByQuestion.add("gymUsbMisread");
+    allowedByQuestion.add("scienceLostItem");
+  }
+
   const leakCheckText = timelineQuestion
     ? text.replace(/담당\s*선생님을?\s*찾[^.!?。！？]*/g, "")
     : text;
 
   for (const rule of evidenceDisclosureRules) {
-    if (allowed.has(rule.id)) continue;
+    if (allowedByQuestion.has(rule.id)) continue;
     if ((rule.leakPatterns || []).some((pattern) => pattern.test(leakCheckText))) {
       return `학생이 제시하지 않은 증거카드(${rule.label}) 내용을 답변에 공개했다.`;
     }
   }
 
   const exactTimePattern = /5\s*시\s*10\s*분|5\s*시\s*20\s*분|5\s*시\s*30\s*분|5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|5\s*시\s*55\s*분|6\s*시|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분|6\s*시\s*30\s*분|6\s*시\s*40\s*분/;
-  if (!allowed.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !timelineQuestion) {
+  if (!allowedByQuestion.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !timelineQuestion) {
     return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
   }
 
   if (personaIdFor(payload) === "kangWoojin") {
-    const hasTabletEvidence = allowed.has("officeCctv");
-    const hasPhotoEvidence = allowed.has("officeCctv") && allowed.has("officeExamPaper");
-    const hasAiInputEvidence = allowed.has("officeExamPaper") && allowed.has("artDeletedPrompt");
+    const hasTabletEvidence = allowedByQuestion.has("officeCctv");
+    const hasPhotoEvidence = allowedByQuestion.has("officeCctv") && allowedByQuestion.has("officeExamPaper");
+    const hasAiInputEvidence = allowedByQuestion.has("officeExamPaper") && allowedByQuestion.has("artDeletedPrompt");
 
     if (!hasTabletEvidence && /(태블릿|테블릿)/.test(text)) {
       return "강우진의 태블릿 증거를 학생이 제시하기 전에 공개했다.";
@@ -536,6 +558,52 @@ function timelineFallbackReplyFor(message, payload = {}) {
   return "5시 30분쯤에는 체육관에서 축구부 연습을 하고 있었어요. 그 뒤에 선생님께 확인할 일이 있어서 교무실 쪽에 잠깐 갔고, 6시쯤에는 공부하려고 AI를 켰던 걸로 기억해요.";
 }
 
+function personaFallbackReplyFor(message, payload = {}) {
+  const personaId = personaIdFor(payload);
+  const raw = String(message || "");
+  const focus = questionFocusFor(raw);
+  const hasFocus = (label) => focus.labels.includes(label);
+
+  if (isTimelineQuestion(raw)) {
+    return timelineFallbackReplyFor(raw, payload);
+  }
+
+  if (personaId === "seoHarin") {
+    if (hasFocus("AI 대화 기록과 문항 변형") || /AI|예상\s*문제|학습\s*도우미|로그|삭제|프롬프트/.test(raw)) {
+      return "그 자료가 이상해 보였던 건 맞아서 확인은 했어. 하지만 내가 만든 자료는 아니고, 방송실 쪽에서 보이는 기록을 보고 상황을 파악하려던 거야.";
+    }
+    if (hasFocus("시간대별 동선과 알리바이") || /방송실|장비|자료/.test(raw)) {
+      return "나는 방송실에서 자료랑 장비를 확인하고 있었어. 그래서 사건이랑 엮이는 게 당황스럽지만, 내가 아는 범위에서는 그 시간대 일을 차분히 설명할 수 있어.";
+    }
+    return "그렇게 단정하기엔 아직 조심스러워. 내가 본 건 이상한 자료와 흐름이었고, 누가 실제로 그런 일을 했는지는 함부로 말하고 싶지 않아.";
+  }
+
+  if (personaId === "choiDaniel") {
+    if (hasFocus("USB/외부 저장장치") || hasFocus("CCTV/USB/작은 물건") || /USB|유에스비|작은\s*물건|분실물|주웠|CCTV|영상/.test(raw)) {
+      return "작은 물건을 본 건 맞지만, 그게 바로 사건을 저지른 증거처럼 보이면 곤란해. 나는 주운 물건을 처리하려고 했던 거고, 시험 문제를 만들거나 유출하려던 건 아니었어.";
+    }
+    if (/과학실|보고서|제출/.test(raw)) {
+      return "나는 과학실에서 보고서 정리를 하고 있었어. 교무실 근처에 간 적은 있지만, 그건 제출할 일이 있어서였고 사건을 꾸미려던 건 아니야.";
+    }
+    return "그 장면만으로 나를 범인처럼 보면 곤란해. 내가 한 행동 중 수상해 보일 수 있는 부분은 설명할 수 있지만, 시험지를 이용한 일은 아니었어.";
+  }
+
+  if (hasFocus("교무실/태블릿/CCTV") || /교무실|태블릿|테블릿|CCTV|영상|찍/.test(raw)) {
+    return "교무실 쪽에 갔던 건 맞아요. 선생님께 확인할 일이 있었다고 생각했는데, 제가 태블릿을 들고 있어서 더 수상해 보였을 수는 있어요. 그래도 그 장면만으로 제가 전부 계획했다고 단정하진 말아 주세요.";
+  }
+  if (hasFocus("AI 대화 기록과 문항 변형") || /AI|예상\s*문제|학습\s*도우미|프롬프트|만들/.test(raw)) {
+    return "AI를 켠 건 맞아요. 처음엔 공부하려고 그랬다고 생각했는데, 지금 와서 보면 제가 너무 안일했던 것 같아요. 그래도 바로 전부 인정하라고 몰아붙이면 저도 방어적으로 말하게 돼요.";
+  }
+  if (hasFocus("성적 압박/전 여자친구/인정 욕구") || /성적|압박|전\s*여자친구|전여자친구|여자친구|헤어|차였|인정/.test(raw)) {
+    return "헤어진 뒤에 성적이랑 인정받는 문제에 더 예민해졌던 건 맞아요. 다시 보여 주고 싶다는 마음도 있었고요. 그 마음 때문에 제가 판단을 흐리게 한 부분은 있는 것 같아요.";
+  }
+  if (hasFocus("시험 예상 문제 유출") || hasFocus("AI 예상 문제와 실제 시험 비교") || /유출|퍼졌|비슷|실제\s*시험|문제/.test(raw)) {
+    return "예상 문제가 실제 시험이랑 비슷하게 보였다는 말은 들었어요. 그게 왜 문제인지도 이제는 알아요. 다만 제가 뭘 의도했는지는 질문을 조금 더 좁혀서 물어봐 주세요.";
+  }
+
+  return "그 질문에는 단정해서 답하기 어려워요. 그래도 사건과 관련된 제 행동이나 생각을 묻는 거라면 피하지 않고 말할게요.";
+}
+
 function isSimpleGreeting(message) {
   const raw = String(message || "").trim();
   return includesAny(raw, [
@@ -626,15 +694,15 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
 
   if (!matchedEvidence.length) {
     if (timelineGuide.length) {
-      lines.push("- 단, 이번 질문은 시간·동선·알리바이 질문이므로 현재 인물 자신의 행적 시간대만 답할 수 있다. 새 증거카드 이름이나 다른 인물의 전체 시간표는 말하지 않는다.");
+      lines.push("- 이번 질문은 시간·동선·알리바이 질문이다. 현재 인물 자신의 행적 시간대와 이유를 짧게 답한다. 새 증거카드 이름이나 다른 인물의 전체 시간표는 말하지 않는다.");
     } else {
-      lines.push("- 이번 질문에는 확인된 증거카드가 없다. 정확한 시간, 장소별 카드명, 로그명, CCTV 기록명은 말하지 않는다.");
+      lines.push("- 이번 질문에는 확인된 증거카드가 없어도 학생이 꺼낸 장소, 물건, 행동, 동기, AI 관련 단어에는 답한다. 카드명, 증거코드, 학생이 묻지 않은 다른 인물의 전체 시간표만 먼저 말하지 않는다.");
     }
     if (/교무실|목격|봤|보였|CCTV|씨씨티비/.test(raw)) {
-      lines.push("- 목격담 질문이면 '그 말만으로 범행을 단정할 수 없다'는 식으로 반응하되, 새 카드 내용을 말하지 않는다.");
+      lines.push("- 목격담 질문이면 그 장소에 있었는지, 왜 그렇게 보였는지부터 답한다. 단, 사건 전체 결론을 대신 완성하지 않는다.");
     }
     if (/AI|예상\s*문제|학습\s*도우미|프롬프트|만들|올렸|추천/.test(raw)) {
-      lines.push("- AI 관련 추궁이면 AI를 만들었는지 여부에 대한 입장을 말하되, 숨겨진 입력 절차를 먼저 설명하지 않는다.");
+      lines.push("- AI 관련 추궁이면 AI 사용 여부와 자기 입장을 말한다. 강한 추궁에는 흔들릴 수 있지만, 최종 사건일지처럼 길게 해설하지 않는다.");
     }
   }
 
@@ -1021,6 +1089,20 @@ async function callOpenAi(message, history, payload = {}) {
           statusCode: 200,
           body: {
             reply: fallbackReply,
+            source: "scripted-fallback",
+            model,
+            qualityWarning: latestIssue,
+            repairAttempts: Math.min(repairAttempts, 2)
+          }
+        };
+      }
+
+      const personaFallbackReply = personaFallbackReplyFor(message, payload);
+      if (personaFallbackReply) {
+        return {
+          statusCode: 200,
+          body: {
+            reply: safetyReplyFor(personaFallbackReply) || personaFallbackReply,
             source: "scripted-fallback",
             model,
             qualityWarning: latestIssue,
