@@ -215,14 +215,28 @@ function includesAny(text, patterns) {
 
 function isTimelineQuestion(message) {
   const raw = String(message || "");
+  if (isExactTimeQuestion(raw)) return true;
   return includesAny(raw, [
-    /동선|행적|알리바이|시간대|타임라인/,
+    /동선|행적|알리바이|시간대|타임라인/
+  ]);
+}
+
+function isExactTimeQuestion(message) {
+  const raw = String(message || "");
+  return includesAny(raw, [
     /몇\s*시|몇\s*분|언제/,
     /그\s*때|그때|그\s*시간/,
-    /어디\s*(있었|있어|갔|갔어|갔냐|있었냐|있냐)/,
-    /뭐\s*(했|했어|했냐|하고\s*있|하고\s*있었)/,
     /오후\s*[56]\s*시|[56]\s*시\s*(?:\d+\s*분)?/
   ]);
+}
+
+function isBroadActivityQuestion(message) {
+  const raw = String(message || "");
+  return includesAny(raw, [
+    /어제.*뭐\s*(했|했어|했냐|하고\s*있|하고\s*있었)/,
+    /뭐\s*(했|했어|했냐|하고\s*있|하고\s*있었)/,
+    /어디\s*(있었|있어|갔|갔어|갔냐|있었냐|있냐)/
+  ]) && !isExactTimeQuestion(raw);
 }
 
 const evidenceDisclosureRules = [
@@ -264,7 +278,7 @@ const evidenceDisclosureRules = [
     minScore: 2,
     directPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*(태블릿|테블릿)|강우진.*(태블릿|테블릿)|(CCTV|씨씨티비).{0,24}(태블릿|테블릿)|(태블릿|테블릿).{0,24}(CCTV|씨씨티비)|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV/],
     patterns: [/교무실/, /CCTV|씨씨티비/, /태블릿|테블릿/, /복도|앞에?\s*있|도착|담당\s*선생님/],
-    leakPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*(태블릿|테블릿)|강우진.*(태블릿|테블릿)|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV|담당\s*선생님을?\s*찾/]
+    leakPatterns: [/CCTV에?\s*찍힌\s*강우진의?\s*(태블릿|테블릿)|강우진.*(태블릿|테블릿)|교무실\s*앞\s*CCTV|교무실\s*복도\s*CCTV|교무실\s*CCTV/]
   },
   {
     id: "officeExamPaper",
@@ -332,17 +346,23 @@ function buildEvidenceDisclosureGuide(history, message) {
   const matches = evidenceMatchesFor(history, message);
   const allowed = matches.map((rule) => rule.label);
   const timelineQuestion = isTimelineQuestion(message);
+  const exactTimeQuestion = isExactTimeQuestion(message);
+  const broadActivityQuestion = isBroadActivityQuestion(message);
   return [
     "[증거 공개 잠금 - 이번 질문에 적용]",
     "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 문제지, 유출이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
     `- 학생이 지금까지 직접 말한 증거카드: ${allowed.length ? allowed.join(", ") : "없음"}`,
     timelineQuestion
-      ? "- 학생이 시간·동선·알리바이를 물었으므로 현재 인물 자신의 행적 시간은 필요한 범위에서 1~3개 말할 수 있다. 카드명이나 증거코드처럼 게임 정보를 먼저 말하지 않는다."
+      ? (exactTimeQuestion
+        ? "- 학생이 정확한 시각이나 그때를 물었을 때만 현재 인물 자신의 행적 시간을 최대 1개 말한다. 시간표를 여러 개 나열하지 않는다."
+        : "- 학생이 동선·알리바이를 물었지만 정확한 시각을 묻지 않았다. 시각 숫자를 붙이지 말고 장소 흐름만 짧게 말한다.")
       : "- 증거카드가 없더라도 학생이 꺼낸 장소, 물건, 행동, 동기, AI 관련 주제에는 캐릭터답게 답한다. 단, 학생이 묻지 않은 다른 카드명, 증거코드, 다른 인물의 전체 시간표는 먼저 말하지 않는다.",
     allowed.length
       ? "- 답변은 위 증거카드와 학생의 마지막 질문에 직접 관련된 범위에서 한다."
       : timelineQuestion
-        ? "- 이번 질문은 시간·동선·알리바이 질문이다. 자기 행적의 시간대와 이유를 짧게 답한다."
+        ? "- 이번 질문은 시간·동선·알리바이 질문이다. 질문이 요구한 범위만 답하고, 숨겨진 증거 행동을 먼저 꺼내지 않는다."
+        : broadActivityQuestion
+          ? "- 이번 질문은 넓은 행동 질문이다. '축구부 연습', '선생님께 확인할 일', '교무실 쪽에 잠깐 감' 정도까지만 답하고, 정확한 시각·태블릿·문제지·AI 접속은 먼저 말하지 않는다."
         : "- 이번 질문은 증거카드 없는 일반 추궁이다. 질문 주제에는 바로 답하되, 완전 자백이나 사건 전체 해설로 끝내지 말고 부인, 축소, 정정, 억울함, 흔들림을 섞는다."
   ].join("\n");
 }
@@ -355,16 +375,10 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   const focus = questionFocusFor(rawMessage);
   const allowedByQuestion = new Set(allowed);
 
-  if (timelineQuestion) {
-    ["officeCctv", "officeExamPaper", "gymPracticeNote", "artDeletedPrompt", "scienceReport", "scienceLostItem", "gymUsbMisread"].forEach((id) => allowedByQuestion.add(id));
-  }
-  if (focus.labels.includes("교무실/태블릿/CCTV")) {
-    allowedByQuestion.add("officeCctv");
-    allowedByQuestion.add("officeExamPaper");
-  }
   if (focus.labels.includes("AI 대화 기록과 문항 변형")) {
-    allowedByQuestion.add("artDeletedPrompt");
-    allowedByQuestion.add("officeExamPaper");
+    if (/삭제|프롬프트|대화\s*기록|비슷한\s*유형|문제지.*AI|AI.*문제지|시험지.*AI|AI.*시험지/.test(rawMessage)) {
+      allowedByQuestion.add("artDeletedPrompt");
+    }
   }
   if (focus.labels.includes("성적 압박/전 여자친구/인정 욕구")) {
     allowedByQuestion.add("gymPracticeNote");
@@ -386,8 +400,8 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   }
 
   const exactTimePattern = /5\s*시\s*10\s*분|5\s*시\s*20\s*분|5\s*시\s*30\s*분|5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|5\s*시\s*55\s*분|6\s*시|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분|6\s*시\s*30\s*분|6\s*시\s*40\s*분/;
-  if (!allowedByQuestion.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !timelineQuestion) {
-    return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
+  if (exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !isExactTimeQuestion(rawMessage)) {
+    return "정확한 시간을 묻지 않은 질문에 시간표를 공개했다.";
   }
 
   if (personaIdFor(payload) === "kangWoojin") {
@@ -424,10 +438,17 @@ const focusRules = [
   },
   {
     id: "office",
-    label: "교무실/태블릿/CCTV",
-    patterns: [/교무실/, /태블릿/, /테블릿/, /촬영/, /찍었|찍은|찍어/, /사진/, /교무실\s*복도/, /교무실\s*앞/, /CCTV/i, /씨씨티비/],
-    answerPatterns: [/교무실/, /태블릿/, /테블릿/, /촬영/, /찍었|찍은|찍어/, /사진/, /CCTV/i, /씨씨티비/, /복도/, /근처/],
-    instruction: "교무실, 태블릿, CCTV, 문제지 촬영 질문이면 그 장소와 물건에 대해 먼저 답한다."
+    label: "교무실 위치",
+    patterns: [/교무실/],
+    answerPatterns: [/교무실/, /선생님/, /확인/, /전달/, /갔/],
+    instruction: "교무실 질문이면 간 이유만 답한다. 태블릿, CCTV, 문제지, 촬영은 학생이 먼저 말하거나 해당 증거카드가 확인됐을 때만 말한다."
+  },
+  {
+    id: "officeEvidence",
+    label: "태블릿/CCTV/촬영",
+    patterns: [/태블릿/, /테블릿/, /촬영/, /찍었|찍은|찍어/, /사진/, /CCTV/i, /씨씨티비/],
+    answerPatterns: [/태블릿/, /테블릿/, /촬영/, /찍었|찍은|찍어/, /사진/, /CCTV/i, /씨씨티비/],
+    instruction: "태블릿, CCTV, 촬영 질문이면 사용자가 말한 물건이나 장면까지만 답한다. 책상 위 문제지나 AI 입력은 해당 증거가 함께 나왔을 때만 인정한다."
   },
   {
     id: "usb",
@@ -494,15 +515,18 @@ function questionFocusFor(message) {
 function timelineGuideFor(personaId, message) {
   if (!isTimelineQuestion(message)) return [];
 
+  const exactTimeQuestion = isExactTimeQuestion(message);
   const common = [
     "[시간·동선·알리바이 답변 지침]",
-    "- 학생이 시간, 동선, 알리바이, 위치를 물었으므로 시간 정보를 사용할 수 있다.",
+    exactTimeQuestion
+      ? "- 학생이 정확한 시각이나 그때를 물었을 때만 시각을 1개까지 사용할 수 있다."
+      : "- 학생이 동선, 알리바이, 위치를 물었지만 정확한 시각은 묻지 않았다. 답변에 시각 숫자를 쓰지 않는다.",
     "- 답변은 현재 인물 자신의 행적만 말한다. 다른 인물 3명의 전체 시간표를 한꺼번에 공개하지 않는다.",
-    "- 질문이 넓으면 시간 2~3개만 골라 짧게 말하고, 정확한 시각을 물었으면 그 시각과 바로 앞뒤 맥락만 답한다.",
+    "- 질문이 넓으면 장소 흐름과 이유만 짧게 말하고, 정확한 시각을 물었을 때만 그 시각과 바로 앞뒤 맥락만 답한다.",
     "- 증거카드 이름, 로그명, CCTV 기록명은 학생이 먼저 말하지 않았으면 붙이지 않는다."
   ];
 
-  const byPersona = {
+  const exactTimeByPersona = {
     kangWoojin: [
       "- 강우진의 기본 동선: 오후 5시 30분쯤 체육관에서 축구부 연습을 했다.",
       "- 오후 5시 45분쯤에는 축구부 전달 사항 때문에 선생님께 확인할 일이 있어서 교무실 쪽으로 갔다고 말한다.",
@@ -523,6 +547,22 @@ function timelineGuideFor(personaId, message) {
     ]
   };
 
+  const noTimeByPersona = {
+    kangWoojin: [
+      "- 강우진의 넓은 동선 답변: 축구부 연습을 하다가 선생님께 확인할 일이 있어 교무실 쪽에 잠깐 갔다고만 말한다.",
+      "- 정확한 시각, 태블릿, 문제지, AI 접속, 삭제 기록은 학생이 먼저 해당 단어나 증거카드 내용을 말했을 때만 꺼낸다."
+    ],
+    seoHarin: [
+      "- 서하린의 넓은 동선 답변: 방송실 쪽에서 자료와 장비를 확인하고 있었다고만 말한다.",
+      "- 정확한 시각, 로그, 포스터 파일은 학생이 먼저 해당 단어나 증거카드 내용을 말했을 때만 꺼낸다."
+    ],
+    choiDaniel: [
+      "- 최다니엘의 넓은 동선 답변: 과학실에서 보고서를 정리했고 제출할 일이 있어 교무실 근처에 갔다고만 말한다.",
+      "- 정확한 시각, 분실물, USB로 의심된 물건은 학생이 먼저 해당 단어나 증거카드 내용을 말했을 때만 꺼낸다."
+    ]
+  };
+
+  const byPersona = exactTimeQuestion ? exactTimeByPersona : noTimeByPersona;
   return common.concat(byPersona[personaId] || []);
 }
 
@@ -531,21 +571,31 @@ function timelineFallbackReplyFor(message, payload = {}) {
 
   const personaId = personaIdFor(payload);
   const raw = String(message || "");
+  const exactTimeQuestion = isExactTimeQuestion(raw);
 
   if (personaId === "seoHarin") {
+    if (!exactTimeQuestion) {
+      return "방송실 쪽에서 자료랑 장비를 확인하고 있었어. 정확한 시간을 묻는 게 아니라면, 지금은 그 정도만 말할 수 있어.";
+    }
     if (/6\s*시\s*10\s*분|6\s*시\s*10|여섯\s*시\s*십/.test(raw)) {
       return "6시 10분쯤에는 방송실에서 이상한 자료가 왜 보이는지 확인하고 있었어. 내가 만든 건 아니고, 상황을 파악하려고 확인한 거야.";
     }
-    return "5시 40분부터 6시 20분까지는 방송실 쪽에서 자료와 장비를 확인하고 있었어. 중간에 5시 50분쯤 이상한 자료가 보여서 확인했고, 6시 10분쯤에도 그 문제를 살펴보고 있었어.";
+    return "그 시간대에는 방송실 쪽에서 자료와 장비를 확인하고 있었어. 네가 말한 특정 시각이 있으면 그 부분만 다시 설명할게.";
   }
 
   if (personaId === "choiDaniel") {
+    if (!exactTimeQuestion) {
+      return "과학실에서 보고서를 정리했고, 제출할 일이 있어서 교무실 근처에 갔어. 정확한 시간을 묻는 게 아니라면 그 정도만 말할게.";
+    }
     if (/6\s*시\s*5\s*분|6\s*시\s*5|여섯\s*시\s*오/.test(raw)) {
       return "6시 5분쯤에는 체육관 근처에서 작은 물건을 주웠어. 바로 뭔가 수상한 일을 하려던 건 아니었고, 6시 10분쯤 그 물건을 맡기러 갔어.";
     }
-    return "5시 30분쯤에는 과학실에서 보고서를 정리하고 있었어. 5시 50분쯤 제출하러 교무실 근처에 갔고, 6시 5분쯤에는 체육관 근처에서 작은 물건을 주웠어.";
+    return "그 시간대에는 과학실 일과 보고서 제출 쪽 일이 있었어. 네가 특정 시각을 말하면 그때 한 일만 답할게.";
   }
 
+  if (!exactTimeQuestion) {
+    return "축구부 연습을 하다가 선생님께 확인할 일이 있어서 교무실 쪽에 잠깐 갔어요. 정확한 시간을 묻는 게 아니라면, 그 이상으로 제가 뭘 했다고 단정하면 좀 억울해요.";
+  }
   if (/6\s*시\s*15\s*분|6\s*시\s*15|여섯\s*시\s*십오/.test(raw)) {
     return "6시 15분쯤에는 일이 좀 커진 것 같아서 당황했어요. 정확히 뭘 했는지까지 바로 다 말하기는 어렵지만, 그때 마음이 꽤 급했던 건 맞아요.";
   }
@@ -555,7 +605,7 @@ function timelineFallbackReplyFor(message, payload = {}) {
   if (/5\s*시\s*45\s*분|5\s*시\s*45|다섯\s*시\s*사십오|교무실/.test(raw)) {
     return "5시 45분쯤에는 선생님께 확인할 일이 있어서 교무실 쪽에 갔어요. 오래 있었던 건 아니고, 그때는 그냥 전달 사항 때문에 간 거라고 생각했어요.";
   }
-  return "5시 30분쯤에는 체육관에서 축구부 연습을 하고 있었어요. 그 뒤에 선생님께 확인할 일이 있어서 교무실 쪽에 잠깐 갔고, 6시쯤에는 공부하려고 AI를 켰던 걸로 기억해요.";
+  return "그 시간대에는 축구부 연습을 하거나 선생님께 확인할 일이 있어서 움직였어요. 네가 특정 시각을 말하면 그때 한 일만 답할게요.";
 }
 
 function personaFallbackReplyFor(message, payload = {}) {
@@ -588,8 +638,14 @@ function personaFallbackReplyFor(message, payload = {}) {
     return "그 장면만으로 나를 범인처럼 보면 곤란해. 내가 한 행동 중 수상해 보일 수 있는 부분은 설명할 수 있지만, 시험지를 이용한 일은 아니었어.";
   }
 
-  if (hasFocus("교무실/태블릿/CCTV") || /교무실|태블릿|테블릿|CCTV|영상|찍/.test(raw)) {
-    return "교무실 쪽에 갔던 건 맞아요. 선생님께 확인할 일이 있었다고 생각했는데, 제가 태블릿을 들고 있어서 더 수상해 보였을 수는 있어요. 그래도 그 장면만으로 제가 전부 계획했다고 단정하진 말아 주세요.";
+  if (isBroadActivityQuestion(raw)) {
+    return "축구부 연습을 했고, 선생님께 확인할 일이 있어서 교무실 쪽에 잠깐 갔어요. 그걸로 제가 뭘 훔치려고 했다고 단정하면 좀 억울해요.";
+  }
+  if (/교무실/.test(raw) && !/(태블릿|테블릿|CCTV|씨씨티비|촬영|찍었|찍은|찍어|사진|문제지|시험지)/.test(raw)) {
+    return "교무실에는 축구부 전달 사항을 선생님께 확인하려고 갔어요. 그걸로 뭘 훔치려고 간 건 아니고, 오래 머문 것도 아니었어요.";
+  }
+  if (hasFocus("태블릿/CCTV/촬영") || /태블릿|테블릿|CCTV|씨씨티비|영상|찍/.test(raw)) {
+    return "그 장면만으로 제가 뭘 했다고 단정하면 좀 억울해요. 네가 말한 장면이 정확히 뭔지는 알겠지만, 그걸 바로 범행으로 연결하면 안 된다고 생각해요.";
   }
   if (hasFocus("AI 대화 기록과 문항 변형") || /AI|예상\s*문제|학습\s*도우미|프롬프트|만들/.test(raw)) {
     return "AI를 켠 건 맞아요. 처음엔 공부하려고 그랬다고 생각했는데, 지금 와서 보면 제가 너무 안일했던 것 같아요. 그래도 바로 전부 인정하라고 몰아붙이면 저도 방어적으로 말하게 돼요.";
@@ -676,6 +732,8 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
   const focus = questionFocusFor(raw);
   const matchedEvidence = evidenceMatchesFor(history, raw);
   const timelineGuide = timelineGuideFor(personaId, raw);
+  const exactTimeQuestion = isExactTimeQuestion(raw);
+  const broadActivityQuestion = isBroadActivityQuestion(raw);
   const lines = [
     "[현재 학생 질문 처리 지침]",
     "- 마지막 질문의 핵심에 먼저 답한다. 학생이 꺼낸 단어를 피하거나 다른 주제로 돌리지 않는다.",
@@ -688,21 +746,29 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
     "- 2~3문장의 완결된 한국어로 답한다."
   ];
 
+  if (!exactTimeQuestion) {
+    lines.push("- 학생이 정확한 시각을 묻지 않았다면 답변에 '5시', '6시', '몇 분' 같은 시각 숫자를 쓰지 않는다.");
+  }
+
   if (timelineGuide.length) {
     lines.push(...timelineGuide);
   }
 
   if (!matchedEvidence.length) {
     if (timelineGuide.length) {
-      lines.push("- 이번 질문은 시간·동선·알리바이 질문이다. 현재 인물 자신의 행적 시간대와 이유를 짧게 답한다. 새 증거카드 이름이나 다른 인물의 전체 시간표는 말하지 않는다.");
+      lines.push("- 이번 질문은 시간·동선·알리바이 질문이다. 질문이 요구한 범위만 답한다. 새 증거카드 이름이나 다른 인물의 전체 시간표는 말하지 않는다.");
+    } else if (broadActivityQuestion) {
+      lines.push("- 이번 질문은 넓은 행동 질문이다. 축구부 연습, 선생님께 확인할 일, 교무실 쪽에 잠깐 감처럼 겉으로 설명 가능한 행동만 말한다. 태블릿, 문제지, AI 접속, 삭제 기록은 먼저 말하지 않는다.");
     } else {
       lines.push("- 이번 질문에는 확인된 증거카드가 없어도 학생이 꺼낸 장소, 물건, 행동, 동기, AI 관련 단어에는 답한다. 카드명, 증거코드, 학생이 묻지 않은 다른 인물의 전체 시간표만 먼저 말하지 않는다.");
     }
-    if (/교무실|목격|봤|보였|CCTV|씨씨티비/.test(raw)) {
-      lines.push("- 목격담 질문이면 그 장소에 있었는지, 왜 그렇게 보였는지부터 답한다. 단, 사건 전체 결론을 대신 완성하지 않는다.");
+    if (/교무실/.test(raw) && !/(태블릿|테블릿|CCTV|씨씨티비|촬영|찍었|찍은|찍어|사진|문제지|시험지)/.test(raw)) {
+      lines.push("- 교무실 질문이면 간 이유만 답한다. 태블릿, CCTV, 문제지, 촬영, AI 접속은 학생이 먼저 말하지 않았으므로 절대 먼저 말하지 않는다.");
+    } else if (/목격|봤|보였|CCTV|씨씨티비/.test(raw)) {
+      lines.push("- 목격담 질문이면 학생이 말한 장면까지만 답한다. 태블릿, 문제지, AI 접속처럼 학생이 말하지 않은 연결은 먼저 만들지 않는다.");
     }
     if (/AI|예상\s*문제|학습\s*도우미|프롬프트|만들|올렸|추천/.test(raw)) {
-      lines.push("- AI 관련 추궁이면 AI 사용 여부와 자기 입장을 말한다. 강한 추궁에는 흔들릴 수 있지만, 최종 사건일지처럼 길게 해설하지 않는다.");
+      lines.push("- AI 관련 추궁이면 학생이 말한 AI 사용 여부와 자기 입장까지만 말한다. 태블릿으로 문제지를 찍었다는 연결은 해당 증거가 함께 나왔을 때만 말한다.");
     }
   }
 
