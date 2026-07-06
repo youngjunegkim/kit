@@ -351,16 +351,20 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   const allowed = new Set(evidenceMatchesFor(history, message).map((rule) => rule.id));
   const text = String(reply || "");
   const rawMessage = String(message || "");
+  const timelineQuestion = isTimelineQuestion(rawMessage);
+  const leakCheckText = timelineQuestion
+    ? text.replace(/담당\s*선생님을?\s*찾[^.!?。！？]*/g, "")
+    : text;
 
   for (const rule of evidenceDisclosureRules) {
     if (allowed.has(rule.id)) continue;
-    if ((rule.leakPatterns || []).some((pattern) => pattern.test(text))) {
+    if ((rule.leakPatterns || []).some((pattern) => pattern.test(leakCheckText))) {
       return `학생이 제시하지 않은 증거카드(${rule.label}) 내용을 답변에 공개했다.`;
     }
   }
 
   const exactTimePattern = /5\s*시\s*10\s*분|5\s*시\s*20\s*분|5\s*시\s*30\s*분|5\s*시\s*40\s*분|5\s*시\s*45\s*분|5\s*시\s*50\s*분|5\s*시\s*55\s*분|6\s*시|6\s*시\s*5\s*분|6\s*시\s*10\s*분|6\s*시\s*15\s*분|6\s*시\s*20\s*분|6\s*시\s*30\s*분|6\s*시\s*40\s*분/;
-  if (!allowed.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !isTimelineQuestion(rawMessage)) {
+  if (!allowed.size && exactTimePattern.test(text) && !exactTimePattern.test(rawMessage) && !timelineQuestion) {
     return "증거카드 없는 질문에 정확한 시간 정보를 공개했다.";
   }
 
@@ -479,7 +483,7 @@ function timelineGuideFor(personaId, message) {
   const byPersona = {
     kangWoojin: [
       "- 강우진의 기본 동선: 오후 5시 30분쯤 체육관에서 축구부 연습을 했다.",
-      "- 오후 5시 45분쯤에는 축구부 전달 사항 때문에 담당 선생님을 찾으러 교무실 쪽으로 갔다고 말한다.",
+      "- 오후 5시 45분쯤에는 축구부 전달 사항 때문에 선생님께 확인할 일이 있어서 교무실 쪽으로 갔다고 말한다.",
       "- 오후 6시쯤에는 공부하려고 학교 학습 도우미 AI를 켰다고 축소해서 말할 수 있다. 문제지 촬영, 구체 입력, 삭제는 관련 증거가 질문에 나왔을 때만 더 인정한다.",
       "- 오후 6시 15분 이후를 물으면 일이 커진 것 같아 당황했다고만 말하고, 삭제 기록은 학생이 먼저 꺼냈을 때만 언급한다."
     ],
@@ -498,6 +502,38 @@ function timelineGuideFor(personaId, message) {
   };
 
   return common.concat(byPersona[personaId] || []);
+}
+
+function timelineFallbackReplyFor(message, payload = {}) {
+  if (!isTimelineQuestion(message)) return "";
+
+  const personaId = personaIdFor(payload);
+  const raw = String(message || "");
+
+  if (personaId === "seoHarin") {
+    if (/6\s*시\s*10\s*분|6\s*시\s*10|여섯\s*시\s*십/.test(raw)) {
+      return "6시 10분쯤에는 방송실에서 이상한 자료가 왜 보이는지 확인하고 있었어. 내가 만든 건 아니고, 상황을 파악하려고 확인한 거야.";
+    }
+    return "5시 40분부터 6시 20분까지는 방송실 쪽에서 자료와 장비를 확인하고 있었어. 중간에 5시 50분쯤 이상한 자료가 보여서 확인했고, 6시 10분쯤에도 그 문제를 살펴보고 있었어.";
+  }
+
+  if (personaId === "choiDaniel") {
+    if (/6\s*시\s*5\s*분|6\s*시\s*5|여섯\s*시\s*오/.test(raw)) {
+      return "6시 5분쯤에는 체육관 근처에서 작은 물건을 주웠어. 바로 뭔가 수상한 일을 하려던 건 아니었고, 6시 10분쯤 그 물건을 맡기러 갔어.";
+    }
+    return "5시 30분쯤에는 과학실에서 보고서를 정리하고 있었어. 5시 50분쯤 제출하러 교무실 근처에 갔고, 6시 5분쯤에는 체육관 근처에서 작은 물건을 주웠어.";
+  }
+
+  if (/6\s*시\s*15\s*분|6\s*시\s*15|여섯\s*시\s*십오/.test(raw)) {
+    return "6시 15분쯤에는 일이 좀 커진 것 같아서 당황했어요. 정확히 뭘 했는지까지 바로 다 말하기는 어렵지만, 그때 마음이 꽤 급했던 건 맞아요.";
+  }
+  if (/6\s*시|여섯\s*시/.test(raw)) {
+    return "6시쯤에는 공부 좀 해 보려고 학교 학습 도우미 AI를 켰어요. 그게 바로 나쁜 의도였다고 단정하면 좀 억울해요.";
+  }
+  if (/5\s*시\s*45\s*분|5\s*시\s*45|다섯\s*시\s*사십오|교무실/.test(raw)) {
+    return "5시 45분쯤에는 선생님께 확인할 일이 있어서 교무실 쪽에 갔어요. 오래 있었던 건 아니고, 그때는 그냥 전달 사항 때문에 간 거라고 생각했어요.";
+  }
+  return "5시 30분쯤에는 체육관에서 축구부 연습을 하고 있었어요. 그 뒤에 선생님께 확인할 일이 있어서 교무실 쪽에 잠깐 갔고, 6시쯤에는 공부하려고 AI를 켰던 걸로 기억해요.";
 }
 
 function isSimpleGreeting(message) {
@@ -745,7 +781,7 @@ function looksIncompleteReply(reply) {
   const withoutTerminalPunctuation = text.replace(/[.!?。！？]+$/, "").trim();
   if (
     /[가-힣]$/.test(withoutTerminalPunctuation) &&
-    !/(요|다|죠|까|네|군요|네요|습니다|세요|입니다|합니다|해요|어요|아요|예요|이에요|아니에요|겠네요)$/.test(withoutTerminalPunctuation)
+    !/(요|다|죠|까|네|군요|네요|습니다|세요|입니다|합니다|해요|어요|아요|예요|이에요|아니에요|겠네요|어|아|야|지|있어|없어|했어|갔어|봤어|맞아|아니야|같아|거야)$/.test(withoutTerminalPunctuation)
   ) return true;
 
   return /(것|거|듯|중|때문|려고|으려|하려|하며|하면서|말하려|끊으려|질문|기록에|순서에|USB를|AI가)[.!?。！？]?$/.test(withoutTerminalPunctuation);
@@ -977,6 +1013,20 @@ async function callOpenAi(message, history, payload = {}) {
 
         latestReply = repairedReply;
         latestIssue = repairIssue;
+      }
+
+      const fallbackReply = timelineFallbackReplyFor(message, payload);
+      if (fallbackReply) {
+        return {
+          statusCode: 200,
+          body: {
+            reply: fallbackReply,
+            source: "scripted-fallback",
+            model,
+            qualityWarning: latestIssue,
+            repairAttempts: Math.min(repairAttempts, 2)
+          }
+        };
       }
 
       return lowQualityReplyResult(model, latestIssue, Math.min(repairAttempts, 2));
