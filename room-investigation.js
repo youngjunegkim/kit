@@ -238,6 +238,21 @@
     (nodes.sceneFrame || nodes.roomMain.lastElementChild)?.after(panel);
   }
 
+  function removeTeacherEvidenceCodeTools() {
+    if (state.role !== "teacher" && page.dataset.auth !== "teacher") return;
+
+    nodes.evidenceSection?.remove();
+    nodes.evidenceSection = null;
+    nodes.evidenceForm = null;
+    nodes.evidenceInput = null;
+    nodes.evidenceMessage = null;
+    nodes.evidenceTeamSelect = null;
+    nodes.evidenceTotalLabel = null;
+    nodes.evidenceTotalCount = null;
+    nodes.evidenceReveal = null;
+    nodes.resetCreditsButton = null;
+  }
+
   function applyCredits(data = {}, team = state.team) {
     state.credits = Math.max(0, Number(data.credits) || 0);
     state.count = Math.max(0, Number(data.count ?? state.count) || 0);
@@ -736,6 +751,7 @@
     setText(nodes.teamLabel, state.team ? `${state.team}팀` : state.role === "teacher" ? "선생님" : "학생");
     setText(nodes.roomLabel, state.roomName);
     state.currentSuspect = ensureSuspect(nodes.suspectSelect?.value || "kangWoojin");
+    removeTeacherEvidenceCodeTools();
     placeTeacherEvidenceTools();
 
     if (nodes.evidenceForm && !nodes.evidenceTotalCount) {
@@ -812,10 +828,12 @@
     renderSuspectPreview();
     renderMessages();
     updateControls();
-    syncEvidenceCardsWithServer();
-    window.setInterval(() => {
+    if (nodes.evidenceReveal) {
       syncEvidenceCardsWithServer();
-    }, 15000);
+      window.setInterval(() => {
+        syncEvidenceCardsWithServer();
+      }, 15000);
+    }
     refreshCredits();
     checkApiStatus();
   }
