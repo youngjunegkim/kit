@@ -25,7 +25,7 @@
 
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
   const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));
-  const evidenceRewardCredits = 2;
+  const evidenceRewardCredits = 1;
   const evidenceCatalog = {
     39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린", image: "assets/evidence-crops/broadcast-1.png", position: "center" },
     26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린", image: "assets/evidence-crops/broadcast-2.png", position: "center" },

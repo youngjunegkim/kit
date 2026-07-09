@@ -31,7 +31,7 @@ const answers = {
   14: "3",
   15: "3"
 };
-const ethicsQuizRewardCredits = 2;
+const ethicsQuizRewardCredits = 1;
 const baseQuestionCount = Object.keys(answers).length;
 
 async function correctAnswerFor(questionNumber, questionId = "") {

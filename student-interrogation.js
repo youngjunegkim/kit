@@ -113,8 +113,8 @@
   const ethicsCard = document.querySelector("[data-student-ethics-card]");
   const ethicsResetButton = document.querySelector("[data-student-ethics-reset]");
   const ethicsAccessPassword = String.fromCharCode(107, 105, 116);
-  const ethicsRewardCredits = 2;
-  const evidenceRewardCredits = 2;
+  const ethicsRewardCredits = 1;
+  const evidenceRewardCredits = 1;
   const similarityForm = document.querySelector("[data-similarity-form]");
   const similarityInput = document.querySelector("[data-similarity-sentence]");
   const similarityCount = document.querySelector("[data-similarity-count]");

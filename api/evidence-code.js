@@ -29,7 +29,7 @@ const evidenceCodes = {
   87143: { room: "체육관", evidence: "전교 1등 전 여자친구의 메시지", person: "강우진" },
   13450: { room: "체육관", evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
 };
-const evidenceRewardCredits = 2;
+const evidenceRewardCredits = 1;
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;

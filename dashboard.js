@@ -216,7 +216,7 @@
 
       const meta = document.createElement("div");
       meta.className = "evidence-redeem-entry__meta";
-      meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 2}개`;
+      meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 1}개`;
 
       const text = document.createElement("p");
       text.textContent = "증거코드 입력 완료 · 질문권 지급됨";

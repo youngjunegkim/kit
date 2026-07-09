@@ -68,6 +68,16 @@
   ];
 
   const defaultTeams = ["1팀", "2팀", "3팀", "4팀"];
+  const studentTeamIds = {
+    "승우": "1",
+    "연수": "2",
+    "은혁": "3",
+    "영준": "4",
+    "혜빈": "5",
+    "윤지": "6",
+    "가빈": "7",
+    "채희": "8"
+  };
 
   const elements = {
     standardNote: document.querySelector("[data-standard-note]"),
@@ -135,15 +145,24 @@
   }
 
   function teamKey(value) {
-    return String(value || "")
+    const raw = String(value || "")
       .normalize("NFKC")
       .replace(/\s+/g, "")
-      .replace(/팀$/, "")
       .toLowerCase();
+    const koreanName = raw.replace(/팀$/, "").replace(/번$/, "");
+    if (studentTeamIds[koreanName]) return studentTeamIds[koreanName];
+    const numeric = koreanName.match(/^[1-8]$/)?.[0];
+    return numeric || koreanName;
+  }
+
+  function teamDisplayName(value) {
+    const key = teamKey(value);
+    if (/^[1-8]$/.test(key)) return `${key}팀`;
+    return String(value || "학생").trim();
   }
 
   function sentenceLabel(entry) {
-    return String(entry.team || entry.user || "학생").trim();
+    return teamDisplayName(entry.team || entry.user || "학생");
   }
 
   function latestSentenceEntries(entries = []) {
@@ -357,7 +376,7 @@
       if (!parsed || !Array.isArray(parsed.teams) || !parsed.teams.length) return;
       state.teams = parsed.teams.map((team, index) => ({
         id: String(team.id || `saved-${index}`),
-        name: String(team.name || `${index + 1}팀`),
+        name: teamDisplayName(team.name || `${index + 1}팀`),
         note: String(team.note || ""),
         result: team.result || null
       }));
