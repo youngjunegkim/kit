@@ -31,6 +31,7 @@ const answers = {
   14: "3",
   15: "3"
 };
+const ethicsQuizRewardCredits = 2;
 const baseQuestionCount = Object.keys(answers).length;
 
 async function correctAnswerFor(questionNumber, questionId = "") {
@@ -213,12 +214,12 @@ async function handleEthicsQuiz(request, response) {
       return;
     }
 
-    const result = await grantCredits(team, 3);
+    const result = await grantCredits(team, ethicsQuizRewardCredits);
     const ethicsLog = await recordEthicsQuizRedemption({
       team,
       user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
       question,
-      added: 3,
+      added: ethicsQuizRewardCredits,
       remaining: result.credits
     });
     const logs = await getEthicsQuizRedemptions(team);
@@ -228,7 +229,7 @@ async function handleEthicsQuiz(request, response) {
       correct: true,
       alreadyRewarded: false,
       question,
-      added: 3,
+      added: ethicsQuizRewardCredits,
       credits: result.credits,
       granted: result.granted,
       ethicsLog: publicEthicsLog(ethicsLog),

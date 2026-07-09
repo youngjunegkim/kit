@@ -24,6 +24,8 @@
   };
 
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+  const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));
+  const evidenceRewardCredits = 2;
   const evidenceCatalog = {
     39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린", image: "assets/evidence-crops/broadcast-1.png", position: "center" },
     26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린", image: "assets/evidence-crops/broadcast-2.png", position: "center" },
@@ -51,6 +53,7 @@
     requesting: false,
     evidenceTeam: "",
     histories: {},
+    evidenceStates: {},
     messages: {},
     currentSuspect: "kangWoojin"
   };
@@ -107,6 +110,15 @@
     if (node) node.textContent = text;
   }
 
+  function teamIdFor(team) {
+    return teamDisplayIds[team] || String(team || "").trim();
+  }
+
+  function teamLabelFor(team) {
+    const id = teamIdFor(team);
+    return id ? `${id}번` : "학생";
+  }
+
   function ensureTokenCounter() {
     if (!nodes.chatInput) return;
     nodes.chatInput.maxLength = chatMaxInputChars;
@@ -157,6 +169,7 @@
       state.messages[id] = [{ role: "bot", text: suspects[id].greeting }];
     }
     if (!state.histories[id]) state.histories[id] = [];
+    if (!state.evidenceStates[id]) state.evidenceStates[id] = null;
     return id;
   }
 
@@ -428,13 +441,13 @@
   }
 
   function setEvidenceTotal(team, credits) {
-    const label = team ? `${team}팀 총 질문권` : "총 질문권";
+    const label = team ? `${teamLabelFor(team)} 총 질문권` : "총 질문권";
     const value = credits === null || credits === undefined || Number.isNaN(Number(credits))
       ? "확인 중"
       : `${Math.max(0, Number(credits) || 0)}개`;
     setText(nodes.evidenceTotalLabel, label);
     setText(nodes.evidenceTotalCount, value);
-    if (team && (state.role === "teacher" || team === state.team)) setText(nodes.teamLabel, `${team}팀`);
+    if (team && (state.role === "teacher" || team === state.team)) setText(nodes.teamLabel, teamIdFor(team));
     if (state.role === "teacher") {
       if (credits !== null && credits !== undefined && !Number.isNaN(Number(credits))) {
         state.credits = Math.max(0, Number(credits) || 0);
@@ -577,7 +590,7 @@
 
       const card = storeEvidenceCard(code, data.evidence, targetTeam);
       const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-      setEvidenceMessage(`${targetTeam}팀 질문권 3개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setEvidenceMessage(`${teamLabelFor(targetTeam)} 질문권 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
       if (nodes.evidenceInput) nodes.evidenceInput.value = "";
       setEvidenceTotal(targetTeam, data.credits);
       if (state.role === "student") {
@@ -603,7 +616,7 @@
       setEvidenceMessage("초기화할 팀을 선택하세요.", "bad");
       return;
     }
-    const confirmed = window.confirm(`${targetTeam}팀이 받은 질문권을 0개로 초기화할까요?`);
+    const confirmed = window.confirm(`${teamLabelFor(targetTeam)}이 받은 질문권을 0개로 초기화할까요?`);
     if (!confirmed) return;
 
     state.requesting = true;
@@ -632,7 +645,7 @@
       if (!response.ok) throw new Error(data.error || "받은 질문권 초기화 실패");
 
       applyCredits({ credits: data.credits, count: data.count ?? state.count }, targetTeam);
-      setEvidenceMessage(`${targetTeam}팀 받은 질문권을 초기화했습니다.`, "ok");
+      setEvidenceMessage(`${teamLabelFor(targetTeam)} 받은 질문권을 초기화했습니다.`, "ok");
     } catch (error) {
       setEvidenceMessage(error.message || "받은 질문권을 초기화하지 못했습니다.", "bad");
       await refreshCredits();
@@ -698,6 +711,7 @@
           suspect: suspectId,
           message: text,
           history: state.histories[suspectId],
+          evidenceState: state.evidenceStates[suspectId] || null,
           role: state.role,
           classId: state.classId,
           team: targetTeam,
@@ -708,6 +722,7 @@
       window.clearTimeout(timeout);
       timeout = 0;
       const data = await response.json().catch(() => ({}));
+      if (data.evidenceState) state.evidenceStates[suspectId] = data.evidenceState;
 
       if (!response.ok) {
         if (data.code === "TEACHER_CODE_REQUIRED") {
@@ -748,7 +763,7 @@
 
   function setup() {
     state.evidenceTeam = state.team || sessionStorage.getItem("kit-evidence-target-team") || teams[0];
-    setText(nodes.teamLabel, state.team ? `${state.team}팀` : state.role === "teacher" ? "선생님" : "학생");
+    setText(nodes.teamLabel, state.team ? teamIdFor(state.team) : state.role === "teacher" ? "선생님" : "학생");
     setText(nodes.roomLabel, state.roomName);
     state.currentSuspect = ensureSuspect(nodes.suspectSelect?.value || "kangWoojin");
     removeTeacherEvidenceCodeTools();
@@ -791,7 +806,7 @@
       teams.forEach((team) => {
         const option = document.createElement("option");
         option.value = team;
-        option.textContent = `${team}팀`;
+        option.textContent = teamLabelFor(team);
         select.append(option);
       });
       select.value = teams.includes(state.evidenceTeam) ? state.evidenceTeam : teams[0];

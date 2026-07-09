@@ -10,6 +10,7 @@
     counter: panel.querySelector("[data-token-counter]"),
     state: panel.querySelector("[data-chat-state]"),
     history: [],
+    evidenceState: null,
     waiting: false
   }));
 
@@ -35,6 +36,16 @@
     kangWoojin: "강우진",
     seoHarin: "서하린",
     choiDaniel: "최다니엘"
+  };
+  const teamDisplayIds = {
+    "승우": "1",
+    "연수": "2",
+    "은혁": "3",
+    "영준": "4",
+    "혜빈": "5",
+    "윤지": "6",
+    "가빈": "7",
+    "채희": "8"
   };
   const safetyReplies = {
     sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",
@@ -102,6 +113,8 @@
   const ethicsCard = document.querySelector("[data-student-ethics-card]");
   const ethicsResetButton = document.querySelector("[data-student-ethics-reset]");
   const ethicsAccessPassword = String.fromCharCode(107, 105, 116);
+  const ethicsRewardCredits = 2;
+  const evidenceRewardCredits = 2;
   const similarityForm = document.querySelector("[data-similarity-form]");
   const similarityInput = document.querySelector("[data-similarity-sentence]");
   const similarityCount = document.querySelector("[data-similarity-count]");
@@ -143,6 +156,15 @@
     if (includesAny(raw, technicalCrime) || includesAny(compact, technicalCrime)) return safetyReplies.technicalCrime;
     if (includesAny(raw, unsafe) || includesAny(compact, unsafe)) return safetyReplies.unsafe;
     return "";
+  }
+
+  function teamIdFor(team) {
+    return teamDisplayIds[team] || String(team || "").trim();
+  }
+
+  function teamLabelFor(team) {
+    const id = teamIdFor(team);
+    return id ? `${id}번` : "학생";
   }
 
   function setCreditText(text) {
@@ -345,7 +367,7 @@
     return ethicsQuestions.reduce((total, question) => {
       const answer = ethicsAnswerFor(question);
       if (answer.rewarded && !answer.serverRewarded && answer.value === question.answer) {
-        return total + 3;
+        return total + ethicsRewardCredits;
       }
       return total;
     }, 0);
@@ -999,7 +1021,7 @@
       if (answer.rewarded && !nextNumber) {
         status.textContent = "정답입니다. 모든 윤리퀴즈를 완료했습니다.";
       } else if (answer.rewarded) {
-        status.textContent = "정답입니다. 질문권 3개가 바로 반영되었습니다.";
+        status.textContent = `정답입니다. 질문권 ${ethicsRewardCredits}개가 바로 반영되었습니다.`;
       } else {
         status.textContent = "정답입니다.";
       }
@@ -1316,7 +1338,7 @@
       applyCredits(data.credits);
       const card = storeEvidenceCard(code, data.evidence);
       const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-      setEvidenceMessage(`${state.team}팀 질문권 ${Number(data.added || 3)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setEvidenceMessage(`${teamLabelFor(state.team)} 질문권 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
       if (evidenceInput) evidenceInput.value = "";
     } catch (error) {
       setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");
@@ -1387,6 +1409,7 @@
           suspect: panel.suspect,
           message: text,
           history: priorHistory,
+          evidenceState: panel.evidenceState || null,
           user: state.user,
           role: state.role,
           classId: state.classId,
@@ -1395,6 +1418,7 @@
       });
 
       const data = await response.json().catch(() => ({}));
+      if (data.evidenceState) panel.evidenceState = data.evidenceState;
       if (data.credits) applyCredits(data.credits.remaining);
       if (data.usage) applyUsage(data.usage);
 
@@ -1472,7 +1496,7 @@
   }
 
   teamLabels.forEach((node) => {
-    node.textContent = state.team || "학생";
+    node.textContent = teamIdFor(state.team) || "학생";
   });
   setCreditText(state.team ? "받기 필요" : "학생 없음");
   setLogCount(0);

@@ -342,12 +342,110 @@ function evidenceMatchesFor(history, message) {
   });
 }
 
-function buildEvidenceDisclosureGuide(history, message) {
+const kangEvidenceOrder = ["gymPracticeNote", "officeCctv", "officeExamPaper", "artDeletedPrompt"];
+const kangEvidenceIdSet = new Set(kangEvidenceOrder);
+const kangEvidenceNames = {
+  gymPracticeNote: "전교 1등 전 여자친구의 메시지",
+  officeCctv: "CCTV에 찍힌 강우진의 태블릿",
+  officeExamPaper: "책상 위 기말고사 문제지",
+  artDeletedPrompt: "삭제된 AI 프롬프트 기록"
+};
+
+function normalizeKangEvidenceIds(value) {
+  const candidates = Array.isArray(value?.kangWoojin)
+    ? value.kangWoojin
+    : Array.isArray(value?.kangWoojinEvidenceIds)
+      ? value.kangWoojinEvidenceIds
+      : Array.isArray(value?.ids)
+        ? value.ids
+        : [];
+  const unique = new Set(candidates.map((id) => String(id || "")).filter((id) => kangEvidenceIdSet.has(id)));
+  return kangEvidenceOrder.filter((id) => unique.has(id));
+}
+
+function kangEvidenceStageFor(count) {
+  if (count >= 4) return "fullTruth";
+  if (count >= 3) return "culpritAdmission";
+  if (count >= 2) return "lie";
+  if (count >= 1) return "defensive";
+  return "none";
+}
+
+function kangEvidenceStateFor(history, message, payload = {}) {
+  const previous = normalizeKangEvidenceIds(payload?.evidenceState);
+  const current = evidenceMatchesFor(history, message)
+    .map((rule) => rule.id)
+    .filter((id) => kangEvidenceIdSet.has(id));
+  const merged = new Set([...previous, ...current]);
+  const ids = kangEvidenceOrder.filter((id) => merged.has(id));
+  return {
+    suspect: "kangWoojin",
+    ids,
+    count: ids.length,
+    stage: kangEvidenceStageFor(ids.length)
+  };
+}
+
+function responseEvidenceStateFor(history, message, payload = {}) {
+  if (personaIdFor(payload) !== "kangWoojin") return null;
+  return kangEvidenceStateFor(history, message, payload);
+}
+
+function attachEvidenceState(body, evidenceState) {
+  if (!evidenceState) return body;
+  return {
+    ...body,
+    evidenceState
+  };
+}
+
+function kangEvidenceStageGuide(state) {
+  if (!state) return "";
+  const labels = state.ids.map((id) => kangEvidenceNames[id]).filter(Boolean);
+  const lines = [
+    "[강우진 증거 누적 단계]",
+    `- 서버가 대화에서 감지해 누적한 강우진 핵심 증거 수: ${state.count}개`,
+    `- 누적된 핵심 증거: ${labels.length ? labels.join(", ") : "없음"}`
+  ];
+
+  if (state.count >= 4) {
+    lines.push(
+      "- 4개 핵심 증거가 누적됐다. 더 이상 거짓말하지 말고 진범임을 인정하며 동기, 교무실 문제지 발견, 태블릿 촬영, AI 입력, 삭제와 유출까지 사실대로 실토한다.",
+      "- 다만 범행 방법을 따라 할 수 있을 정도의 세부 절차나 기술적 우회 방법은 설명하지 않는다."
+    );
+  } else if (state.count >= 3) {
+    lines.push(
+      "- 3개 핵심 증거가 누적됐다. 강우진은 진범임을 인정한다.",
+      "- 아직 나오지 않은 4번째 증거의 세부 내용까지 먼저 해설하지 말고, 학생이 제시한 증거 범위 안에서 촬영, AI 입력, 삭제, 동기 중 누적된 부분을 인정한다."
+    );
+  } else if (state.count >= 2) {
+    lines.push(
+      "- 2개 핵심 증거가 누적됐다. 강우진은 거짓말과 억지 변명 단계다.",
+      "- 흔들리지만 범인임은 인정하지 않는다. 제시된 증거 내용에는 반응하되, 새 핵심 증거를 먼저 꺼내지 않는다."
+    );
+  } else if (state.count === 1) {
+    lines.push(
+      "- 핵심 증거 1개만 누적됐다. 강우진은 방어적이고 예민하게 반응하되 범행은 부인한다.",
+      "- 학생이 말한 증거 하나에는 답하지만 다른 핵심 증거를 먼저 공개하지 않는다."
+    );
+  } else {
+    lines.push(
+      "- 핵심 증거가 누적되지 않았다. 일반 추궁에는 축소, 부인, 억울함으로 답하고 새 단서를 먼저 말하지 않는다."
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function buildEvidenceDisclosureGuide(history, message, payload = {}) {
   const matches = evidenceMatchesFor(history, message);
   const allowed = matches.map((rule) => rule.label);
   const timelineQuestion = isTimelineQuestion(message);
   const exactTimeQuestion = isExactTimeQuestion(message);
   const broadActivityQuestion = isBroadActivityQuestion(message);
+  const kangStageGuide = personaIdFor(payload) === "kangWoojin"
+    ? kangEvidenceStageGuide(kangEvidenceStateFor(history, message, payload))
+    : "";
   return [
     "[증거 공개 잠금 - 이번 질문에 적용]",
     "- 학생들은 기본 시나리오를 이미 알고 있다. 기본 시나리오의 AI, 예상 문제, 시험지, 문제지, 유출이라는 단어만으로는 증거카드가 제시된 것이 아니다.",
@@ -363,8 +461,9 @@ function buildEvidenceDisclosureGuide(history, message) {
         ? "- 이번 질문은 시간·동선·알리바이 질문이다. 질문이 요구한 범위만 답하고, 숨겨진 증거 행동을 먼저 꺼내지 않는다."
         : broadActivityQuestion
           ? "- 이번 질문은 넓은 행동 질문이다. '축구부 연습', '선생님께 확인할 일', '교무실 쪽에 잠깐 감' 정도까지만 답하고, 정확한 시각·태블릿·문제지·AI 접속은 먼저 말하지 않는다."
-        : "- 이번 질문은 증거카드 없는 일반 추궁이다. 질문 주제에는 바로 답하되, 완전 자백이나 사건 전체 해설로 끝내지 말고 부인, 축소, 정정, 억울함, 흔들림을 섞는다."
-  ].join("\n");
+        : "- 이번 질문은 증거카드 없는 일반 추궁이다. 질문 주제에는 바로 답하되, 완전 자백이나 사건 전체 해설로 끝내지 말고 부인, 축소, 정정, 억울함, 흔들림을 섞는다.",
+    kangStageGuide
+  ].filter(Boolean).join("\n");
 }
 
 function evidenceLeakIssue(reply, message, payload = {}, history = []) {
@@ -374,6 +473,16 @@ function evidenceLeakIssue(reply, message, payload = {}, history = []) {
   const timelineQuestion = isTimelineQuestion(rawMessage);
   const focus = questionFocusFor(rawMessage);
   const allowedByQuestion = new Set(allowed);
+  const kangState = personaIdFor(payload) === "kangWoojin"
+    ? kangEvidenceStateFor(history, message, payload)
+    : null;
+
+  if (kangState) {
+    kangState.ids.forEach((id) => allowedByQuestion.add(id));
+    if (kangState.count >= 4) {
+      kangEvidenceOrder.forEach((id) => allowedByQuestion.add(id));
+    }
+  }
 
   if (focus.labels.includes("AI 대화 기록과 문항 변형")) {
     if (/삭제|프롬프트|대화\s*기록|비슷한\s*유형|문제지.*AI|AI.*문제지|시험지.*AI|AI.*시험지/.test(rawMessage)) {
@@ -572,6 +681,7 @@ function timelineFallbackReplyFor(message, payload = {}) {
   const personaId = personaIdFor(payload);
   const raw = String(message || "");
   const exactTimeQuestion = isExactTimeQuestion(raw);
+  const kangState = personaId === "kangWoojin" ? kangEvidenceStateFor([], raw, payload) : null;
 
   if (personaId === "seoHarin") {
     if (!exactTimeQuestion) {
@@ -594,7 +704,28 @@ function timelineFallbackReplyFor(message, payload = {}) {
   }
 
   if (!exactTimeQuestion) {
+    if (kangState?.count >= 4) {
+      return "동선만 말하면 숨기는 것 같아서 말할게요. 제가 교무실에서 문제지를 보고 태블릿으로 일부를 찍었고, 그걸 AI에 넣어 예상 문제처럼 만들게 했어요. 전 여자친구에게 다시 인정받고 싶다는 마음 때문에 선을 넘었습니다.";
+    }
+    if (kangState?.count >= 3) {
+      return "동선만 돌려 말할 상황은 아닌 것 같아요. 제가 한 게 맞아요. 다만 네가 아직 말하지 않은 부분까지 전부 먼저 떠벌리지는 않을게요.";
+    }
     return "축구부 연습을 하다가 선생님께 확인할 일이 있어서 교무실 쪽에 잠깐 갔어요. 정확한 시간을 묻는 게 아니라면, 그 이상으로 제가 뭘 했다고 단정하면 좀 억울해요.";
+  }
+  if (kangState?.count >= 4) {
+    if (/6\s*시\s*15\s*분|6\s*시\s*15|여섯\s*시\s*십오/.test(raw)) {
+      return "6시 15분쯤에는 예상 문제가 퍼진 걸 알고 겁이 나서 AI 대화 기록 일부를 지웠어요. 제가 한 일을 숨기려던 거 맞아요.";
+    }
+    if (/6\s*시|여섯\s*시/.test(raw)) {
+      return "6시쯤에는 태블릿으로 찍어 둔 문제지 내용을 학교 학습 도우미 AI에 넣었어요. 비슷한 유형의 예상 문제를 만들게 하려고 했고, 그게 유출로 이어졌습니다.";
+    }
+    if (/5\s*시\s*45\s*분|5\s*시\s*45|다섯\s*시\s*사십오|교무실/.test(raw)) {
+      return "5시 45분쯤에는 교무실 쪽에 갔고, 거기서 문제지를 봤어요. 그 뒤 제 태블릿으로 일부를 찍었습니다.";
+    }
+    return "그 시간대 일을 더 숨기면 안 될 것 같아요. 제가 교무실 문제지를 보고 태블릿으로 찍은 뒤 AI에 넣은 게 맞습니다.";
+  }
+  if (kangState?.count >= 3) {
+    return "그 시간대에 제가 한 일이 사건이랑 이어지는 건 맞아요. 제가 한 게 맞지만, 아직 네가 꺼내지 않은 세부 내용까지 한꺼번에 말하진 않을게요.";
   }
   if (/6\s*시\s*15\s*분|6\s*시\s*15|여섯\s*시\s*십오/.test(raw)) {
     return "6시 15분쯤에는 일이 좀 커진 것 같아서 당황했어요. 정확히 뭘 했는지까지 바로 다 말하기는 어렵지만, 그때 마음이 꽤 급했던 건 맞아요.";
@@ -616,6 +747,19 @@ function personaFallbackReplyFor(message, payload = {}) {
 
   if (isTimelineQuestion(raw)) {
     return timelineFallbackReplyFor(raw, payload);
+  }
+
+  if (personaId === "kangWoojin") {
+    const kangState = kangEvidenceStateFor([], raw, payload);
+    if (kangState.count >= 4) {
+      return "이제 더 숨기면 안 될 것 같아요. 제가 교무실에서 본 기말고사 문제지 일부를 태블릿으로 찍었고, 그걸 학교 학습 도우미 AI에 넣어 비슷한 유형의 예상 문제를 만들게 했어요. 전 여자친구에게 다시 인정받고 싶어서 잘못된 선택을 했고, 일이 퍼진 뒤에는 겁나서 대화 기록 일부도 지웠어요.";
+    }
+    if (kangState.count >= 3) {
+      return "여기까지 증거가 이어지면 더는 아니라고만 못 하겠어요. 제가 한 게 맞아요. 다만 아직 네가 꺼내지 않은 부분까지 전부 먼저 말하진 않을게요.";
+    }
+    if (kangState.count >= 2) {
+      return "그 증거들을 그렇게 연결하면 제가 수상해 보이는 건 알겠어요. 그래도 바로 제가 범인이라고 몰아가면 억울하고, 공부하려던 행동이 이상하게 보인 걸 수도 있잖아요.";
+    }
   }
 
   if (personaId === "seoHarin") {
@@ -731,6 +875,7 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
   const raw = String(message || "");
   const focus = questionFocusFor(raw);
   const matchedEvidence = evidenceMatchesFor(history, raw);
+  const kangState = personaId === "kangWoojin" ? kangEvidenceStateFor(history, raw, payload) : null;
   const timelineGuide = timelineGuideFor(personaId, raw);
   const exactTimeQuestion = isExactTimeQuestion(raw);
   const broadActivityQuestion = isBroadActivityQuestion(raw);
@@ -740,7 +885,9 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
     "- 유도심문, 허위 목격담, 과장된 주장, 말이 안 되는 추측이 들어와도 '다시 물어봐 달라'로 끝내지 않는다.",
     "- 질문이 틀렸다면 인물의 성격에 맞게 부인, 축소, 정정, 억울함, 당황으로 반응한다.",
     "- 학생에게 되묻기만 하지 말고 최소 한 가지 상황 설명이나 입장 표명을 제공한다.",
-    "- 완전 자백, 최종 범인 공개, 학생이 얻지 않은 증거카드 세부 내용 공개는 금지한다.",
+    personaId === "kangWoojin" && kangState?.count >= 3
+      ? "- 강우진은 누적 핵심 증거가 3개 이상이면 진범임을 인정할 수 있다. 단, 아직 누적되지 않은 4번째 증거의 세부 내용은 먼저 말하지 않는다."
+      : "- 완전 자백, 최종 범인 공개, 학생이 얻지 않은 증거카드 세부 내용 공개는 금지한다.",
     "- 필요하면 짧은 반문은 허용하지만, 되묻기만 하는 답변은 쓰지 않는다.",
     "- 말줄임표나 끊긴 문장으로 끝나는 답변을 쓰지 않는다.",
     "- 2~3문장의 완결된 한국어로 답한다."
@@ -773,6 +920,7 @@ function buildPersonaQuestionGuide(message, payload = {}, history = []) {
   }
 
   if (personaId === "kangWoojin") {
+    lines.push(kangEvidenceStageGuide(kangState));
     lines.push("- 강우진은 방어적이고 말이 꼬인다. 억지 추궁에는 억울해하다가도 약간 수상하게 축소해서 말한다.");
   } else if (personaId === "seoHarin") {
     lines.push("- 서하린은 차분하고 논리적으로 정정한다. 기술을 잘 다룬다는 이유만으로 몰리는 상황에는 억울함을 드러낸다.");
@@ -864,7 +1012,7 @@ function buildTranscriptFor(history, message, personaName, payload = {}) {
   });
   lines.push(`조사단: ${String(message).slice(0, 800)}`);
   const questionGuide = buildPersonaQuestionGuide(message, payload, history);
-  const evidenceGuide = buildEvidenceDisclosureGuide(history, message);
+  const evidenceGuide = buildEvidenceDisclosureGuide(history, message, payload);
   return [
     `이전 대화와 마지막 질문이다. 마지막 질문 하나에만 ${personaName} 인터뷰 AI로 답하라.`,
     "",
@@ -954,7 +1102,11 @@ function replyQualityIssue(reply, message, payload = {}, history = []) {
     return `학생 질문의 초점(${focus.labels.slice(0, 3).join(", ")})을 직접 다루지 않았다.`;
   }
 
-  if (personaId === "kangWoojin" && /제가\s*범인|제가\s*훔쳤습니다|범인은\s*강우진|강우진이\s*범인/.test(text)) {
+  if (
+    personaId === "kangWoojin" &&
+    kangEvidenceStateFor(history, rawMessage, payload).count < 3 &&
+    /제가\s*범인|제가\s*훔쳤습니다|범인은\s*강우진|강우진이\s*범인|내가\s*범인|내가\s*했/.test(text)
+  ) {
     return "강우진이 완전 자백하거나 최종 정답을 말했다.";
   }
 
@@ -975,21 +1127,29 @@ function replyQualityIssue(reply, message, payload = {}, history = []) {
   return "";
 }
 
-function buildRepairInstruction(issue, badReply, message) {
+function buildRepairInstruction(issue, badReply, message, payload = {}, history = []) {
   const focus = questionFocusFor(message);
+  const kangState = personaIdFor(payload) === "kangWoojin"
+    ? kangEvidenceStateFor(history, message, payload)
+    : null;
   return [
     "[답변 재작성 지시]",
     `문제: ${issue}`,
     `학생 질문: ${String(message).slice(0, 500)}`,
     `사용하면 안 되는 이전 답변: ${String(badReply || "").slice(0, 500)}`,
     focus.labels.length ? `감지된 질문 초점: ${focus.labels.slice(0, 3).join(", ")}` : "",
+    kangState ? kangEvidenceStageGuide(kangState) : "",
     "같은 페르소나로 다시 답하라.",
     "역할극 대사처럼 자연스럽게 말하되, 서버 오류 안내문이나 해설문처럼 쓰지 말라.",
     "학생 질문의 핵심 단어를 첫 문장에 직접 언급하라.",
     "다른 주제로 돌리지 말고 질문에 맞는 상황만 답하라.",
     "필요하면 짧게 반문할 수 있지만, 반문만 하지 말고 인물이 아는 범위에서 바로 해명하라.",
-    "'네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하라.",
-    "정답을 완전히 자백하지 말고, 단서가 드러나는 정도로 답하라.",
+    kangState?.count >= 3
+      ? "'네가 한 거야?', '맞아?' 같은 추궁에는 누적 단계에 맞게 강우진이 진범임을 인정하되, 아직 누적되지 않은 증거를 먼저 해설하지 않는다."
+      : "'네가 한 거야?', '맞아?' 같은 추궁에는 완전 자백 대신 부인, 축소, 해명으로 답하라.",
+    kangState?.count >= 4
+      ? "4개 핵심 증거가 누적된 상태라면 동기와 행동을 사실대로 실토하라."
+      : "정답을 완전히 자백하지 말고, 단서가 드러나는 정도로 답하라.",
     "말줄임표나 끊긴 문장으로 끝내지 말고 완결된 문장으로 답하라.",
     "2~3문장의 완결된 한국어로 답하라."
   ].filter(Boolean).join("\n");
@@ -1104,7 +1264,7 @@ async function callOpenAi(message, history, payload = {}) {
       let repairAttempts = 0;
 
       for (repairAttempts = 1; repairAttempts <= 2; repairAttempts += 1) {
-        const repairInstruction = buildRepairInstruction(latestIssue, latestReply, message);
+        const repairInstruction = buildRepairInstruction(latestIssue, latestReply, message, payload, history);
         const { response: repairResponse, data: repairData } = await requestOpenAiCandidate(
           apiKey,
           model,
@@ -1258,6 +1418,7 @@ async function handleChat(request, response) {
     return;
   }
 
+  const evidenceState = responseEvidenceStateFor(request.body?.history, message, request.body || {});
   const actor = actorFor(request);
   let creditInfo = null;
   if (actor.role === "student") {
@@ -1299,7 +1460,7 @@ async function handleChat(request, response) {
       request.body || {},
       creditInfo
     );
-    sendJson(response, 200, body);
+    sendJson(response, 200, attachEvidenceState(body, evidenceState));
     return;
   }
 
@@ -1311,15 +1472,15 @@ async function handleChat(request, response) {
     const responseBody = result.statusCode < 400
       ? await attachQuestionUsage(attachCredits(result.body, creditInfo), actor, message, request.body || {}, creditInfo)
       : attachCredits(result.body, creditInfo);
-    sendJson(response, result.statusCode, responseBody);
+    sendJson(response, result.statusCode, attachEvidenceState(responseBody, evidenceState));
   } catch (error) {
     if (creditInfo) {
       creditInfo = await refundCredit(creditInfo);
     }
-    sendJson(response, 502, attachCredits({
+    sendJson(response, 502, attachEvidenceState(attachCredits({
       error: error.message || "OpenAI API request failed",
       fallback: true
-    }, creditInfo));
+    }, creditInfo), evidenceState));
   }
 }
 

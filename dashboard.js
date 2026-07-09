@@ -3,6 +3,7 @@
   const classId = sessionStorage.getItem(classKey) || localStorage.getItem("kit-last-class-section") || "class-a";
   const draftKey = `kit-student-question-credit-additions:${classId}`;
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+  const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));
   const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
@@ -21,6 +22,35 @@
 
   function cleanTeamMap(map = {}) {
     return Object.fromEntries(teams.map((team) => [team, cleanScore(map[team])]));
+  }
+
+  function teamIdFor(team) {
+    return teamDisplayIds[team] || String(team || "").trim();
+  }
+
+  function teamLabelFor(team) {
+    const id = teamIdFor(team);
+    return id ? `${id}번` : "학생";
+  }
+
+  function applyTeamDisplayLabels() {
+    teams.forEach((team) => {
+      const input = document.querySelector(`[data-score-input="${team}"]`);
+      const row = input?.closest(".team-row");
+      const id = teamIdFor(team);
+      const label = teamLabelFor(team);
+
+      const badge = row?.querySelector(".team-badge");
+      if (badge) badge.textContent = id;
+
+      const name = row?.querySelector(".team-name");
+      if (name) name.textContent = id;
+
+      const meta = row?.querySelector(".team-meta");
+      if (meta) meta.setAttribute("aria-label", `${label} 질문권 현황`);
+
+      if (input) input.setAttribute("aria-label", `${label} 추가할 질문권`);
+    });
   }
 
   function loadDraftAdds() {
@@ -126,7 +156,7 @@
         row.className = "usage-row";
 
         const name = document.createElement("span");
-        name.textContent = team;
+        name.textContent = teamIdFor(team);
 
         const count = document.createElement("strong");
         count.textContent = `사용 ${questionCounts[team] || 0}개`;
@@ -157,7 +187,7 @@
 
       const meta = document.createElement("div");
       meta.className = "log-entry__meta";
-      meta.textContent = `${entry.team || entry.user || "학생"} · ${formatLogTime(entry.at)} · ${entry.count || 0}번째`;
+      meta.textContent = `${teamLabelFor(entry.team || entry.user)} · ${formatLogTime(entry.at)} · ${entry.count || 0}번째`;
 
       const text = document.createElement("p");
       text.textContent = entry.message || "질문 내용 없음";
@@ -180,24 +210,16 @@
       return;
     }
 
-    function maskedEvidenceCode(value) {
-      const code = String(value || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
-      return code ? `${code.slice(0, 2)}•••••` : "코드 없음";
-    }
-
     evidenceLogs.slice(0, 20).forEach((entry) => {
       const item = document.createElement("article");
       item.className = "evidence-redeem-entry";
 
       const meta = document.createElement("div");
       meta.className = "evidence-redeem-entry__meta";
-      meta.textContent = `${entry.team || "팀 없음"} · ${maskedEvidenceCode(entry.code)} · ${formatLogTime(entry.at)} · +${entry.added || 3}개`;
+      meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 2}개`;
 
       const text = document.createElement("p");
-      const code = document.createElement("strong");
-      code.className = "evidence-redeem-secret";
-      code.textContent = entry.evidence || "증거";
-      text.append(code, document.createTextNode(` · ${entry.room || "장소 미상"} · ${entry.user || entry.team || "학생"}`));
+      text.textContent = "증거코드 입력 완료 · 질문권 지급됨";
 
       item.append(meta, text);
       list.append(item);
@@ -382,6 +404,7 @@
     });
   });
 
+  applyTeamDisplayLabels();
   renderScores();
   renderQuestionStats();
   renderEvidenceLogs();

@@ -29,6 +29,7 @@ const evidenceCodes = {
   87143: { room: "체육관", evidence: "전교 1등 전 여자친구의 메시지", person: "강우진" },
   13450: { room: "체육관", evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
 };
+const evidenceRewardCredits = 2;
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
@@ -254,7 +255,7 @@ async function handleEvidenceCode(request, response) {
       return;
     }
 
-    const result = await grantCredits(team, 3);
+    const result = await grantCredits(team, evidenceRewardCredits);
     const evidenceLog = await recordEvidenceRedemption({
       team,
       user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
@@ -262,7 +263,7 @@ async function handleEvidenceCode(request, response) {
       room: evidence.room,
       evidence: evidence.evidence,
       person: evidence.person,
-      added: 3,
+      added: evidenceRewardCredits,
       remaining: result.credits
     });
 
@@ -272,7 +273,7 @@ async function handleEvidenceCode(request, response) {
       evidence: publicEvidence(evidence),
       evidenceLog: publicEvidenceLog(evidenceLog),
       team,
-      added: 3,
+      added: evidenceRewardCredits,
       credits: result.credits,
       granted: result.granted,
       logs: await getQuestionLogs(team),

@@ -1,15 +1,26 @@
 (function () {
+  const studentAccounts = {
+    "승우": { password: "tmddn1", role: "student", label: "1", team: "승우" },
+    "연수": { password: "dustn1", role: "student", label: "2", team: "연수" },
+    "은혁": { password: "dmsgur1", role: "student", label: "3", team: "은혁" },
+    "영준": { password: "dudwns1", role: "student", label: "4", team: "영준" },
+    "혜빈": { password: "gpqls1", role: "student", label: "5", team: "혜빈" },
+    "윤지": { password: "dbswl1", role: "student", label: "6", team: "윤지" },
+    "가빈": { password: "rkqls1", role: "student", label: "7", team: "가빈" },
+    "채희": { password: "cogml1", role: "student", label: "8", team: "채희" }
+  };
   const accounts = {
     master: { password: "master1", role: "teacher", label: "선생님 1" },
     master2: { password: "master2", role: "teacher", label: "선생님 2" },
-    "승우": { password: "tmddn1", role: "student", label: "승우", team: "승우" },
-    "연수": { password: "dustn1", role: "student", label: "연수", team: "연수" },
-    "은혁": { password: "dmsgur1", role: "student", label: "은혁", team: "은혁" },
-    "영준": { password: "dudwns1", role: "student", label: "영준", team: "영준" },
-    "혜빈": { password: "gpqls1", role: "student", label: "혜빈", team: "혜빈" },
-    "윤지": { password: "dbswl1", role: "student", label: "윤지", team: "윤지" },
-    "가빈": { password: "rkqls1", role: "student", label: "가빈", team: "가빈" },
-    "채희": { password: "cogml1", role: "student", label: "채희", team: "채희" }
+    ...studentAccounts,
+    "1": { ...studentAccounts["승우"] },
+    "2": { ...studentAccounts["연수"] },
+    "3": { ...studentAccounts["은혁"] },
+    "4": { ...studentAccounts["영준"] },
+    "5": { ...studentAccounts["혜빈"] },
+    "6": { ...studentAccounts["윤지"] },
+    "7": { ...studentAccounts["가빈"] },
+    "8": { ...studentAccounts["채희"] }
   };
 
   const role = sessionStorage.getItem("kit-auth-role") || "";

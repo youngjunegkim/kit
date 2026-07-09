@@ -9,6 +9,20 @@
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
   const classId = sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  const teamDisplayIds = {
+    "승우": "1",
+    "연수": "2",
+    "은혁": "3",
+    "영준": "4",
+    "혜빈": "5",
+    "윤지": "6",
+    "가빈": "7",
+    "채희": "8"
+  };
+
+  function teamIdFor(value) {
+    return teamDisplayIds[value] || String(value || "").trim();
+  }
 
   function setCreditText(text) {
     creditCounts.forEach((node) => {
@@ -71,7 +85,7 @@
     }
 
     teamLabels.forEach((node) => {
-      node.textContent = team;
+      node.textContent = teamIdFor(team);
     });
 
     try {
@@ -96,7 +110,7 @@
   }
 
   teamLabels.forEach((node) => {
-    node.textContent = team || "학생";
+    node.textContent = teamIdFor(team) || "학생";
   });
   setCreditText(team ? "받기 필요" : "학생 없음");
   setLogCount(0);
