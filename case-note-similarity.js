@@ -592,6 +592,11 @@
     if (breakdown) breakdown.innerHTML = renderBreakdown(hasResult ? result : null);
   }
 
+  function contentScoreOf(source) {
+    const value = Number(source?.contentScore);
+    return Number.isFinite(value) ? value : 0;
+  }
+
   function sortedTeams() {
     return state.teams
       .map((team, index) => ({
@@ -604,6 +609,8 @@
       .sort((a, b) => {
         const scoreDiff = (b.hasResult ? b.result.score : -1) - (a.hasResult ? a.result.score : -1);
         if (scoreDiff) return scoreDiff;
+        const contentDiff = (b.hasResult ? contentScoreOf(b.result) : -1) - (a.hasResult ? contentScoreOf(a.result) : -1);
+        if (contentDiff) return contentDiff;
         return a.index - b.index;
       });
   }
@@ -718,6 +725,7 @@
       name: team.name,
       rank: team.rank,
       score: team.score,
+      contentScore: team.contentScore,
       report: localReportFor(team)
     }));
   }
@@ -975,6 +983,8 @@
         if (rankDiff) return rankDiff;
         const scoreDiff = b.score - a.score;
         if (scoreDiff) return scoreDiff;
+        const contentDiff = contentScoreOf(b) - contentScoreOf(a);
+        if (contentDiff) return contentDiff;
         return String(a.name).localeCompare(String(b.name), "ko");
       });
 
@@ -1154,6 +1164,7 @@
           name: team.name,
           rank: team.rank,
           score: team.score,
+          contentScore: team.contentScore,
           report: String(report.report || localReportFor(team)).slice(0, 360)
         };
       });
