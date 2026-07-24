@@ -5,7 +5,7 @@
     "범인은 강우진이고, 사건 장소는 교무실이다.",
     "범인은 학교 학습 도우미 AI를 사용해 교무실에서 기말고사 문제지를 태블릿으로 촬영한 뒤, 그 내용을 기반으로 비슷한 유형의 기말 예상 문제지를 만드는 방식으로 범행을 저지르다가 시험 예상 문제가 유출되었다.",
     "그 근거는 전 여자친구에 의한 시험 압박, 오후 6시에 학교 학습 도우미 AI에 접속, 교무실 복도 앞에서 태블릿을 들고 있는 모습이 찍힌 CCTV, 오후 6시 15분에 \"기말고사 문제지를 기반으로 비슷한 유형의 기말 예상 문제지를 만들어줘\"라는 AI 대화 기록 일부이다.",
-    "범인에게 가장 부족했던 AI 윤리 역량은 주체성이며, 그 이유는 시험 점수를 위해 AI를 부정행위라는 잘못된 목적에 사용하기로 스스로 결정하였기 때문이다."
+    "범인에게 가장 부족했던 AI 윤리 역량은 주체성이다."
   ].join("\n");
 
   const rubric = [
@@ -60,9 +60,7 @@
       label: "AI 윤리 역량",
       max: 18,
       checks: [
-        { label: "부족한 AI 윤리 역량을 주체성으로 제시", points: 8, patterns: [/주체성/] },
-        { label: "시험 점수 또는 부정행위라는 잘못된 목적", points: 6, patterns: [/시험\s*점수/, /점수/, /부정\s*행위/, /잘못된\s*목적/, /나쁜\s*목적/, /부적절한\s*목적/] },
-        { label: "AI 사용을 스스로 결정한 책임", points: 4, patterns: [/스스로\s*결정/, /직접\s*결정/, /자신이\s*결정/, /사용하기로/, /선택/, /책임/] }
+        { label: "부족한 AI 윤리 역량을 주체성으로 제시", points: 18, patterns: [/주체성/] }
       ]
     }
   ];
@@ -78,6 +76,20 @@
     "가빈": "7",
     "채희": "8"
   };
+  const specificityChecks = [
+    { label: "강우진", patterns: [/강\s*우\s*진/, /우진/] },
+    { label: "교무실", patterns: [/교무실/] },
+    { label: "기말고사 문제지", patterns: [/기말\s*고사\s*문제지/, /시험지/, /문제지/] },
+    { label: "태블릿 촬영", patterns: [/(태블릿|테블릿).*(촬영|찍)/, /(촬영|찍).*(태블릿|테블릿)/] },
+    { label: "CCTV", patterns: [/cctv/i, /씨씨티비/] },
+    { label: "오후 6시", patterns: [/6\s*시/, /18\s*시/] },
+    { label: "오후 6시 15분", patterns: [/6\s*시\s*15\s*분/, /6:15/, /18:15/] },
+    { label: "AI 대화 기록", patterns: [/대화\s*기록/, /기록\s*일부/, /프롬프트/, /ai.*기록/i] },
+    { label: "예상 문제 생성", patterns: [/예상\s*문제/, /비슷한\s*유형/, /유사.*문제/, /문제.*만들/, /생성/] },
+    { label: "유출", patterns: [/유출/, /퍼졌/, /공유/, /노출/] },
+    { label: "전 여자친구 압박", patterns: [/전\s*여자친구/, /전여친/, /압박/, /성적/, /점수/] },
+    { label: "주체성", patterns: [/주체성/] }
+  ];
 
   const elements = {
     standardNote: document.querySelector("[data-standard-note]"),
@@ -129,7 +141,8 @@
       id: `team-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       name: name || `${number || state.teams.length + 1}팀`,
       note: "",
-      result: null
+      result: null,
+      remainingCredits: 0
     };
   }
 
@@ -165,6 +178,12 @@
     return teamDisplayName(entry.team || entry.user || "학생");
   }
 
+  function cleanRemainingCredits(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.max(0, Math.round(number));
+  }
+
   function latestSentenceEntries(entries = []) {
     const seen = new Set();
     const latest = [];
@@ -174,7 +193,7 @@
       const key = teamKey(label);
       if (!sentence || !key || seen.has(key)) return;
       seen.add(key);
-      latest.push({ ...entry, sentence, label });
+      latest.push({ ...entry, sentence, label, remainingCredits: cleanRemainingCredits(entry.remainingCredits) });
     });
     return latest;
   }
@@ -233,16 +252,20 @@
         }
         team.name = entry.label;
         team.note = entry.sentence;
+        team.remainingCredits = cleanRemainingCredits(entry.remainingCredits);
         team.result = null;
         imported += 1;
       });
 
       state.reports = [];
+      state.teams.forEach((team) => {
+        team.result = null;
+      });
       saveState();
       renderTeams();
       renderRanking();
-      renderReports([], `학생 문장 ${imported}개를 입력칸에 반영했습니다. 바로 유사도 측정을 누를 수 있습니다.`);
-      setStudentSentenceStatus(`학생 문장 ${imported}개를 받았습니다. 바로 측정할 수 있습니다.`, "ok");
+      renderReports([], `학생 문장 ${imported}개와 남은 질문권 보너스를 입력칸에 반영했습니다. 유사도 측정을 누르기 전까지는 채점하지 않습니다.`);
+      setStudentSentenceStatus(`학생 문장 ${imported}개를 받았습니다. 남은 질문권은 측정 시 1개당 1점으로 반영됩니다.`, "ok");
     } catch (error) {
       setStudentSentenceStatus(error.message || "학생 문장 받기에 실패했습니다.", "bad");
     } finally {
@@ -327,7 +350,61 @@
     return { penalty: 0, cap: 55, reason: "강우진이 아닌 다른 용의자를 범인으로 지목해 최고점 55점 제한" };
   }
 
-  function scoreNote(note) {
+  function roundScore(value) {
+    const score = Math.max(0, Math.min(100, Number(value) || 0));
+    return Math.round(score * 10) / 10;
+  }
+
+  function formatScore(value) {
+    const score = roundScore(value);
+    return Number.isInteger(score) ? String(score) : score.toFixed(1);
+  }
+
+  function noteLengthStats(note) {
+    const normalized = normalize(note);
+    const characters = compact(note).length;
+    const sentences = normalized
+      .split(/[.!?\n。！？]+/)
+      .map((sentence) => sentence.trim())
+      .filter((sentence) => sentence.length >= 8).length;
+    return { characters, sentences };
+  }
+
+  function concreteTermsFor(note) {
+    const raw = normalize(note);
+    const tight = compact(note);
+    return specificityChecks
+      .filter((check) => hasAny(raw, check.patterns) || hasAny(tight, check.patterns))
+      .map((check) => check.label);
+  }
+
+  function specificityBonus(note) {
+    const stats = noteLengthStats(note);
+    const terms = concreteTermsFor(note);
+    const lengthBonus =
+      (stats.characters >= 90 ? 0.2 : 0) +
+      (stats.characters >= 180 ? 0.2 : 0);
+    const sentenceBonus = stats.sentences >= 2 ? 0.1 : 0;
+    const detailBonus = Math.min(0.4, terms.length * 0.05);
+    const score = roundScore(Math.min(0.9, lengthBonus + sentenceBonus + detailBonus));
+    return {
+      score,
+      characters: stats.characters,
+      terms,
+      reason: score ? `길이·구체성 보정 +${formatScore(score)}점` : ""
+    };
+  }
+
+  function questionCreditBonusFor(remainingCredits) {
+    const credits = cleanRemainingCredits(remainingCredits);
+    return {
+      credits,
+      score: credits,
+      reason: credits ? `남은 질문권 ${credits}개 = +${credits}점` : "남은 질문권 보너스 없음"
+    };
+  }
+
+  function scoreNote(note, remainingCredits = 0) {
     const details = rubric.map((item) => {
       let score = 0;
       const matches = [];
@@ -354,10 +431,18 @@
     const penalty = wrongCulpritPenalty(note, hasKang);
     const rawScore = details.reduce((sum, item) => sum + item.score, 0);
     const adjusted = Math.max(0, Math.min(100, Math.min(rawScore - penalty.penalty, penalty.cap)));
+    const baseScore = Math.round(adjusted);
+    const specificity = baseScore > 0 ? specificityBonus(note) : { score: 0, characters: noteLengthStats(note).characters, terms: [], reason: "" };
+    const contentScore = roundScore(Math.min(penalty.cap, baseScore + specificity.score));
+    const questionCreditBonus = questionCreditBonusFor(remainingCredits);
     return {
-      score: Math.round(adjusted),
+      score: roundScore(Math.min(100, contentScore + questionCreditBonus.score)),
+      contentScore,
+      baseScore,
       rawScore,
       penalty,
+      specificity,
+      questionCreditBonus,
       details
     };
   }
@@ -378,7 +463,8 @@
         id: String(team.id || `saved-${index}`),
         name: teamDisplayName(team.name || `${index + 1}팀`),
         note: String(team.note || ""),
-        result: team.result || null
+        result: String(team.note || "").trim() && team.result ? team.result : null,
+        remainingCredits: cleanRemainingCredits(team.remainingCredits)
       }));
       state.reports = Array.isArray(parsed.reports) ? parsed.reports : [];
     } catch {
@@ -393,7 +479,8 @@
         id: team.id,
         name: team.name,
         note: team.note,
-        result: team.result
+        result: team.result,
+        remainingCredits: cleanRemainingCredits(team.remainingCredits)
       })),
       reports: state.reports
     }));
@@ -412,10 +499,13 @@
     const animate = Boolean(options.animate);
     elements.teamCount.value = state.teams.length;
     elements.teamList.innerHTML = state.teams.map((team, index) => {
-      const result = team.result || scoreNote(team.note);
-      const score = team.note.trim() ? result.score : 0;
+      const result = team.result || null;
+      const hasResult = Boolean(team.note.trim() && result);
+      const score = hasResult ? result.score : 0;
       const displayScore = animate && team.note.trim() ? 0 : score;
       const measuringClass = animate && team.note.trim() ? " is-measuring" : "";
+      const scoreText = hasResult ? `${formatScore(displayScore)}%` : "미측정";
+      const remainingCredits = cleanRemainingCredits(team.remainingCredits);
       return `
         <article class="team-card${measuringClass}" data-team-card="${team.id}" data-score-target="${score}">
           <div class="team-card__main">
@@ -423,16 +513,19 @@
               <input class="team-name-input" type="text" value="${escapeHtml(team.name)}" aria-label="${index + 1}번째 팀 이름" data-team-name>
               <button class="remove-team-btn" type="button" data-remove-team>삭제</button>
             </div>
-            <textarea class="team-note-input" aria-label="${escapeHtml(team.name)} 사건노트" placeholder="예: 범인은 강우진이고 장소는 교무실입니다. 기말고사 문제지를 기반으로 AI에 예상 문제 생성을 요청했고, 부족한 AI 윤리 역량은 주체성입니다..." data-team-note>${escapeHtml(team.note)}</textarea>
+            <textarea class="team-note-input" aria-label="${escapeHtml(team.name)} 사건노트" data-team-note>${escapeHtml(team.note)}</textarea>
           </div>
           <div class="team-card__score">
             <div class="score-badge">
-              <strong data-score-text>${displayScore}%</strong>
+              <strong data-score-text>${scoreText}</strong>
               <span>유사도</span>
             </div>
             <div class="score-bar" style="--score-width: ${displayScore}%"><span data-score-bar></span></div>
+            <div class="question-credit-bonus" data-question-credit-bonus>
+              남은 질문권 ${remainingCredits}개 · 측정 시 +${remainingCredits}점
+            </div>
             <div class="breakdown" data-breakdown>
-              ${renderBreakdown(result)}
+              ${renderBreakdown(hasResult ? result : null)}
             </div>
           </div>
         </article>
@@ -441,17 +534,55 @@
   }
 
   function renderBreakdown(result) {
+    if (!result) {
+      return `
+        <div class="breakdown-row">
+          <span>유사도 측정을 누르면 채점됩니다.</span>
+          <b>-</b>
+        </div>
+      `;
+    }
+
+    const penaltyRow = result.penalty.reason ? `
+      <div class="breakdown-row">
+        <span>${escapeHtml(result.penalty.reason)}</span>
+        <b>-</b>
+      </div>
+    ` : "";
+    const specificityRow = result.specificity?.score ? `
+      <div class="breakdown-row">
+        <span>${escapeHtml(result.specificity.reason)}</span>
+        <b>+${formatScore(result.specificity.score)}</b>
+      </div>
+    ` : "";
+    const questionBonusRow = result.questionCreditBonus?.credits ? `
+      <div class="breakdown-row breakdown-row--bonus">
+        <span>${escapeHtml(result.questionCreditBonus.reason)}</span>
+        <b>+${formatScore(result.questionCreditBonus.score)}</b>
+      </div>
+    ` : "";
     return result.details.map((item) => `
       <div class="breakdown-row">
         <span>${escapeHtml(item.label)}</span>
         <b>${item.score}/${item.max}</b>
       </div>
-    `).join("") + (result.penalty.reason ? `
-      <div class="breakdown-row">
-        <span>${escapeHtml(result.penalty.reason)}</span>
-        <b>-</b>
-      </div>
-    ` : "");
+    `).join("") + penaltyRow + specificityRow + questionBonusRow;
+  }
+
+  function updateTeamCardResult(card, team) {
+    if (!card || !team) return;
+    const result = team.result || null;
+    const hasResult = Boolean(team.note.trim() && result);
+    const score = hasResult ? result.score : 0;
+    card.dataset.scoreTarget = String(score);
+    card.classList.remove("is-measuring");
+    card.querySelector("[data-score-text]").textContent = hasResult ? `${formatScore(score)}%` : "미측정";
+    card.querySelector(".score-bar")?.style.setProperty("--score-width", `${score}%`);
+    const bonus = cleanRemainingCredits(team.remainingCredits);
+    const bonusNode = card.querySelector("[data-question-credit-bonus]");
+    if (bonusNode) bonusNode.textContent = `남은 질문권 ${bonus}개 · 측정 시 +${bonus}점`;
+    const breakdown = card.querySelector("[data-breakdown]");
+    if (breakdown) breakdown.innerHTML = renderBreakdown(hasResult ? result : null);
   }
 
   function sortedTeams() {
@@ -459,11 +590,12 @@
       .map((team, index) => ({
         ...team,
         index,
-        result: team.result || scoreNote(team.note),
-        hasNote: Boolean(team.note.trim())
+        result: team.result || null,
+        hasNote: Boolean(team.note.trim()),
+        hasResult: Boolean(team.note.trim() && team.result)
       }))
       .sort((a, b) => {
-        const scoreDiff = (b.hasNote ? b.result.score : -1) - (a.hasNote ? a.result.score : -1);
+        const scoreDiff = (b.hasResult ? b.result.score : -1) - (a.hasResult ? a.result.score : -1);
         if (scoreDiff) return scoreDiff;
         return a.index - b.index;
       });
@@ -471,13 +603,13 @@
 
   function renderRanking() {
     const scored = sortedTeams();
-    const notes = scored.filter((team) => team.hasNote);
+    const notes = scored.filter((team) => team.hasResult);
     const average = notes.length
       ? Math.round(notes.reduce((sum, team) => sum + team.result.score, 0) / notes.length)
       : 0;
 
     elements.teamTotal.textContent = `${state.teams.length}팀`;
-    elements.averageScore.textContent = `${average}%`;
+    elements.averageScore.textContent = notes.length ? `${formatScore(average)}%` : "미측정";
 
     if (!scored.length) {
       elements.rankingList.innerHTML = `<li class="empty-ranking">팀을 추가한 뒤 사건노트를 입력하세요.</li>`;
@@ -488,20 +620,23 @@
     let previousScore = null;
     let seen = 0;
     elements.rankingList.innerHTML = scored.map((team) => {
-      seen += 1;
-      const score = team.hasNote ? team.result.score : 0;
-      if (previousScore !== score) {
-        rank = seen;
-        previousScore = score;
+      const score = team.hasResult ? team.result.score : 0;
+      if (team.hasResult) {
+        seen += 1;
+        if (previousScore !== score) {
+          rank = seen;
+          previousScore = score;
+        }
       }
+      const noteStatus = !team.hasNote ? "사건노트 미입력" : team.hasResult ? strongestCategory(team.result) : "유사도 미측정";
       return `
         <li class="ranking-item">
-          <span class="rank-number">${team.hasNote ? rank : "-"}</span>
+          <span class="rank-number">${team.hasResult ? rank : "-"}</span>
           <div>
             <div class="ranking-name">${escapeHtml(team.name || `${team.index + 1}팀`)}</div>
-            <div class="ranking-note">${team.hasNote ? strongestCategory(team.result) : "사건노트 미입력"}</div>
+            <div class="ranking-note">${noteStatus}</div>
           </div>
-          <strong class="ranking-score">${team.hasNote ? `${score}%` : "-"}</strong>
+          <strong class="ranking-score">${team.hasResult ? `${formatScore(score)}%` : "-"}</strong>
         </li>
       `;
     }).join("");
@@ -511,7 +646,9 @@
     const sorted = [...result.details].sort((a, b) => (b.score / b.max) - (a.score / a.max));
     const best = sorted[0];
     if (!best || best.score === 0) return "핵심 단서 부족";
-    return `${best.label} ${best.score}/${best.max}`;
+    const bonus = result.specificity?.score ? ` · 보정 +${formatScore(result.specificity.score)}` : "";
+    const creditBonus = result.questionCreditBonus?.credits ? ` · 질문권 +${formatScore(result.questionCreditBonus.score)}` : "";
+    return `${best.label} ${best.score}/${best.max}${bonus}${creditBonus}`;
   }
 
   function rankedTeams() {
@@ -519,28 +656,34 @@
     let previousScore = null;
     let seen = 0;
     return sortedTeams().map((team) => {
-      seen += 1;
-      const score = team.hasNote ? team.result.score : 0;
-      if (previousScore !== score) {
-        rank = seen;
-        previousScore = score;
+      const score = team.hasResult ? team.result.score : 0;
+      if (team.hasResult) {
+        seen += 1;
+        if (previousScore !== score) {
+          rank = seen;
+          previousScore = score;
+        }
       }
       return {
         ...team,
         score,
-        rank: team.hasNote ? rank : null
+        rank: team.hasResult ? rank : null
       };
     });
   }
 
   function reportPayload() {
     return rankedTeams()
-      .filter((team) => team.hasNote)
+      .filter((team) => team.hasResult)
       .map((team) => ({
         name: team.name || `${team.index + 1}팀`,
         rank: team.rank,
         score: team.score,
+        contentScore: team.result.contentScore,
+        remainingCredits: cleanRemainingCredits(team.remainingCredits),
+        questionCreditBonus: team.result.questionCreditBonus || questionCreditBonusFor(team.remainingCredits),
         note: team.note,
+        specificity: team.result.specificity || null,
         details: team.result.details.map((detail) => ({
           label: detail.label,
           score: detail.score,
@@ -556,7 +699,11 @@
     const strong = sorted[0];
     const weak = [...team.details].sort((a, b) => (a.score / Math.max(1, a.max)) - (b.score / Math.max(1, b.max)))[0];
     if (!team.note.trim()) return "사건노트가 비어 있어 아직 판정할 근거가 없습니다.";
-    return `${team.name}은 ${team.score}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높아 사건 흐름이 잘 맞았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.`;
+    const bonus = team.specificity?.score ? ` 길이와 구체성 보정 +${formatScore(team.specificity.score)}점도 반영했습니다.` : "";
+    const questionBonus = team.questionCreditBonus?.credits
+      ? ` 남은 질문권 ${team.questionCreditBonus.credits}개를 질문권 보너스 +${formatScore(team.questionCreditBonus.score)}점으로 반영했습니다.`
+      : " 남은 질문권 보너스는 없습니다.";
+    return `${team.name}은 사건노트 ${formatScore(team.contentScore ?? team.score)}점에 질문권 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${bonus}${questionBonus}`;
   }
 
   function fallbackReports(teams) {
@@ -582,7 +729,7 @@
 
   function reportSpeechText(report) {
     const rankText = report.rank ? `${report.rank}위. ` : "";
-    return `기티 평가 시작. ${rankText}${report.name}. 유사도 ${report.score}퍼센트. ${report.report}`;
+    return `기티 평가 시작. ${rankText}${report.name}. 유사도 ${formatScore(report.score)}퍼센트. ${report.report}`;
   }
 
   function revealSpeechText(report, index, total) {
@@ -595,7 +742,7 @@
           : "다음 팀 판정입니다.";
     const rankText = report.rank ? `${report.rank}위, ` : "";
     const comment = report.report || "기티가 판정 근거를 정리하지 못했습니다.";
-    return `${lead} ${rankText}${report.name}. 유사도는 ${report.score}퍼센트입니다. 기티 평가. ${comment}`;
+    return `${lead} ${rankText}${report.name}. 유사도는 ${formatScore(report.score)}퍼센트입니다. 기티 평가. ${comment}`;
   }
 
   function KoreanVoice() {
@@ -795,7 +942,7 @@
       <article class="report-card">
         <img class="report-card__avatar" src="assets/characters/detective-note-mascot.png" alt="" aria-hidden="true">
         <div class="report-card__bubble">
-          <strong>${escapeHtml(report.rank ? `${report.rank}위 · ` : "")}${escapeHtml(report.name)} · ${escapeHtml(report.score)}%</strong>
+          <strong>${escapeHtml(report.rank ? `${report.rank}위 · ` : "")}${escapeHtml(report.name)} · ${escapeHtml(formatScore(report.score))}%</strong>
           ${escapeHtml(report.report)}
         </div>
         <button class="report-voice-btn" type="button" data-read-report="${index}" aria-label="${escapeHtml(report.name)} 리포트 듣기">재생</button>
@@ -814,7 +961,7 @@
       .map((report, index) => ({
         ...report,
         rank: Number(report.rank) || index + 1,
-        score: Math.max(0, Math.min(100, Number(report.score) || 0))
+        score: roundScore(report.score)
       }))
       .sort((a, b) => {
         const rankDiff = a.rank - b.rank;
@@ -866,7 +1013,7 @@
     const target = Math.max(0, Math.min(100, Number(targetScore) || 0));
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (reduceMotion) {
-      setRevealText(elements.revealScore, `${target}%`);
+      setRevealText(elements.revealScore, `${formatScore(target)}%`);
       elements.revealBar?.style.setProperty("--reveal-score", `${target}%`);
       return Promise.resolve();
     }
@@ -885,7 +1032,7 @@
           requestAnimationFrame(frame);
           return;
         }
-        setRevealText(elements.revealScore, `${target}%`);
+        setRevealText(elements.revealScore, `${formatScore(target)}%`);
         elements.revealBar?.style.setProperty("--reveal-score", `${target}%`);
         resolve();
       }
@@ -915,7 +1062,7 @@
     await delay(420);
     await animateRevealScore(report.score);
 
-    setRevealText(elements.revealSummary, `${report.name}팀 유사도 ${report.score}%`);
+    setRevealText(elements.revealSummary, `${report.name}팀 유사도 ${formatScore(report.score)}%`);
     setRevealText(elements.revealReport, report.report || "기티가 판정 근거를 정리하지 못했습니다.");
 
     const speechText = revealSpeechText(report, index, total);
@@ -1032,7 +1179,7 @@
     if (reduceMotion) {
       cards.forEach((card) => {
         const target = Number(card.dataset.scoreTarget || 0);
-        card.querySelector("[data-score-text]").textContent = `${target}%`;
+        card.querySelector("[data-score-text]").textContent = `${formatScore(target)}%`;
         card.querySelector(".score-bar")?.style.setProperty("--score-width", `${target}%`);
         card.classList.remove("is-measuring");
       });
@@ -1058,7 +1205,7 @@
             requestAnimationFrame(frame);
             return;
           }
-          if (scoreText) scoreText.textContent = `${target}%`;
+          if (scoreText) scoreText.textContent = `${formatScore(target)}%`;
           if (scoreBar) scoreBar.style.setProperty("--score-width", `${target}%`);
           card.classList.remove("is-measuring");
           resolve();
@@ -1071,7 +1218,7 @@
   function calculateAll() {
     syncFromDom();
     state.teams.forEach((team) => {
-      team.result = scoreNote(team.note);
+      team.result = team.note.trim() ? scoreNote(team.note, team.remainingCredits) : null;
     });
     saveState();
   }
@@ -1080,9 +1227,12 @@
     [...elements.teamList.querySelectorAll("[data-team-card]")].forEach((card) => {
       const team = state.teams.find((item) => item.id === card.dataset.teamCard);
       if (!team) return;
-      team.name = card.querySelector("[data-team-name]")?.value.trim() || team.name;
-      team.note = card.querySelector("[data-team-note]")?.value || "";
-      team.result = scoreNote(team.note);
+      const nextName = card.querySelector("[data-team-name]")?.value.trim() || team.name;
+      const nextNote = card.querySelector("[data-team-note]")?.value || "";
+      const noteChanged = nextNote !== team.note;
+      team.name = nextName;
+      team.note = nextNote;
+      if (noteChanged) team.result = null;
     });
     saveState();
   }
@@ -1098,9 +1248,9 @@
       calculateAll();
       state.reports = [];
       saveState();
+      openRevealLoading();
       renderReports([], "기티가 발표 순서를 정리하고 있습니다...");
       renderTeams({ animate: true });
-      openRevealLoading();
       const reports = await fetchCaseNoteReports({ render: false });
       const didReveal = await openRevealPresentation(reports);
       if (!didReveal) {
@@ -1170,22 +1320,28 @@
     calculateAll();
     renderTeams();
     renderRanking();
-    const rows = [["순위", "팀", "유사도", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
+    const rows = [["순위", "팀", "최종 유사도", "사건노트 점수", "남은 질문권", "질문권 보너스", "길이·구체성 보정", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
     let rank = 0;
     let previousScore = null;
     let seen = 0;
     sortedTeams().forEach((team) => {
       seen += 1;
-      const score = team.note.trim() ? team.result.score : 0;
-      if (previousScore !== score) {
+      const score = team.hasResult ? team.result.score : 0;
+      if (team.hasResult && previousScore !== score) {
         rank = seen;
         previousScore = score;
       }
-      const detailMap = Object.fromEntries(team.result.details.map((item) => [item.id, `${item.score}/${item.max}`]));
+      const detailMap = team.hasResult
+        ? Object.fromEntries(team.result.details.map((item) => [item.id, `${item.score}/${item.max}`]))
+        : {};
       rows.push([
-        team.note.trim() ? rank : "",
+        team.hasResult ? rank : "",
         team.name,
-        team.note.trim() ? `${score}%` : "",
+        team.hasResult ? `${formatScore(score)}%` : "",
+        team.hasResult ? `${formatScore(team.result.contentScore ?? score)}점` : "",
+        team.hasResult ? `${cleanRemainingCredits(team.remainingCredits)}개` : "",
+        team.hasResult && team.result.questionCreditBonus?.score ? `+${formatScore(team.result.questionCreditBonus.score)}점` : "",
+        team.hasResult && team.result.specificity?.score ? `+${formatScore(team.result.specificity.score)}` : "",
         detailMap.culprit,
         detailMap.place,
         detailMap.method,
@@ -1263,8 +1419,11 @@
 
     elements.teamList.addEventListener("input", (event) => {
       if (!event.target.matches("[data-team-name], [data-team-note]")) return;
+      const card = event.target.closest("[data-team-card]");
       syncFromDom();
       state.reports = [];
+      const team = state.teams.find((item) => item.id === card?.dataset.teamCard);
+      updateTeamCardResult(card, team);
       renderRanking();
       renderReports([], "사건노트가 수정되었습니다. 다시 유사도를 측정하세요.");
     });

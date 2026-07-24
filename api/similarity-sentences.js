@@ -78,6 +78,7 @@ function publicSentence(entry = {}) {
     team: normalizeTeam(entry.team),
     user: String(entry.user || entry.team || "").trim().slice(0, 40),
     sentence: String(entry.sentence || "").trim().slice(0, maxSentenceChars),
+    remainingCredits: Math.max(0, Math.floor(Number(entry.remainingCredits) || 0)),
     at: entry.at || ""
   };
 }
@@ -150,7 +151,8 @@ async function handleSimilaritySentences(request, response) {
     const entry = await recordSimilaritySentence({
       team,
       user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
-      sentence
+      sentence,
+      remainingCredits: body.remainingCredits
     });
     sendJson(response, 200, {
       ok: true,

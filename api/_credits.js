@@ -81,8 +81,25 @@ function currentClassId() {
   );
 }
 
+function requestRole(request, body = {}) {
+  return String(headerValue(request, "x-kit-role") || body.role || "").trim().toLowerCase();
+}
+
+function requestUser(request, body = {}) {
+  return decodeValue(headerValue(request, "x-kit-user") || body.user).toLowerCase();
+}
+
+function lockedClassIdForRequest(request, body = {}) {
+  if (requestRole(request, body) !== "teacher") return "";
+  const user = requestUser(request, body);
+  if (user === "master") return "class-a";
+  if (user === "master2") return "class-b";
+  return "";
+}
+
 function requestClassId(request, body = {}) {
   return normalizeClassId(
+    lockedClassIdForRequest(request, body) ||
     headerValue(request, "x-kit-class-id") ||
     headerValue(request, "x-kit-class") ||
     body.classId ||
@@ -593,6 +610,7 @@ function cleanSimilaritySentenceEntry(entry = {}) {
   const team = normalizeTeam(entry.team);
   const sentence = String(entry.sentence || "").replace(/\s+/g, " ").trim().slice(0, maxSimilaritySentenceLength);
   if (!team || !sentence) return null;
+  const remainingCredits = cleanCredits(entry.remainingCredits);
 
   return {
     id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
@@ -600,6 +618,7 @@ function cleanSimilaritySentenceEntry(entry = {}) {
     team,
     user: String(entry.user || team).trim().slice(0, 40),
     sentence,
+    remainingCredits,
     namespace: String(entry.namespace || storeNamespace()).trim()
   };
 }

@@ -639,9 +639,11 @@
     }
 
     if (similaritySubmit) similaritySubmit.disabled = true;
-    setSimilarityStatus("선생님 화면으로 전송 중입니다.");
+    setSimilarityStatus("남은 질문권을 확인한 뒤 선생님 화면으로 전송 중입니다.");
 
     try {
+      await refreshCredits();
+      const remainingCredits = currentQuestionCredits();
       const response = await fetch("/api/similarity-sentences", {
         method: "POST",
         headers: {
@@ -655,13 +657,14 @@
           classId: state.classId,
           team: state.team,
           user: state.user,
-          sentence
+          sentence,
+          remainingCredits
         })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "전송 실패");
 
-      setSimilarityStatus("선생님 화면으로 전송했습니다.", "ok");
+      setSimilarityStatus(`선생님 화면으로 전송했습니다. 남은 질문권 ${remainingCredits}개도 함께 반영됩니다.`, "ok");
     } catch (error) {
       setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
     } finally {
@@ -841,6 +844,10 @@
     state.credits = state.serverCredits + unsyncedEthicsCreditBonus();
     setCreditText(`${state.credits}개`);
     updateControls();
+  }
+
+  function currentQuestionCredits() {
+    return Math.max(0, Math.floor(Number(state.credits) || 0));
   }
 
   function applyUsage(usage) {

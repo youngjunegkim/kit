@@ -448,6 +448,18 @@ textarea {
   overflow: hidden;
 }
 
+.question-credit-bonus {
+  border: 1px solid rgba(85, 216, 177, 0.42);
+  border-radius: 7px;
+  background: rgba(37, 181, 139, 0.14);
+  color: #d7fff0;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  font-weight: 950;
+  text-align: center;
+}
+
 .team-card.is-measuring .score-badge {
   animation: score-pulse 780ms ease-in-out infinite alternate;
 }
@@ -495,6 +507,14 @@ textarea {
 .breakdown-row b {
   color: #fff;
   white-space: nowrap;
+}
+
+.breakdown-row--bonus {
+  color: #d7fff0;
+}
+
+.breakdown-row--bonus b {
+  color: #69f0be;
 }
 
 .ranking-panel {

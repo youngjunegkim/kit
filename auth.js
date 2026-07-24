@@ -10,8 +10,8 @@
     "채희": { password: "cogml1", role: "student", label: "8", team: "채희" }
   };
   const accounts = {
-    master: { password: "master1", role: "teacher", label: "선생님 1" },
-    master2: { password: "master2", role: "teacher", label: "선생님 2" },
+    master: { password: "master1", role: "teacher", label: "1반 선생님", classId: "class-a" },
+    master2: { password: "master2", role: "teacher", label: "2반 선생님", classId: "class-b" },
     ...studentAccounts,
     "1": { ...studentAccounts["승우"] },
     "2": { ...studentAccounts["연수"] },
@@ -44,6 +44,18 @@
 
   function classLabelFor(value) {
     return normalizeClassId(value) === "class-b" ? "2반" : "1반";
+  }
+
+  function teacherAccountIdForClass(classId) {
+    return normalizeClassId(classId) === "class-b" ? "master2" : "master";
+  }
+
+  function isTeacherAccountId(id) {
+    return ["master", "master2"].includes(String(id || "").trim().toLowerCase());
+  }
+
+  function classIdForAccount(account, fallbackClassId) {
+    return normalizeClassId(account?.classId || fallbackClassId);
   }
 
   function queryClassId() {
@@ -91,8 +103,13 @@
     }
 
     function setActiveRole(id) {
+      const normalizedId = String(id || "").trim().toLowerCase();
       document.querySelectorAll("[data-role-preset]").forEach((button) => {
-        button.classList.toggle("is-active", Boolean(id) && button.dataset.rolePreset === id);
+        const preset = button.dataset.rolePreset || "";
+        const isActive = preset === "master"
+          ? isTeacherAccountId(normalizedId)
+          : Boolean(normalizedId) && preset === normalizedId;
+        button.classList.toggle("is-active", isActive);
       });
     }
 
@@ -101,6 +118,13 @@
       document.querySelectorAll("[data-class-preset]").forEach((button) => {
         button.classList.toggle("is-active", button.dataset.classPreset === selectedClassId);
       });
+    }
+
+    function applyAccountClassSelection(id) {
+      const account = accounts[String(id || "").trim().toLowerCase()];
+      if (!account?.classId) return;
+      setActiveClass(account.classId);
+      localStorage.setItem(lastClassKey, selectedClassId);
     }
 
     function clearErrorState() {
@@ -149,7 +173,7 @@
 
     function completeLogin(account) {
       pendingPath = homeFor(account.role);
-      const classId = normalizeClassId(selectedClassId);
+      const classId = classIdForAccount(account, selectedClassId);
       sessionStorage.setItem("kit-auth-user", userIdInput.value.trim().toLowerCase());
       sessionStorage.setItem("kit-auth-role", account.role);
       sessionStorage.setItem("kit-auth-label", account.label);
@@ -186,7 +210,8 @@
 
     document.querySelectorAll("[data-role-preset]").forEach((button) => {
       button.addEventListener("click", () => {
-        const id = button.dataset.rolePreset || "";
+        const preset = button.dataset.rolePreset || "";
+        const id = preset === "master" ? teacherAccountIdForClass(selectedClassId) : preset;
         userIdInput.value = id;
         if (id) {
           localStorage.setItem(lastLoginKey, id);
@@ -208,6 +233,12 @@
       button.addEventListener("click", () => {
         setActiveClass(button.dataset.classPreset);
         localStorage.setItem(lastClassKey, selectedClassId);
+        if (isTeacherAccountId(userIdInput.value)) {
+          const teacherId = teacherAccountIdForClass(selectedClassId);
+          userIdInput.value = teacherId;
+          localStorage.setItem(lastLoginKey, teacherId);
+          setActiveRole(teacherId);
+        }
         setMessage(`${classLabelFor(selectedClassId)}으로 진행합니다.`, true);
       });
     });
@@ -231,7 +262,11 @@
       input.addEventListener("input", () => {
         clearErrorState();
         setMessage("", false);
-        if (input === userIdInput) setActiveRole(input.value.trim().toLowerCase());
+        if (input === userIdInput) {
+          const id = input.value.trim().toLowerCase();
+          setActiveRole(id);
+          applyAccountClassSelection(id);
+        }
       });
     });
 
@@ -314,6 +349,14 @@
       const classId = currentClassId();
       sessionStorage.setItem(classKey, classId);
       sessionStorage.setItem(classLabelKey, classLabelFor(classId));
+    }
+
+    const account = accounts[user];
+    if (account?.classId) {
+      const lockedClassId = classIdForAccount(account, currentClassId());
+      sessionStorage.setItem(classKey, lockedClassId);
+      sessionStorage.setItem(classLabelKey, classLabelFor(lockedClassId));
+      localStorage.setItem(lastClassKey, lockedClassId);
     }
 
     if (role === "student" && !team) {
