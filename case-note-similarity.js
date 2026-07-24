@@ -616,7 +616,7 @@
   }
 
   function renderRanking() {
-    const scored = sortedTeams();
+    const scored = rankedTeams();
     const notes = scored.filter((team) => team.hasResult);
     const average = notes.length
       ? Math.round(notes.reduce((sum, team) => sum + team.result.score, 0) / notes.length)
@@ -630,27 +630,16 @@
       return;
     }
 
-    let rank = 0;
-    let previousScore = null;
-    let seen = 0;
     elements.rankingList.innerHTML = scored.map((team) => {
-      const score = team.hasResult ? team.result.score : 0;
-      if (team.hasResult) {
-        seen += 1;
-        if (previousScore !== score) {
-          rank = seen;
-          previousScore = score;
-        }
-      }
       const noteStatus = !team.hasNote ? "사건노트 미입력" : team.hasResult ? strongestCategory(team.result) : "유사도 미측정";
       return `
         <li class="ranking-item">
-          <span class="rank-number">${team.hasResult ? rank : "-"}</span>
+          <span class="rank-number">${team.hasResult ? team.rank : "-"}</span>
           <div>
             <div class="ranking-name">${escapeHtml(team.name || `${team.index + 1}팀`)}</div>
             <div class="ranking-note">${noteStatus}</div>
           </div>
-          <strong class="ranking-score">${team.hasResult ? `${formatScore(score)}%` : "-"}</strong>
+          <strong class="ranking-score">${team.hasResult ? `${formatScore(team.score)}%` : "-"}</strong>
         </li>
       `;
     }).join("");
@@ -668,14 +657,17 @@
   function rankedTeams() {
     let rank = 0;
     let previousScore = null;
+    let previousContentScore = null;
     let seen = 0;
     return sortedTeams().map((team) => {
       const score = team.hasResult ? team.result.score : 0;
       if (team.hasResult) {
         seen += 1;
-        if (previousScore !== score) {
+        const contentScore = contentScoreOf(team.result);
+        if (previousScore !== score || previousContentScore !== contentScore) {
           rank = seen;
           previousScore = score;
+          previousContentScore = contentScore;
         }
       }
       return {
