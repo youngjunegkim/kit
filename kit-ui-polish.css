@@ -1,0 +1,338 @@
+:root {
+  --kit-ink: #17202c;
+  --kit-muted: #647084;
+  --kit-paper: #fffaf0;
+  --kit-paper-strong: #ffffff;
+  --kit-line: rgba(198, 176, 136, 0.62);
+  --kit-line-dark: rgba(255, 255, 255, 0.18);
+  --kit-accent: #d7a65f;
+  --kit-accent-strong: #b86c18;
+  --kit-danger: #c92228;
+  --kit-danger-dark: #951717;
+  --kit-success: #13875d;
+  --kit-blue: #2e6fe8;
+  --kit-radius: 8px;
+  --kit-shadow-sm: 0 8px 22px rgba(0, 0, 0, 0.18);
+  --kit-shadow-md: 0 18px 46px rgba(0, 0, 0, 0.28);
+  --kit-focus: 0 0 0 3px rgba(215, 166, 95, 0.34);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(215, 166, 95, 0.42);
+  color: #111827;
+}
+
+:where(button, input, textarea, select) {
+  letter-spacing: 0;
+}
+
+:where(button, [role="button"], a[href], input, textarea, select) {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+:where(button:not(:disabled), a[href], [role="button"]):hover {
+  transform: translateY(-1px);
+}
+
+:where(button, a[href], input, textarea, select):focus-visible {
+  outline: none !important;
+  box-shadow: var(--kit-focus), var(--kit-shadow-sm) !important;
+}
+
+:where(button:disabled, input:disabled, textarea:disabled, select:disabled) {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
+:where(input, textarea, select) {
+  border-color: var(--kit-line) !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  color: var(--kit-ink) !important;
+}
+
+:where(input, textarea, select):focus {
+  border-color: var(--kit-accent) !important;
+  box-shadow: var(--kit-focus) !important;
+  outline: none !important;
+}
+
+:where(input, textarea)::placeholder {
+  color: rgba(92, 103, 119, 0.72);
+}
+
+:where(
+  .brief-panel,
+  .login-panel,
+  .map-frame,
+  .suspect-link,
+  .ranking-panel,
+  .score-board,
+  .student-log-card,
+  .presence-panel,
+  .case-note-card,
+  .standard-note,
+  .rubric-panel,
+  .input-panel,
+  .report-panel,
+  .manager-panel,
+  .ethics-manage-form,
+  .ethics-manage-item,
+  .quiz-side,
+  .quiz-card,
+  .question-builder,
+  .scene-frame,
+  .evidence-panel,
+  .room-control-panel,
+  .interrogation-panel,
+  .suspect-panel,
+  .chat-panel,
+  .note-card,
+  .chat-card,
+  .panel
+) {
+  border-radius: var(--kit-radius) !important;
+}
+
+:where(
+  .login-panel,
+  .student-log-card,
+  .presence-panel,
+  .case-note-card,
+  .standard-note,
+  .rubric-panel,
+  .input-panel,
+  .report-panel,
+  .manager-panel,
+  .ethics-manage-form,
+  .quiz-side,
+  .quiz-card,
+  .question-builder,
+  .evidence-panel,
+  .room-control-panel,
+  .interrogation-panel,
+  .suspect-panel,
+  .chat-panel,
+  .note-card,
+  .chat-card
+) {
+  box-shadow: var(--kit-shadow-md) !important;
+}
+
+:where(.brief-panel, .scene-frame, .map-frame) {
+  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.34) !important;
+}
+
+:where(.primary-btn, .send-btn, .submit-btn, .receive-credit-btn, .quiz-add-question, .case-note-button--primary, .ethics-manage-actions button[type="submit"], .ethics-manage-actions-top [data-ethics-manager-new]) {
+  background: linear-gradient(180deg, #f23a36 0%, var(--kit-danger) 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px rgba(201, 34, 40, 0.26);
+}
+
+:where(.primary-btn, .send-btn, .submit-btn, .receive-credit-btn, .quiz-add-question, .case-note-button--primary, .ethics-manage-actions button[type="submit"], .ethics-manage-actions-top [data-ethics-manager-new]):hover {
+  background: linear-gradient(180deg, #dd302d 0%, var(--kit-danger-dark) 100%) !important;
+}
+
+:where(.back-link, .reset-btn, .logout-btn, .presence-refresh-btn, .credit-refresh-btn, .quiz-link, .quiz-logout, .quiz-reset, .manager-link, .manager-tools button, .clear-note, .board-close-btn, .case-note-button, .ethics-manage-actions button, .ethics-manage-actions-top button, .ethics-manage-item-actions button) {
+  border-radius: 7px !important;
+  font-weight: 900 !important;
+}
+
+:where(.credit-pill, .quiz-pill, .manager-pill, .status-pill, .score-badge, .login-kicker, .brief-badge, .question-credit-bonus, .case-note-status, .api-status, .question-credit) {
+  border-radius: 999px !important;
+}
+
+:where(.topbar, .quiz-topbar, .manager-topbar, .room-topbar, .student-log-head, .ethics-manage-head, .chat-head, .side-head) {
+  gap: 12px;
+}
+
+:where(.presence-row, .team-card, .credit-total-card, .student-log-entry, .rubric-item, .ethics-manage-item, .evidence-card) {
+  border: 1px solid rgba(214, 224, 236, 0.86) !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+:where(.presence-row, .team-card, .credit-total-card, .student-log-entry, .rubric-item, .ethics-manage-item, .evidence-card):hover {
+  border-color: rgba(215, 166, 95, 0.74) !important;
+}
+
+:where(.messages, .student-log-list, .presence-list, .ethics-manage-list, .obtained-evidence, textarea) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 112, 132, 0.58) rgba(255, 255, 255, 0.18);
+}
+
+:where(.messages, .student-log-list, .presence-list, .ethics-manage-list, .obtained-evidence, textarea)::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:where(.messages, .student-log-list, .presence-list, .ethics-manage-list, .obtained-evidence, textarea)::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+:where(.messages, .student-log-list, .presence-list, .ethics-manage-list, .obtained-evidence, textarea)::-webkit-scrollbar-thumb {
+  background: rgba(100, 112, 132, 0.58);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.room-page .scene-frame {
+  background:
+    linear-gradient(180deg, rgba(9, 13, 20, 0.72), rgba(9, 13, 20, 0.96)),
+    #090d14 !important;
+}
+
+.room-page .interrogation-panel {
+  border-color: rgba(215, 166, 95, 0.54) !important;
+}
+
+.room-page .chat-form,
+.chat-panel .chat-form {
+  border-top: 1px solid rgba(198, 176, 136, 0.62);
+}
+
+.messages {
+  scroll-behavior: smooth;
+}
+
+.message,
+.bot-bubble,
+.user-bubble,
+.message-bubble,
+.chat-message,
+.bubble {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.case-note-score-breakdown,
+.question-credit-bonus,
+.score-footnote {
+  border-color: rgba(20, 135, 93, 0.26) !important;
+  background: rgba(20, 135, 93, 0.08) !important;
+}
+
+.map-frame .hotspot,
+.school-hub .room-hotspot,
+.room-hotspot {
+  border-radius: 8px !important;
+}
+
+.map-frame .hotspot:hover,
+.school-hub .room-hotspot:hover,
+.room-hotspot:hover,
+.map-frame .hotspot:focus-visible,
+.school-hub .room-hotspot:focus-visible,
+.room-hotspot:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(255, 245, 210, 0.8),
+    0 0 26px rgba(243, 52, 47, 0.68) !important;
+}
+
+.suspect-link {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background:
+    linear-gradient(180deg, rgba(20, 31, 47, 0.96), rgba(14, 24, 38, 0.94)) !important;
+}
+
+.suspect-link:hover,
+.suspect-link:focus-visible {
+  border-color: rgba(215, 166, 95, 0.86) !important;
+}
+
+.quiz-card img,
+.question-image,
+.evidence-card__image,
+.suspect-image,
+.school-map,
+.room-image {
+  image-rendering: auto;
+}
+
+.quiz-nav button,
+.class-btn,
+.role-btn,
+.team-card input,
+.code-input,
+.evidence-code-input,
+.chat-input,
+.note-area,
+.case-note-team-name,
+.case-note-textarea {
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  :where(.topbar, .quiz-topbar, .manager-topbar, .room-topbar) {
+    align-items: stretch !important;
+  }
+
+  :where(.student-tools, .quiz-tools, .manager-tools) {
+    justify-content: flex-start !important;
+  }
+
+  .room-shell,
+  .quiz-layout,
+  .page {
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    background-attachment: fixed;
+  }
+
+  :where(.page, .quiz-shell, .manager-shell, .room-shell) {
+    padding: 12px !important;
+  }
+
+  :where(.login-panel, .student-log-card, .presence-panel, .case-note-card, .manager-panel, .question-builder, .quiz-card, .quiz-side, .interrogation-panel, .suspect-panel, .chat-panel) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  :where(.topbar, .quiz-topbar, .manager-topbar, .room-topbar, .student-log-head, .ethics-manage-head) {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  :where(.student-tools, .quiz-tools, .manager-tools, .student-log-actions, .ethics-manage-actions-top) {
+    width: 100%;
+    justify-content: stretch !important;
+  }
+
+  :where(.student-tools > *, .quiz-tools > *, .manager-tools > *, .student-log-actions > *, .ethics-manage-actions-top > *) {
+    flex: 1 1 auto;
+  }
+
+  :where(.primary-btn, .send-btn, .submit-btn, .receive-credit-btn, .presence-refresh-btn, .credit-refresh-btn, .quiz-link, .quiz-logout, .manager-link, .manager-tools button) {
+    min-height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
