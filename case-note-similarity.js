@@ -355,8 +355,13 @@
     return Math.round(score * 10) / 10;
   }
 
+  function roundScoreUncapped(value) {
+    const score = Math.max(0, Number(value) || 0);
+    return Math.round(score * 10) / 10;
+  }
+
   function formatScore(value) {
-    const score = roundScore(value);
+    const score = roundScoreUncapped(value);
     return Number.isInteger(score) ? String(score) : score.toFixed(1);
   }
 
@@ -436,7 +441,7 @@
     const contentScore = roundScore(Math.min(penalty.cap, baseScore + specificity.score));
     const questionCreditBonus = questionCreditBonusFor(remainingCredits);
     return {
-      score: roundScore(Math.min(100, contentScore + questionCreditBonus.score)),
+      score: roundScoreUncapped(contentScore + questionCreditBonus.score),
       contentScore,
       baseScore,
       rawScore,
@@ -961,7 +966,7 @@
       .map((report, index) => ({
         ...report,
         rank: Number(report.rank) || index + 1,
-        score: roundScore(report.score)
+        score: roundScoreUncapped(report.score)
       }))
       .sort((a, b) => {
         const rankDiff = a.rank - b.rank;
@@ -1010,7 +1015,7 @@
   }
 
   function animateRevealScore(targetScore) {
-    const target = Math.max(0, Math.min(100, Number(targetScore) || 0));
+    const target = Math.max(0, Number(targetScore) || 0);
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (reduceMotion) {
       setRevealText(elements.revealScore, `${formatScore(target)}%`);
