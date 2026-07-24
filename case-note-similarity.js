@@ -440,8 +440,10 @@
     const specificity = baseScore > 0 ? specificityBonus(note) : { score: 0, characters: noteLengthStats(note).characters, terms: [], reason: "" };
     const contentScore = roundScore(Math.min(penalty.cap, baseScore + specificity.score));
     const questionCreditBonus = questionCreditBonusFor(remainingCredits);
+    const totalScore = contentScore + questionCreditBonus.score;
+    const cappedTotal = penalty.cap < 100 ? Math.min(penalty.cap, totalScore) : totalScore;
     return {
-      score: roundScoreUncapped(contentScore + questionCreditBonus.score),
+      score: roundScoreUncapped(cappedTotal),
       contentScore,
       baseScore,
       rawScore,
