@@ -1529,9 +1529,14 @@
     }
 
     .evidence-claim-photo {
+      display: block;
       width: 100%;
-      max-height: 220px;
-      object-fit: cover;
+      /* 가로 폭에 맞춰 비율대로 높이가 정해지게 한다. 증거 번호 1·2가 사진 위아래에
+         흩어져 있어 잘리면 안 되므로 crop하지 않는다. */
+      height: auto;
+      max-height: 340px;
+      /* max-height가 걸리는 경우에도 잘리지 않고 전체가 보이도록 contain. */
+      object-fit: contain;
       border-radius: 7px;
       border: 1px solid #e6ddc8;
     }
