@@ -866,12 +866,26 @@ textarea {
 }
 
 .reveal-stage__score strong {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
   color: #fff;
   font-size: clamp(4.5rem, 15vw, 9.5rem);
   line-height: 0.9;
   font-weight: 950;
   letter-spacing: 0;
   text-shadow: 0 0 34px rgba(255, 220, 167, 0.24);
+}
+
+.reveal-stage__score strong small {
+  margin-bottom: 0.18em;
+  color: #ffdca7;
+  font-size: clamp(1rem, 2.3vw, 1.7rem);
+  line-height: 1.1;
+  font-weight: 950;
+  white-space: nowrap;
+  text-shadow: none;
 }
 
 .reveal-stage__bar {
