@@ -1389,72 +1389,173 @@
     }
 
 
-    .similarity-submit-box {
+    .similarity-launch {
       display: grid;
       gap: 8px;
-      margin-top: 12px;
-      border: 1px solid #d6c49b;
-      border-radius: 8px;
-      background: #fffaf0;
-      padding: 10px;
+      justify-items: center;
+      padding: 6px 0 2px;
     }
 
-    .similarity-submit-box label {
-      color: #5a321c;
-      font-size: 0.86rem;
+    .similarity-launch-btn {
+      width: min(520px, 100%);
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #b91f1f, #7a1414);
+      color: #fff8ec;
+      font-size: 1.12rem;
+      font-weight: 950;
+      box-shadow: 0 12px 26px rgba(122, 20, 20, 0.34);
+    }
+
+    .similarity-launch-btn:hover { filter: brightness(1.06); }
+
+    .similarity-launch-hint {
+      margin: 0;
+      color: rgba(255, 248, 236, 0.78);
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .similarity-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(12, 9, 6, 0.72);
+    }
+
+    .similarity-modal[hidden] { display: none; }
+
+    .similarity-modal__panel {
+      width: min(560px, 100%);
+      max-height: min(90vh, 760px);
+      overflow-y: auto;
+      display: grid;
+      gap: 12px;
+      border-radius: 14px;
+      background: #fffaf0;
+      border: 1px solid #e4d3ab;
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+      padding: 18px;
+    }
+
+    .similarity-modal__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .similarity-modal__head h2 {
+      margin: 0;
+      color: #24180f;
+      font-size: 1.16rem;
       font-weight: 950;
     }
 
-    .similarity-submit-input {
-      width: 100%;
-      min-height: 78px;
-      resize: vertical;
-      border: 1px solid #d6c49b;
-      border-radius: 7px;
-      background: #fff;
-      color: #24180f;
-      padding: 9px 10px;
-      font: inherit;
-      line-height: 1.45;
-      font-weight: 780;
+    .similarity-modal__close {
+      background: transparent;
+      color: #7a5a3a;
+      font-size: 1.1rem;
+      font-weight: 900;
+      padding: 4px 8px;
     }
 
-    .similarity-submit-input:focus {
+    .similarity-modal__form { display: grid; gap: 12px; }
+
+    .similarity-modal__intro {
+      margin: 0;
+      color: #6b563a;
+      font-size: 0.85rem;
+      font-weight: 850;
+    }
+
+    .similarity-template {
+      display: grid;
+      gap: 8px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #ecdcbb;
+      padding: 12px;
+    }
+
+    .s-line {
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      color: #24180f;
+      font-size: 0.95rem;
+      font-weight: 850;
+      line-height: 1.5;
+    }
+
+    .s-blank {
+      border: 1px solid #d6c49b;
+      border-radius: 7px;
+      background: #fffdf7;
+      color: #24180f;
+      padding: 7px 9px;
+      font: inherit;
+      font-weight: 800;
+    }
+
+    .s-blank:focus {
       border-color: #b91f1f;
       box-shadow: 0 0 0 3px rgba(185, 31, 31, 0.12);
       outline: none;
     }
 
-    .similarity-submit-actions {
+    .s-blank--sm { width: 140px; }
+    .s-blank--md { width: 220px; max-width: 100%; }
+    .s-blank--area { width: 100%; resize: vertical; line-height: 1.45; }
+
+    .similarity-modal__foot {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
-    .similarity-submit-count,
-    .similarity-submit-status {
+    .similarity-modal__count {
       color: #6b563a;
-      font-size: 0.78rem;
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+
+    .similarity-modal__count.is-bad { color: #b3221d; }
+
+    .similarity-modal__submit {
+      padding: 11px 20px;
+      border-radius: 9px;
+      background: #b91f1f;
+      color: #fff8ec;
+      font-size: 0.98rem;
+      font-weight: 950;
+    }
+
+    .similarity-modal__submit:disabled {
+      background: #c9b79a;
+      color: #fff;
+      cursor: default;
+    }
+
+    .similarity-modal__status {
+      margin: 0;
+      min-height: 20px;
+      color: #6b563a;
+      font-size: 0.82rem;
       font-weight: 850;
     }
 
-    .similarity-submit-status {
-      min-height: 20px;
-    }
-
-    .similarity-submit-status.is-ok {
-      color: #116c46;
-    }
-
-    .similarity-submit-status.is-bad {
-      color: #b3221d;
-    }
-
-    .similarity-submit-count.is-bad {
-      color: #b3221d;
-    }
+    .similarity-modal__status.is-ok { color: #116c46; }
+    .similarity-modal__status.is-bad { color: #b3221d; }
 
     .evidence-vault-card {
       border: 1px solid rgba(255, 255, 255, 0.62);
@@ -2044,25 +2145,44 @@
             </aside>
           </div>
         </section>
+          <section class="similarity-launch" aria-label="최종 유사도 측정">
+            <button class="similarity-launch-btn" type="button" data-similarity-open>최종 유사도 측정하기</button>
+            <p class="similarity-launch-hint" data-similarity-launch-status>추리를 마쳤으면 눌러서 최종 문장을 만들어 보내세요.</p>
+          </section>
         </div>
-
-        <aside class="note-card" aria-label="유사도 측정">
-          <form class="similarity-submit-box" data-similarity-form>
-            <label for="similaritySentence">유사도 측정 문장 보내기</label>
-            <textarea class="similarity-submit-input" id="similaritySentence" data-similarity-sentence maxlength="500" placeholder="선생님에게 보낼 최종 문장을 500자 안으로 입력하세요."></textarea>
-            <div class="similarity-submit-actions">
-              <span class="similarity-submit-count" data-similarity-count>0/500</span>
-              <button class="clear-note" type="submit" data-similarity-submit>전송</button>
-            </div>
-            <p class="similarity-submit-status" data-similarity-status></p>
-          </form>
-        </aside>
       </div>
     </div>
   </main>
   <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="Suspect card">
     <button class="card-lightbox__close" type="button" data-close-card aria-label="Close">X</button>
     <img class="card-lightbox__image" data-card-lightbox-image alt="">
+  </div>
+  <div class="similarity-modal" data-similarity-modal hidden role="dialog" aria-modal="true" aria-label="최종 유사도 측정">
+    <div class="similarity-modal__panel">
+      <div class="similarity-modal__head">
+        <h2>최종 유사도 측정</h2>
+        <button class="similarity-modal__close" type="button" data-similarity-close aria-label="닫기">✕</button>
+      </div>
+      <form class="similarity-modal__form" data-similarity-form>
+        <p class="similarity-modal__intro">빈칸을 채우면 아래 문장이 완성돼요. 정답은 스스로 채워 주세요.</p>
+        <div class="similarity-template">
+          <p class="s-line"><span>범인은</span><input class="s-blank s-blank--sm" type="text" data-similarity-blank="culprit" maxlength="15" placeholder="누구인지 쓰세요"><span>이다.</span></p>
+          <p class="s-line"><span>범인은</span><input class="s-blank s-blank--md" type="text" data-similarity-blank="tool" maxlength="30" placeholder="무엇을 사용했는지 쓰세요"><span>를 사용해</span></p>
+          <textarea class="s-blank s-blank--area" data-similarity-blank="method" maxlength="120" rows="2" placeholder="어떻게 했는지 쓰세요"></textarea>
+          <p class="s-line"><span>해서 시험 예상 문제가 유출되었다.</span></p>
+          <p class="s-line"><span>그 근거는</span></p>
+          <textarea class="s-blank s-blank--area" data-similarity-blank="evidence" maxlength="130" rows="2" placeholder="증거를 쉼표로 구분해 쓰세요"></textarea>
+          <p class="s-line"><span>이다.</span></p>
+          <p class="s-line"><span>범인에게 가장 부족했던 AI 윤리 역량은</span><input class="s-blank s-blank--sm" type="text" data-similarity-blank="competency" maxlength="15" placeholder="어떤 역량이 부족했는지 쓰세요"><span>이며, 그 이유는</span></p>
+          <textarea class="s-blank s-blank--area" data-similarity-blank="reason" maxlength="100" rows="2" placeholder="왜 그렇게 생각했는지 쓰세요"></textarea>
+        </div>
+        <div class="similarity-modal__foot">
+          <span class="similarity-modal__count" data-similarity-count>0/500</span>
+          <button class="similarity-modal__submit" type="submit" data-similarity-submit>전송</button>
+        </div>
+        <p class="similarity-modal__status" data-similarity-status role="status"></p>
+      </form>
+    </div>
   </div>
 </body>
 </html>

@@ -86,7 +86,8 @@
     ethicsCurrent: 1,
     ethicsUnlocked: false,
     ethicsSubmitting: false,
-    claiming: false
+    claiming: false,
+    submittingSimilarity: false
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -104,9 +105,6 @@
   const evidenceClaimOpen = document.querySelector("[data-evidence-claim-open]");
   const evidenceClaimStatus = document.querySelector("[data-evidence-claim-status]");
   const evidenceClaimArea = document.querySelector("[data-evidence-claim]");
-  const caseNoteArea = document.querySelector("[data-note-key='case']");
-  const caseNoteStatus = document.querySelector("[data-note-status='case']");
-  const clearCaseNote = document.querySelector("[data-clear-note='case']");
   const apiStatus = document.querySelector("[data-api-status]");
   const ethicsQuestions = Array.isArray(window.KitEthicsQuizQuestions) ? window.KitEthicsQuizQuestions : [];
   const ethicsOpenButton = document.querySelector("[data-student-ethics-open]");
@@ -120,10 +118,18 @@
   const ethicsRewardCredits = 1;
   const evidenceRewardCredits = 1;
   const similarityForm = document.querySelector("[data-similarity-form]");
-  const similarityInput = document.querySelector("[data-similarity-sentence]");
+  const similarityOpenBtn = document.querySelector("[data-similarity-open]");
+  const similarityModal = document.querySelector("[data-similarity-modal]");
+  const similarityCloseBtn = document.querySelector("[data-similarity-close]");
+  const similarityBlanks = [...document.querySelectorAll("[data-similarity-blank]")];
   const similarityCount = document.querySelector("[data-similarity-count]");
   const similaritySubmit = document.querySelector("[data-similarity-submit]");
   const similarityStatus = document.querySelector("[data-similarity-status]");
+  const similarityLaunchStatus = document.querySelector("[data-similarity-launch-status]");
+  // 문장 틀: 빈칸을 이 순서로 조립한다. 고정 문구는 총 80자로, 빈칸 maxlength 합(410)과
+  // 합쳐도 490자라 서버 500자 제한 안에 항상 들어온다.
+  const similarityTemplate = (v) =>
+    `범인은 ${v.culprit || ""}이다. 범인은 ${v.tool || ""}를 사용해 ${v.method || ""} 해서 시험 예상 문제가 유출되었다. 그 근거는 ${v.evidence || ""}이다. 범인에게 가장 부족했던 AI 윤리 역량은 ${v.competency || ""}이며, 그 이유는 ${v.reason || ""}`;
 
   function normalize(text) {
     return String(text || "").toLowerCase().replace(/\s+/g, "");
@@ -218,9 +224,6 @@
     return `kit-evidence-cards:${state.classId}:${state.team || state.user || "guest"}`;
   }
 
-  function noteStorageKey() {
-    return `kit-case-note:${state.classId}:${state.team || state.user || "guest"}`;
-  }
 
   function ethicsStorageKey() {
     return `kit-ethics-quiz:${state.classId}:${state.team || state.user || "guest"}`;
@@ -868,53 +871,87 @@
     }
   }
 
-  function setupCaseNote() {
-    if (!caseNoteArea) return;
-    caseNoteArea.value = localStorage.getItem(noteStorageKey()) || "";
-    const setStatus = (text) => {
-      if (caseNoteStatus) caseNoteStatus.textContent = text;
-    };
-    caseNoteArea.addEventListener("input", () => {
-      localStorage.setItem(noteStorageKey(), caseNoteArea.value);
-      setStatus("자동 저장");
-    });
-    clearCaseNote?.addEventListener("click", () => {
-      caseNoteArea.value = "";
-      localStorage.removeItem(noteStorageKey());
-      setStatus("비움");
-      caseNoteArea.focus();
-    });
+  function similarityDraftKey() {
+    return `kit-similarity-draft:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function similarityBlankValues() {
+    const values = {};
+    similarityBlanks.forEach((el) => { values[el.dataset.similarityBlank] = String(el.value || "").trim(); });
+    return values;
+  }
+
+  function assembleSimilaritySentence() {
+    return similarityTemplate(similarityBlankValues()).replace(/\s+/g, " ").trim();
   }
 
   function updateSimilarityCounter() {
-    if (!similarityInput || !similarityCount) return;
-    const length = String(similarityInput.value || "").length;
+    if (!similarityCount) return;
+    const length = assembleSimilaritySentence().length;
     similarityCount.textContent = `${length}/${similaritySentenceLimit}`;
     similarityCount.classList.toggle("is-bad", length > similaritySentenceLimit);
   }
 
+  // 제출 기록이 아니라 작성 중인 초안만 팀별 localStorage에 저장한다(새로고침·재열람 대비).
+  function saveSimilarityDraft() {
+    try {
+      localStorage.setItem(similarityDraftKey(), JSON.stringify(similarityBlankValues()));
+    } catch {}
+  }
+
+  function loadSimilarityDraft() {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(similarityDraftKey()) || "{}") || {};
+    } catch {
+      saved = {};
+    }
+    similarityBlanks.forEach((el) => {
+      const key = el.dataset.similarityBlank;
+      if (typeof saved[key] === "string") el.value = saved[key];
+    });
+    updateSimilarityCounter();
+  }
+
+  function allSimilarityBlanksFilled() {
+    return similarityBlanks.length > 0 && similarityBlanks.every((el) => String(el.value || "").trim().length > 0);
+  }
+
+  function openSimilarityModal() {
+    if (!similarityModal) return;
+    loadSimilarityDraft();
+    setSimilarityStatus("");
+    similarityModal.hidden = false;
+    document.body.classList.add("lightbox-open");
+    similarityBlanks[0]?.focus({ preventScroll: true });
+  }
+
+  function closeSimilarityModal() {
+    if (!similarityModal) return;
+    similarityModal.hidden = true;
+    document.body.classList.remove("lightbox-open");
+  }
+
   async function submitSimilaritySentence(event) {
     event.preventDefault();
-    if (!similarityInput) return;
-
-    const sentence = String(similarityInput.value || "").replace(/\s+/g, " ").trim();
+    if (state.submittingSimilarity) return;
     if (!state.team) {
       setSimilarityStatus("학생 팀 정보가 없습니다.", "bad");
       return;
     }
-    if (!sentence) {
-      setSimilarityStatus("보낼 문장을 입력하세요.", "bad");
-      similarityInput.focus();
+    if (!allSimilarityBlanksFilled()) {
+      setSimilarityStatus("빈칸을 모두 채워 주세요.", "bad");
       return;
     }
+    const sentence = assembleSimilaritySentence();
     if (sentence.length > similaritySentenceLimit) {
       setSimilarityStatus(`${similaritySentenceLimit}자 이하로 줄여 주세요.`, "bad");
-      similarityInput.focus();
       return;
     }
 
+    state.submittingSimilarity = true;
     if (similaritySubmit) similaritySubmit.disabled = true;
-    setSimilarityStatus("남은 질문권을 확인한 뒤 선생님 화면으로 전송 중입니다.");
+    setSimilarityStatus("선생님 화면으로 전송 중입니다...");
 
     try {
       await refreshCredits();
@@ -939,17 +976,32 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "전송 실패");
 
-      setSimilarityStatus(`선생님 화면으로 전송했습니다. 남은 질문권 ${remainingCredits}개도 함께 반영됩니다.`, "ok");
+      // 초안은 지우지 않는다: 나중에 재전송 기능에서 다시 열어 수정할 수 있게 남긴다.
+      setSimilarityStatus("선생님 화면으로 전송했습니다.", "ok");
     } catch (error) {
       setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
     } finally {
+      state.submittingSimilarity = false;
       if (similaritySubmit) similaritySubmit.disabled = false;
     }
   }
 
   function setupSimilaritySentenceForm() {
     updateSimilarityCounter();
-    similarityInput?.addEventListener("input", updateSimilarityCounter);
+    similarityBlanks.forEach((el) => {
+      el.addEventListener("input", () => {
+        saveSimilarityDraft();
+        updateSimilarityCounter();
+      });
+    });
+    similarityOpenBtn?.addEventListener("click", openSimilarityModal);
+    similarityCloseBtn?.addEventListener("click", closeSimilarityModal);
+    similarityModal?.addEventListener("click", (event) => {
+      if (event.target === similarityModal) closeSimilarityModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && similarityModal && !similarityModal.hidden) closeSimilarityModal();
+    });
     similarityForm?.addEventListener("submit", submitSimilaritySentence);
   }
 
@@ -1785,7 +1837,6 @@
   loadEvidenceCards();
   renderEvidenceBoard();
   syncEvidenceCardsWithServer();
-  setupCaseNote();
   setupSimilaritySentenceForm();
   setupStudentEthicsQuiz();
   renderStudentLogs();
