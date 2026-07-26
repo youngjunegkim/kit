@@ -61,13 +61,17 @@ const goldenKeyEffects = {
 };
 // 6종 × 2장 = 코드 12개. 같은 효과라도 카드가 2장이면 코드도 2개(같은 코드는 팀당 한 번만).
 // (주체성 카드는 "선생님께 원하는 교실을 말하고 조사" — 교사 승인으로 처리하므로 코드가 없다.)
+//
+// 값은 증거 코드(39275 등)처럼 규칙성 없는 무작위 6자리다. 810101·810201 식으로 패턴이
+// 있으면 학생이 카드 하나만 받아도 나머지를 찍어 황금열쇠 칸에 가지 않고 효과를 얻을 수 있어,
+// 서로 연관 없는 값으로 정했다(한 쌍의 두 코드끼리 첫 자리도 겹치지 않게 배정).
 const goldenKeyCards = {
-  810101: "reliability", 810102: "reliability",
-  810201: "inclusion", 810202: "inclusion",
-  810301: "accountability", 810302: "accountability",
-  810401: "hallucination", 810402: "hallucination",
-  810501: "deepfake", 810502: "deepfake",
-  810601: "bias", 810602: "bias"
+  906458: "reliability", 149489: "reliability",
+  913561: "inclusion", 382866: "inclusion",
+  392990: "accountability", 144051: "accountability",
+  505132: "hallucination", 281797: "hallucination",
+  244391: "deepfake", 564376: "deepfake",
+  337446: "bias", 974399: "bias"
 };
 
 // 안전장치: 황금열쇠 코드가 증거 코드와 하나라도 겹치면 로드 시점에 즉시 실패시킨다.
