@@ -647,7 +647,7 @@
     if (list.length && !available.length) {
       const done = document.createElement("p");
       done.className = "evidence-claim-empty";
-      done.textContent = "이 교실의 증거를 모두 획득했습니다.";
+      done.textContent = "이 교실의 증거는 모두 모았어요. 다시 질문권을 받아 가세요.";
       const bonusAmount = Number(state.claimRevisitBonus) || 0;
       const bonusButton = document.createElement("button");
       bonusButton.type = "button";
@@ -669,7 +669,7 @@
     // 한 승인에 증거는 하나만 선택할 수 있음을 명시 (선택하면 승인이 소거됨).
     const hint = document.createElement("p");
     hint.className = "evidence-claim-hint";
-    hint.textContent = "증거 하나를 선택하세요. 한 번 선택하면 나머지는 다시 승인을 받아야 합니다.";
+    hint.textContent = "증거 하나만 고를 수 있어요. 나머지 하나는 이 칸에 다시 도착했을 때 받을 수 있습니다.";
     evidenceClaimArea.append(hint);
 
     const optionsWrap = document.createElement("div");
@@ -724,7 +724,7 @@
 
       if (!data.grant) {
         closeEvidenceClaim();
-        setClaimStatus("아직 승인되지 않았습니다. 선생님께 확인하세요.", "bad");
+        setClaimStatus("아직 선생님이 승인하지 않았어요. 도착한 칸을 선생님께 말씀드리세요.", "bad");
         return;
       }
 
@@ -781,11 +781,11 @@
         // 실패 원인별 안내.
         if (data.code === "NO_GRANT") {
           closeEvidenceClaim();
-          setClaimStatus("승인이 만료되었습니다. 선생님께 다시 요청하세요.", "bad");
+          setClaimStatus("승인 시간이 지나서 닫혔어요. 선생님께 다시 말씀드리세요.", "bad");
         } else if (data.code === "ALREADY_REDEEMED") {
           sessionClaimedKeys.add(`${roomId}:${index}`);
           if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
-          setClaimStatus("이미 획득한 증거입니다.", "bad");
+          setClaimStatus("이미 가지고 있는 증거예요. 다른 증거를 골라 주세요.", "bad");
         } else {
           if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
           setClaimStatus(data.error || "증거를 받지 못했습니다.", "bad");
@@ -793,13 +793,12 @@
         return;
       }
 
-      // 백업 코드 입력 경로와 동일한 성공 안내(질문권 몇 개 + 어떤 증거).
+      // 받은 질문권 개수가 먼저 눈에 들어오도록 안내한다.
       sessionClaimedKeys.add(`${roomId}:${index}`);
       applyCredits(data.credits);
       const card = storeEvidenceCard(data.code, data.evidence);
-      const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
       closeEvidenceClaim();
-      setClaimStatus(`${teamLabelFor(state.team)} 질문권 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setClaimStatus(`질문권 ${Number(data.added || evidenceRewardCredits)}개를 받았어요 · ${card.room} · ${card.evidence}`, "ok");
     } catch (error) {
       setClaimStatus(error.message || "증거를 받지 못했습니다.", "bad");
     } finally {
@@ -844,7 +843,7 @@
         // 실패 원인별 안내.
         if (data.code === "NO_GRANT") {
           closeEvidenceClaim();
-          setClaimStatus("승인이 만료되었습니다. 선생님께 다시 요청하세요.", "bad");
+          setClaimStatus("승인 시간이 지나서 닫혔어요. 선생님께 다시 말씀드리세요.", "bad");
         } else if (data.code === "EVIDENCE_REMAINING") {
           if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
           setClaimStatus("아직 받을 수 있는 증거가 있습니다. 먼저 증거를 선택하세요.", "bad");
@@ -860,7 +859,7 @@
       // 성공: 질문권 표시 갱신 후 영역을 닫고, 받은 개수를 안내한다.
       applyCredits(data.credits);
       closeEvidenceClaim();
-      setClaimStatus(`${teamLabelFor(state.team)} 질문권 ${Number(data.added || 0)}개 추가 · 재방문 보너스`, "ok");
+      setClaimStatus(`질문권 ${Number(data.added || 0)}개를 받았어요 · 재방문 보너스`, "ok");
     } catch (error) {
       setClaimStatus(error.message || "보너스를 받지 못했습니다.", "bad");
     } finally {
