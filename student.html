@@ -1557,6 +1557,71 @@
     .similarity-modal__status.is-ok { color: #116c46; }
     .similarity-modal__status.is-bad { color: #b3221d; }
 
+    .similarity-confirm { display: grid; gap: 12px; }
+    .similarity-confirm[hidden] { display: none; }
+
+    .similarity-confirm__label {
+      margin: 0;
+      color: #24180f;
+      font-size: 1rem;
+      font-weight: 950;
+    }
+
+    .similarity-confirm__sentence {
+      margin: 0;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #ecdcbb;
+      padding: 12px;
+      color: #24180f;
+      font-size: 0.92rem;
+      font-weight: 800;
+      line-height: 1.55;
+    }
+
+    .similarity-confirm__notice {
+      margin: 0;
+      border-radius: 8px;
+      background: #fdecec;
+      border: 1px solid #f2c4c4;
+      padding: 9px 11px;
+      color: #a5211c;
+      font-size: 0.85rem;
+      font-weight: 900;
+    }
+
+    .similarity-confirm__notice[hidden] { display: none; }
+
+    .similarity-confirm__actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .similarity-confirm__back {
+      padding: 11px 18px;
+      border-radius: 9px;
+      background: #efe6d4;
+      color: #5a321c;
+      font-weight: 900;
+    }
+
+    .similarity-confirm__send {
+      padding: 11px 22px;
+      border-radius: 9px;
+      background: #b91f1f;
+      color: #fff8ec;
+      font-size: 0.98rem;
+      font-weight: 950;
+    }
+
+    .similarity-confirm__send:disabled {
+      background: #c9b79a;
+      cursor: default;
+    }
+
     .evidence-vault-card {
       border: 1px solid rgba(255, 255, 255, 0.62);
       border-radius: 8px;
@@ -2180,8 +2245,17 @@
           <span class="similarity-modal__count" data-similarity-count>0/500</span>
           <button class="similarity-modal__submit" type="submit" data-similarity-submit>전송</button>
         </div>
-        <p class="similarity-modal__status" data-similarity-status role="status"></p>
       </form>
+      <div class="similarity-confirm" data-similarity-confirm hidden>
+        <p class="similarity-confirm__label">이 문장을 선생님께 보낼까요?</p>
+        <blockquote class="similarity-confirm__sentence" data-similarity-confirm-sentence></blockquote>
+        <p class="similarity-confirm__notice" data-similarity-confirm-notice hidden></p>
+        <div class="similarity-confirm__actions">
+          <button class="similarity-confirm__back" type="button" data-similarity-confirm-cancel>뒤로</button>
+          <button class="similarity-confirm__send" type="button" data-similarity-confirm-send>보내기</button>
+        </div>
+      </div>
+      <p class="similarity-modal__status" data-similarity-status role="status"></p>
     </div>
   </div>
 </body>

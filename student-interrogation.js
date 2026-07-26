@@ -87,7 +87,9 @@
     ethicsUnlocked: false,
     ethicsSubmitting: false,
     claiming: false,
-    submittingSimilarity: false
+    submittingSimilarity: false,
+    similaritySubmitCount: 0,
+    similarityResubmitCost: 5
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -126,6 +128,12 @@
   const similaritySubmit = document.querySelector("[data-similarity-submit]");
   const similarityStatus = document.querySelector("[data-similarity-status]");
   const similarityLaunchStatus = document.querySelector("[data-similarity-launch-status]");
+  const similarityConfirm = document.querySelector("[data-similarity-confirm]");
+  const similarityConfirmSentence = document.querySelector("[data-similarity-confirm-sentence]");
+  const similarityConfirmNotice = document.querySelector("[data-similarity-confirm-notice]");
+  const similarityConfirmSend = document.querySelector("[data-similarity-confirm-send]");
+  const similarityConfirmCancel = document.querySelector("[data-similarity-confirm-cancel]");
+  const similarityResubmitCost = 5;
   // 문장 틀: 빈칸을 이 순서로 조립한다. 고정 문구는 총 80자로, 빈칸 maxlength 합(410)과
   // 합쳐도 490자라 서버 500자 제한 안에 항상 들어온다.
   const similarityTemplate = (v) =>
@@ -920,19 +928,87 @@
   function openSimilarityModal() {
     if (!similarityModal) return;
     loadSimilarityDraft();
+    hideSimilarityConfirm();
     setSimilarityStatus("");
     similarityModal.hidden = false;
     document.body.classList.add("lightbox-open");
     similarityBlanks[0]?.focus({ preventScroll: true });
+    // 서버 기준으로 이미 보냈는지와 남은 질문권을 확인해 버튼 문구·잠금을 정한다.
+    fetchSimilarityStatus();
+    refreshCredits().then(updateSimilaritySubmitButton).catch(() => {});
   }
 
   function closeSimilarityModal() {
     if (!similarityModal) return;
     similarityModal.hidden = true;
+    hideSimilarityConfirm();
     document.body.classList.remove("lightbox-open");
   }
 
-  async function submitSimilaritySentence(event) {
+  // 팝업을 열 때 1회 호출(폴링 아님). 팀의 제출 횟수를 받아 버튼 문구를 정한다.
+  async function fetchSimilarityStatus() {
+    if (!state.team) return;
+    try {
+      const response = await fetch(`/api/similarity-sentences?team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      state.similaritySubmitCount = Number(data.submitCount) || 0;
+      if (Number(data.resubmitCost) > 0) state.similarityResubmitCost = Number(data.resubmitCost);
+      updateSimilaritySubmitButton();
+    } catch {}
+  }
+
+  function updateSimilaritySubmitButton() {
+    if (!similaritySubmit) return;
+    const isResubmit = state.similaritySubmitCount >= 1;
+    const cost = state.similarityResubmitCost;
+    if (!isResubmit) {
+      similaritySubmit.textContent = "전송";
+      similaritySubmit.disabled = false;
+      return;
+    }
+    similaritySubmit.textContent = `다시 보내기 (질문권 ${cost}개)`;
+    if (currentQuestionCredits() < cost) {
+      similaritySubmit.disabled = true;
+      setSimilarityStatus(`질문권이 ${cost}개 있어야 다시 보낼 수 있어요. 지금은 ${currentQuestionCredits()}개예요.`, "bad");
+    } else {
+      similaritySubmit.disabled = false;
+    }
+  }
+
+  function showSimilarityConfirm(sentence) {
+    if (!similarityConfirm) return;
+    if (similarityConfirmSentence) similarityConfirmSentence.textContent = sentence;
+    const isResubmit = state.similaritySubmitCount >= 1;
+    if (similarityConfirmNotice) {
+      if (isResubmit) {
+        similarityConfirmNotice.textContent = `다시 보내면 질문권 ${state.similarityResubmitCost}개가 차감됩니다.`;
+        similarityConfirmNotice.hidden = false;
+      } else {
+        similarityConfirmNotice.hidden = true;
+      }
+    }
+    if (similarityConfirmSend) similarityConfirmSend.textContent = isResubmit ? `보내기 (질문권 ${state.similarityResubmitCost}개)` : "보내기";
+    if (similarityForm) similarityForm.hidden = true;
+    similarityConfirm.hidden = false;
+    setSimilarityStatus("");
+  }
+
+  function hideSimilarityConfirm() {
+    if (similarityConfirm) similarityConfirm.hidden = true;
+    if (similarityForm) similarityForm.hidden = false;
+  }
+
+  // 폼 제출: 검증 후 확인 뷰로 넘어간다(여기서는 아직 보내지 않는다).
+  function reviewSimilaritySentence(event) {
     event.preventDefault();
     if (state.submittingSimilarity) return;
     if (!state.team) {
@@ -948,9 +1024,24 @@
       setSimilarityStatus(`${similaritySentenceLimit}자 이하로 줄여 주세요.`, "bad");
       return;
     }
+    if (state.similaritySubmitCount >= 1 && currentQuestionCredits() < state.similarityResubmitCost) {
+      setSimilarityStatus(`질문권이 ${state.similarityResubmitCost}개 있어야 다시 보낼 수 있어요.`, "bad");
+      return;
+    }
+    showSimilarityConfirm(sentence);
+  }
+
+  // 확인 뷰의 '보내기': 실제 전송. 연타 방지로 5개가 두 번 차감되지 않게 한다.
+  async function sendSimilaritySentence() {
+    if (state.submittingSimilarity) return;
+    if (!state.team) {
+      setSimilarityStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    const sentence = assembleSimilaritySentence();
 
     state.submittingSimilarity = true;
-    if (similaritySubmit) similaritySubmit.disabled = true;
+    if (similarityConfirmSend) similarityConfirmSend.disabled = true;
     setSimilarityStatus("선생님 화면으로 전송 중입니다...");
 
     try {
@@ -974,15 +1065,30 @@
         })
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.ok) throw new Error(data.error || "전송 실패");
+      if (!response.ok || !data.ok) {
+        if (data.code === "INSUFFICIENT_CREDITS") {
+          if (data.credits !== undefined) applyCredits(data.credits);
+          hideSimilarityConfirm();
+          updateSimilaritySubmitButton();
+          setSimilarityStatus(`질문권이 ${data.needed || state.similarityResubmitCost}개 있어야 다시 보낼 수 있어요.`, "bad");
+          return;
+        }
+        throw new Error(data.error || "전송 실패");
+      }
 
-      // 초안은 지우지 않는다: 나중에 재전송 기능에서 다시 열어 수정할 수 있게 남긴다.
-      setSimilarityStatus("선생님 화면으로 전송했습니다.", "ok");
+      if (data.credits !== undefined) applyCredits(data.credits);
+      state.similaritySubmitCount = Number(data.submitCount) || state.similaritySubmitCount + 1;
+      hideSimilarityConfirm();
+      updateSimilaritySubmitButton();
+      const charged = Number(data.charged) || 0;
+      // 초안은 남겨 둔다(다시 열어 수정·재전송 가능).
+      setSimilarityStatus(charged ? `질문권 ${charged}개가 차감되고 전송됐어요.` : "선생님 화면으로 전송했어요.", "ok");
     } catch (error) {
+      hideSimilarityConfirm();
       setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
     } finally {
       state.submittingSimilarity = false;
-      if (similaritySubmit) similaritySubmit.disabled = false;
+      if (similarityConfirmSend) similarityConfirmSend.disabled = false;
     }
   }
 
@@ -1002,7 +1108,9 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && similarityModal && !similarityModal.hidden) closeSimilarityModal();
     });
-    similarityForm?.addEventListener("submit", submitSimilaritySentence);
+    similarityForm?.addEventListener("submit", reviewSimilaritySentence);
+    similarityConfirmSend?.addEventListener("click", sendSimilaritySentence);
+    similarityConfirmCancel?.addEventListener("click", hideSimilarityConfirm);
   }
 
   function updateEvidenceControls() {

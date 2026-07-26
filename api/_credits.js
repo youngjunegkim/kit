@@ -14,6 +14,7 @@ const memoryEthicsQuizRedeemStore = globalThis.__kitEthicsQuizRedeemStore || new
 const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
 const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore || [];
+const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -27,6 +28,7 @@ globalThis.__kitEthicsQuizRedeemStore = memoryEthicsQuizRedeemStore;
 globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
 globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
+globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
@@ -181,6 +183,10 @@ function ethicsQuestionKey() {
 
 function similaritySentenceKey() {
   return `kit:${storeNamespace()}:similarity-sentences`;
+}
+
+function similaritySubmitKeyFor(team) {
+  return `kit:${storeNamespace()}:similarity-submits:${team}`;
 }
 
 function hasPersistentStore() {
@@ -764,6 +770,31 @@ function cleanSimilaritySentenceEntry(entry = {}) {
   };
 }
 
+async function getSimilaritySubmitCount(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    return cleanCredits(memorySimilaritySubmitStore.get(similaritySubmitKeyFor(normalized)) || 0);
+  }
+
+  return cleanCredits(await redisCommand(["GET", similaritySubmitKeyFor(normalized)]));
+}
+
+async function bumpSimilaritySubmitCount(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    const key = similaritySubmitKeyFor(normalized);
+    const next = cleanCredits(memorySimilaritySubmitStore.get(key) || 0) + 1;
+    memorySimilaritySubmitStore.set(key, next);
+    return next;
+  }
+
+  return cleanCredits(await redisCommand(["INCR", similaritySubmitKeyFor(normalized)]));
+}
+
 async function recordSimilaritySentence(entry) {
   const cleanEntry = cleanSimilaritySentenceEntry(entry);
   if (!cleanEntry) return null;
@@ -803,6 +834,7 @@ async function getSimilaritySentences(limit = maxReturnedEvidenceLogs) {
 }
 
 async function clearSimilaritySentences() {
+  // 교사가 문장을 초기화하면 제출 횟수도 함께 초기화해 다시 무료 제출이 되게 한다.
   if (!hasPersistentStore()) {
     const namespace = storeNamespace();
     const removed = memorySimilaritySentenceStore.filter((entry) => entry.namespace === namespace);
@@ -811,11 +843,13 @@ async function clearSimilaritySentences() {
         memorySimilaritySentenceStore.splice(index, 1);
       }
     }
+    teams.forEach((team) => memorySimilaritySubmitStore.delete(similaritySubmitKeyFor(team)));
     return removed;
   }
 
   const removed = await getSimilaritySentences(maxReturnedEvidenceLogs);
   await redisCommand(["DEL", similaritySentenceKey()]);
+  await redisCommand(["DEL", ...teams.map(similaritySubmitKeyFor)]);
   return removed;
 }
 
@@ -1059,6 +1093,44 @@ async function consumeCredit(team) {
   return { ok: true, team: normalized, remaining };
 }
 
+// consumeCredit과 같은 방식(원자적 Lua 차감)을 amount만큼 일반화한 함수.
+// 잔량이 amount보다 적으면 아무것도 깎지 않고 실패로 돌려준다(전부-또는-전무).
+async function consumeCredits(team, amount) {
+  const normalized = normalizeTeam(team);
+  const spend = cleanCredits(amount);
+  if (!normalized) {
+    return { ok: false, team: "", remaining: 0, reason: "INVALID_TEAM" };
+  }
+  if (spend <= 0) {
+    return { ok: true, team: normalized, remaining: cleanCredits(await getCredits(normalized)) };
+  }
+
+  if (!hasPersistentStore()) {
+    const key = keyFor(normalized);
+    const current = cleanCredits(memoryStore.get(key) || 0);
+    if (current < spend) {
+      return { ok: false, team: normalized, remaining: current, reason: "NO_CREDITS" };
+    }
+    const remaining = current - spend;
+    memoryStore.set(key, remaining);
+    return { ok: true, team: normalized, remaining };
+  }
+
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "local spend = tonumber(ARGV[1])",
+    "if current < spend then return -1 end",
+    "current = current - spend",
+    "redis.call('SET', KEYS[1], current)",
+    "return current"
+  ].join("; ");
+  const remaining = Number(await redisCommand(["EVAL", script, "1", keyFor(normalized), String(spend)]));
+  if (!Number.isFinite(remaining) || remaining < 0) {
+    return { ok: false, team: normalized, remaining: cleanCredits(await getCredits(normalized)), reason: "NO_CREDITS" };
+  }
+  return { ok: true, team: normalized, remaining };
+}
+
 module.exports = {
   addCredits,
   addCustomEthicsQuestion,
@@ -1069,6 +1141,7 @@ module.exports = {
   clearSimilaritySentences,
   clearEthicsQuizRedemptions,
   consumeCredit,
+  consumeCredits,
   clearQuestionLogs,
   currentClassId,
   getAllCredits,
@@ -1085,6 +1158,8 @@ module.exports = {
   getQuestionCount,
   getQuestionLogs,
   getSimilaritySentences,
+  getSimilaritySubmitCount,
+  bumpSimilaritySubmitCount,
   getPresence,
   grantCredits,
   hasPersistentStore,

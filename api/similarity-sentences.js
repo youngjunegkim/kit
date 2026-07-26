@@ -1,6 +1,10 @@
 const {
+  bumpSimilaritySubmitCount,
   clearSimilaritySentences,
+  consumeCredits,
+  getCredits,
   getSimilaritySentences,
+  getSimilaritySubmitCount,
   hasPersistentStore,
   normalizeTeam,
   recordSimilaritySentence,
@@ -9,6 +13,7 @@ const {
 } = require("./_credits");
 
 const maxSentenceChars = 500;
+const resubmitCost = 5;
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
@@ -93,6 +98,23 @@ async function handleSimilaritySentences(request, response) {
     const role = String(headerValue(request, "x-kit-role") || queryValue(request, "role") || "").toLowerCase();
 
     if (request.method === "GET") {
+      // 학생은 자기 팀의 제출 횟수만 조회한다(팝업 열 때 버튼 문구 결정용, 1회성).
+      if (role === "student") {
+        const team = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || queryValue(request, "team"));
+        if (!team) {
+          sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+          return;
+        }
+        const submitCount = await getSimilaritySubmitCount(team);
+        sendJson(response, 200, {
+          ok: true,
+          team,
+          submitCount,
+          resubmitCost,
+          persistent: hasPersistentStore()
+        });
+        return;
+      }
       if (role !== "teacher") {
         sendJson(response, 403, { error: "Teacher role is required.", code: "TEACHER_ROLE_REQUIRED" });
         return;
@@ -148,15 +170,58 @@ async function handleSimilaritySentences(request, response) {
       return;
     }
 
+    // 팀당 첫 제출은 무료, 이후 재전송은 질문권 5개 차감.
+    const submitCount = await getSimilaritySubmitCount(team);
+    const isResubmit = submitCount >= 1;
+
+    // 재전송인데 질문권이 부족하면 저장도 차감도 하지 않고 거부한다.
+    let credits = null;
+    if (isResubmit) {
+      credits = Math.max(0, Number(await getCredits(team)) || 0);
+      if (credits < resubmitCost) {
+        sendJson(response, 409, {
+          error: "질문권이 부족합니다.",
+          code: "INSUFFICIENT_CREDITS",
+          needed: resubmitCost,
+          credits,
+          submitCount
+        });
+        return;
+      }
+    }
+
+    // 문장을 먼저 저장하고, 그 다음에 질문권을 차감한다. (차감 먼저 하면 저장 실패 시
+    // 학생이 5개만 잃는 상황이 생김. 반대 순서면 최악이 공짜 재전송이라 덜 나쁘다.)
     const entry = await recordSimilaritySentence({
       team,
       user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
       sentence,
       remainingCredits: body.remainingCredits
     });
+    if (!entry) {
+      sendJson(response, 503, { error: "Similarity sentence store failed.", fallback: true });
+      return;
+    }
+
+    // 심문 시 질문권 1개를 깎는 consumeCredit과 같은 방식(원자적 Lua 차감)으로 5개를 깎는다.
+    // 저장은 이미 끝났으므로, 혹시 경합으로 차감이 실패해도(공짜 재전송) 저장은 남는다.
+    let charged = 0;
+    if (isResubmit) {
+      const spend = await consumeCredits(team, resubmitCost);
+      credits = spend.ok ? spend.remaining : Math.max(0, Number(await getCredits(team)) || 0);
+      charged = spend.ok ? resubmitCost : 0;
+    } else {
+      credits = Math.max(0, Number(await getCredits(team)) || 0);
+    }
+    const newSubmitCount = await bumpSimilaritySubmitCount(team);
+
     sendJson(response, 200, {
       ok: true,
       sentence: publicSentence(entry),
+      submitCount: newSubmitCount,
+      charged,
+      credits,
+      resubmitCost,
       persistent: hasPersistentStore()
     });
   } catch (error) {
