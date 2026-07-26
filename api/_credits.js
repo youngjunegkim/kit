@@ -400,7 +400,45 @@ async function clearEvidenceGrant(team) {
 }
 
 async function getAllEvidenceGrants() {
-  const entries = await Promise.all(teams.map(async (team) => [team, await getEvidenceGrant(team)]));
+  const now = Date.now();
+
+  // getAllCredits 등은 팀별 GET을 도는데, 승인 현황은 팀당 키가 하나뿐이라
+  // MGET으로 한 번에 읽어 Redis 명령을 8건에서 1건으로 줄인다.
+  if (!hasPersistentStore()) {
+    const entries = teams.map((team) => {
+      const key = evidenceGrantKeyFor(team);
+      const grant = memoryEvidenceGrantStore.get(key);
+      if (grant && now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+        memoryEvidenceGrantStore.delete(key);
+        return [team, null];
+      }
+      return [team, grant || null];
+    });
+    return Object.fromEntries(entries);
+  }
+
+  const raws = await redisCommand(["MGET", ...teams.map(evidenceGrantKeyFor)]);
+  const staleKeys = [];
+  const entries = teams.map((team, index) => {
+    const raw = Array.isArray(raws) ? raws[index] : null;
+    if (!raw) return [team, null];
+    let grant = null;
+    try {
+      grant = cleanEvidenceGrant(JSON.parse(raw));
+    } catch {
+      grant = null;
+    }
+    if (!grant || now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+      staleKeys.push(evidenceGrantKeyFor(team));
+      return [team, null];
+    }
+    return [team, grant];
+  });
+
+  // 만료·손상된 승인만 한 번에 정리 (있을 때만 명령 1건 추가).
+  if (staleKeys.length) {
+    await redisCommand(["DEL", ...staleKeys]);
+  }
   return Object.fromEntries(entries);
 }
 

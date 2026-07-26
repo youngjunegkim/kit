@@ -220,10 +220,13 @@ async function handleEvidenceCode(request, response) {
         return;
       }
 
+      // 교사 GET에만 승인 현황을 싣는다(학생 GET에는 넣지 않음). 최초 로드·수동
+      // 새로고침에서만 호출되고 폴링되지 않으므로 getAllEvidenceGrants 비용을 감당한다.
       sendJson(response, 200, {
         evidenceLogs: logs,
         credits: await getAllCredits(),
         granted: await getAllGrantedCredits(),
+        grants: await getAllEvidenceGrants(),
         persistent: hasPersistentStore()
       });
       return;
