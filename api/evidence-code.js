@@ -1,4 +1,5 @@
 const {
+  areEvidenceCodesRedeemed,
   clearEvidenceGrant,
   clearEvidenceRedemptions,
   getAllCredits,
@@ -35,6 +36,7 @@ const evidenceCodes = {
   13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
 };
 const evidenceRewardCredits = 1;
+const evidenceRevisitBonusCredits = 2;
 
 // evidenceCodes에서 방 카탈로그를 파생한다. roomId → { name, options: [{code, index, ...}] }
 const roomCatalog = Object.entries(evidenceCodes).reduce((catalog, [code, entry]) => {
@@ -350,6 +352,8 @@ async function handleEvidenceCode(request, response) {
         team: claimTeam,
         grant,
         options: roomOptionsFor(grant.roomId),
+        // 재방문 보너스 액수를 상수로 내려보내 학생 화면 버튼 라벨이 서버와 어긋나지 않게 한다.
+        revisitBonus: evidenceRevisitBonusCredits,
         persistent: hasPersistentStore()
       });
       return;
@@ -425,6 +429,76 @@ async function handleEvidenceCode(request, response) {
         credits: result.credits,
         granted: result.granted,
         logs: await getQuestionLogs(pickTeam),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    // 학생: 이미 두 증거를 모두 획득한 방을 재방문하면 보너스 질문권을 받는다.
+    // 승인 단위 중복 방지: 지급하면 승인이 소거되어 재승인 없이는 또 못 받는다.
+    if (action === "revisit") {
+      const revisitRole = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
+      const revisitTeam = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team);
+      if (revisitRole !== "student") {
+        sendJson(response, 403, { error: "Student role is required.", code: "STUDENT_ROLE_REQUIRED" });
+        return;
+      }
+      if (!revisitTeam) {
+        sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+        return;
+      }
+
+      const grant = await getEvidenceGrant(revisitTeam);
+      if (!grant) {
+        sendJson(response, 409, { error: "승인된 조사가 없습니다.", code: "NO_GRANT" });
+        return;
+      }
+      const roomId = String(body.roomId || "").trim();
+      if (grant.roomId !== roomId) {
+        sendJson(response, 403, { error: "승인된 방과 다른 방입니다.", code: "GRANT_ROOM_MISMATCH", grant });
+        return;
+      }
+
+      // 그 방의 증거 두 개를 실제로 모두 획득했는지 evidence-redeemed로 확인(SMEMBERS 1건).
+      // 아직 고를 게 남아 있으면 보너스만 받고 증거를 안 고르는 것을 막기 위해 거부한다.
+      const room = roomById(roomId);
+      const codes = room ? room.options.map((option) => option.code) : [];
+      const redeemedStatus = await areEvidenceCodesRedeemed(revisitTeam, codes);
+      const allRedeemed = codes.length > 0 && redeemedStatus.length === codes.length && redeemedStatus.every(Boolean);
+      if (!allRedeemed) {
+        sendJson(response, 409, {
+          error: "아직 고를 수 있는 증거가 남아 있습니다.",
+          code: "EVIDENCE_REMAINING",
+          grant,
+          options: roomOptionsFor(roomId)
+        });
+        return;
+      }
+
+      const result = await grantCredits(revisitTeam, evidenceRevisitBonusCredits);
+      const evidenceLog = await recordEvidenceRedemption({
+        team: revisitTeam,
+        user: decodedHeaderValue(request, "x-kit-user") || body.user || revisitTeam,
+        code: `REVISIT-${roomId}`,
+        room: room ? room.name : (grant.roomName || ""),
+        evidence: "재방문 보너스",
+        person: "",
+        added: evidenceRevisitBonusCredits,
+        remaining: result.credits
+      });
+      // 지급했으므로 승인을 소거한다. 재승인 없이는 또 받지 못한다.
+      await clearEvidenceGrant(revisitTeam);
+
+      sendJson(response, 200, {
+        ok: true,
+        revisitBonus: true,
+        roomId,
+        added: evidenceRevisitBonusCredits,
+        evidenceLog: publicEvidenceLog(evidenceLog),
+        team: revisitTeam,
+        credits: result.credits,
+        granted: result.granted,
+        logs: await getQuestionLogs(revisitTeam),
         persistent: hasPersistentStore()
       });
       return;

@@ -642,12 +642,20 @@
     const list = Array.isArray(options) ? options : [];
     const available = list.filter((option) => !isClaimOptionObtained(grant.roomId, option.index));
 
-    // 이미 두 증거를 모두 획득한 교실 (보드게임에서 같은 칸에 두 번 도착 등).
+    // 이미 두 증거를 모두 획득한 교실 (보드게임에서 같은 칸에 두 번 도착 등)에서는
+    // 빈손으로 넘어가지 않도록 재방문 보너스 질문권을 받는 버튼을 보여준다.
     if (list.length && !available.length) {
       const done = document.createElement("p");
       done.className = "evidence-claim-empty";
-      done.textContent = "이 교실의 증거는 모두 획득했습니다. 닫기를 눌러 주세요.";
-      evidenceClaimArea.append(done);
+      done.textContent = "이 교실의 증거를 모두 획득했습니다.";
+      const bonusAmount = Number(state.claimRevisitBonus) || 0;
+      const bonusButton = document.createElement("button");
+      bonusButton.type = "button";
+      bonusButton.className = "receive-credit-btn";
+      bonusButton.dataset.revisitBonus = "1";
+      bonusButton.dataset.claimRoom = grant.roomId;
+      bonusButton.textContent = bonusAmount ? `질문권 ${bonusAmount}개 받기` : "질문권 받기";
+      evidenceClaimArea.append(done, bonusButton);
       return;
     }
 
@@ -722,6 +730,8 @@
 
       state.claimGrant = data.grant;
       state.claimOptions = Array.isArray(data.options) ? data.options : [];
+      // 재방문 보너스 액수는 서버(claim 응답)에서 받아 버튼 라벨에 쓴다.
+      state.claimRevisitBonus = Number(data.revisitBonus) || 0;
       renderClaimArea(state.claimGrant, state.claimOptions);
       setClaimStatus(`${data.grant.roomName || "교실"} 조사가 승인되었습니다.`, "ok");
     } catch (error) {
@@ -795,6 +805,67 @@
     } finally {
       state.claiming = false;
       optionButtons.forEach((button) => { button.disabled = false; });
+    }
+  }
+
+  async function claimRevisitBonus(roomId) {
+    if (state.claiming) return;
+    if (!state.team) {
+      setClaimStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    state.claiming = true;
+    const bonusButton = evidenceClaimArea ? evidenceClaimArea.querySelector("[data-revisit-bonus]") : null;
+    if (bonusButton) bonusButton.disabled = true;
+    setClaimStatus("보너스를 받는 중...");
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "revisit",
+          roomId,
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        // 실패 원인별 안내.
+        if (data.code === "NO_GRANT") {
+          closeEvidenceClaim();
+          setClaimStatus("승인이 만료되었습니다. 선생님께 다시 요청하세요.", "bad");
+        } else if (data.code === "EVIDENCE_REMAINING") {
+          if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
+          setClaimStatus("아직 받을 수 있는 증거가 있습니다. 먼저 증거를 선택하세요.", "bad");
+        } else if (data.code === "GRANT_ROOM_MISMATCH") {
+          closeEvidenceClaim();
+          setClaimStatus("승인된 방과 다릅니다. 선생님께 확인하세요.", "bad");
+        } else {
+          setClaimStatus(data.error || "보너스를 받지 못했습니다.", "bad");
+        }
+        return;
+      }
+
+      // 성공: 질문권 표시 갱신 후 영역을 닫고, 받은 개수를 안내한다.
+      applyCredits(data.credits);
+      closeEvidenceClaim();
+      setClaimStatus(`${teamLabelFor(state.team)} 질문권 ${Number(data.added || 0)}개 추가 · 재방문 보너스`, "ok");
+    } catch (error) {
+      setClaimStatus(error.message || "보너스를 받지 못했습니다.", "bad");
+    } finally {
+      state.claiming = false;
+      if (bonusButton) bonusButton.disabled = false;
     }
   }
 
@@ -1754,6 +1825,11 @@
     if (event.target.closest("[data-evidence-claim-close]")) {
       closeEvidenceClaim();
       setClaimStatus("");
+      return;
+    }
+    const bonus = event.target.closest("[data-revisit-bonus]");
+    if (bonus) {
+      claimRevisitBonus(bonus.dataset.claimRoom);
       return;
     }
     const option = event.target.closest("[data-claim-index]");

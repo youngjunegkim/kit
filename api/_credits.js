@@ -328,6 +328,26 @@ async function redeemEvidenceCode(team, code) {
   return added === 1;
 }
 
+// 주어진 코드들이 팀의 evidence-redeemed 셋에 있는지 codes 순서대로 boolean 배열 반환.
+// SMEMBERS 한 번으로 읽는다(셋에 최대 10개라 부담 없음). SMISMEMBER 같은 최신 명령을
+// 피해 호환성을 확보한다.
+async function areEvidenceCodesRedeemed(team, codes = []) {
+  const normalized = normalizeTeam(team);
+  const list = (Array.isArray(codes) ? codes : [])
+    .map((code) => String(code || "").trim().toUpperCase())
+    .filter(Boolean);
+  if (!normalized || !list.length) return [];
+
+  if (!hasPersistentStore()) {
+    const set = memoryEvidenceRedeemStore.get(evidenceRedeemKeyFor(normalized)) || new Set();
+    return list.map((code) => set.has(code));
+  }
+
+  const members = await redisCommand(["SMEMBERS", evidenceRedeemKeyFor(normalized)]);
+  const owned = new Set(Array.isArray(members) ? members.map((member) => String(member)) : []);
+  return list.map((code) => owned.has(code));
+}
+
 function cleanEvidenceGrant(grant = {}) {
   const roomId = String(grant.roomId || "").trim().slice(0, 20);
   if (!roomId) return null;
@@ -1042,6 +1062,7 @@ async function consumeCredit(team) {
 module.exports = {
   addCredits,
   addCustomEthicsQuestion,
+  areEvidenceCodesRedeemed,
   classLabelFor,
   deleteCustomEthicsQuestion,
   clearEvidenceRedemptions,
