@@ -225,7 +225,16 @@
 
       const meta = document.createElement("div");
       meta.className = "evidence-redeem-entry__meta";
-      meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 1}개`;
+      // delta는 부호 있는 실제 반영량(황금열쇠 페널티는 음수). delta가 없는 옛 로그는
+      // added로 폴백해 예전처럼 "+N개"로 표시된다(하위 호환).
+      let delta = Number.isFinite(Number(entry.delta)) ? Math.round(Number(entry.delta)) : Number(entry.added);
+      if (!Number.isFinite(delta)) delta = 1;
+      // 질문권 변화가 없는 카드(책임성 재전송 무료권, 또는 잔량 0인 팀에 걸린 딥페이크 등)는
+      // "0개"가 어색하므로 개수를 아예 표시하지 않는다. 어떤 카드였는지는 아래 detail로 구분된다.
+      const base = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)}`;
+      meta.textContent = delta === 0
+        ? base
+        : `${base} · ${delta > 0 ? `+${delta}개` : `-${Math.abs(delta)}개`}`;
 
       const text = document.createElement("p");
       // 서버가 보내는 교실·증거 이름을 표시한다(예: "체육관 · 전교 1등 전 여자친구의 메시지").

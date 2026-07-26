@@ -15,6 +15,7 @@ const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
 const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore || [];
 const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new Map();
+const memorySimilarityFreeStore = globalThis.__kitSimilarityFreeStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -29,6 +30,7 @@ globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
 globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
 globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
+globalThis.__kitSimilarityFreeStore = memorySimilarityFreeStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
@@ -187,6 +189,10 @@ function similaritySentenceKey() {
 
 function similaritySubmitKeyFor(team) {
   return `kit:${storeNamespace()}:similarity-submits:${team}`;
+}
+
+function similarityFreeResubmitKeyFor(team) {
+  return `kit:${storeNamespace()}:similarity-free-resubmit:${team}`;
 }
 
 function hasPersistentStore() {
@@ -473,6 +479,12 @@ function cleanEvidenceEntry(entry = {}) {
   const code = String(entry.code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
   if (!team || !code) return null;
 
+  // added는 양수 지급량(0 이상). delta는 부호 있는 실제 반영량으로, 황금열쇠 페널티(-2 등)를
+  // 교사 화면에 그대로 보여주기 위해 쓴다. delta가 없는 옛 로그는 added(양수)로 폴백해
+  // 기존 표시("+N개")가 그대로 유지된다.
+  const added = cleanCredits(entry.added || 0);
+  const delta = Number.isFinite(Number(entry.delta)) ? Math.round(Number(entry.delta)) : added;
+
   return {
     id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     at: String(entry.at || new Date().toISOString()),
@@ -482,7 +494,8 @@ function cleanEvidenceEntry(entry = {}) {
     room: String(entry.room || "").trim().slice(0, 30),
     evidence: String(entry.evidence || "").trim().slice(0, 80),
     person: String(entry.person || "").trim().slice(0, 30),
-    added: cleanCredits(entry.added || 0),
+    added,
+    delta,
     remaining: cleanCredits(entry.remaining || 0),
     namespace: String(entry.namespace || storeNamespace()).trim()
   };
@@ -795,6 +808,62 @@ async function bumpSimilaritySubmitCount(team) {
   return cleanCredits(await redisCommand(["INCR", similaritySubmitKeyFor(normalized)]));
 }
 
+// 책임성(황금열쇠) 카드가 지급하는 사건노트 재전송 무료권. 팀별 개수로 저장한다
+// (카드 2장이면 2개 누적). 재전송 때 무료권이 있으면 질문권 5개 대신 무료권을 1개 쓴다.
+async function getSimilarityFreeResubmits(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    return cleanCredits(memorySimilarityFreeStore.get(similarityFreeResubmitKeyFor(normalized)) || 0);
+  }
+
+  return cleanCredits(await redisCommand(["GET", similarityFreeResubmitKeyFor(normalized)]));
+}
+
+async function grantSimilarityFreeResubmit(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    const key = similarityFreeResubmitKeyFor(normalized);
+    const next = cleanCredits(memorySimilarityFreeStore.get(key) || 0) + 1;
+    memorySimilarityFreeStore.set(key, next);
+    return next;
+  }
+
+  return cleanCredits(await redisCommand(["INCR", similarityFreeResubmitKeyFor(normalized)]));
+}
+
+// 무료권이 있으면 원자적으로 1개 소진하고 { used:true, remaining }를 반환한다. 없으면 used:false.
+// 연타(동시 재전송)에도 하나만 소진되도록 consumeCredit과 같은 Lua 방식을 쓴다.
+async function consumeSimilarityFreeResubmit(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return { used: false, remaining: 0 };
+
+  if (!hasPersistentStore()) {
+    const key = similarityFreeResubmitKeyFor(normalized);
+    const current = cleanCredits(memorySimilarityFreeStore.get(key) || 0);
+    if (current <= 0) return { used: false, remaining: 0 };
+    const remaining = current - 1;
+    memorySimilarityFreeStore.set(key, remaining);
+    return { used: true, remaining };
+  }
+
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "if current <= 0 then return -1 end",
+    "current = current - 1",
+    "redis.call('SET', KEYS[1], current)",
+    "return current"
+  ].join("; ");
+  const remaining = Number(await redisCommand(["EVAL", script, "1", similarityFreeResubmitKeyFor(normalized)]));
+  if (!Number.isFinite(remaining) || remaining < 0) {
+    return { used: false, remaining: 0 };
+  }
+  return { used: true, remaining };
+}
+
 async function recordSimilaritySentence(entry) {
   const cleanEntry = cleanSimilaritySentenceEntry(entry);
   if (!cleanEntry) return null;
@@ -835,6 +904,9 @@ async function getSimilaritySentences(limit = maxReturnedEvidenceLogs) {
 
 async function clearSimilaritySentences() {
   // 교사가 문장을 초기화하면 제출 횟수도 함께 초기화해 다시 무료 제출이 되게 한다.
+  // 책임성 카드 재전송 무료권도 함께 지운다: 초기화는 "없던 일로" 되돌리는 장치라,
+  // 무료권을 남기면 (실수 제출 → 교사 초기화 → 다시 무료 제출 → 무료권도 그대로)로
+  // 실수한 팀이 무료권을 하나 번 셈이 된다. 함께 지워야 정확히 원상복구된다.
   if (!hasPersistentStore()) {
     const namespace = storeNamespace();
     const removed = memorySimilaritySentenceStore.filter((entry) => entry.namespace === namespace);
@@ -843,13 +915,17 @@ async function clearSimilaritySentences() {
         memorySimilaritySentenceStore.splice(index, 1);
       }
     }
-    teams.forEach((team) => memorySimilaritySubmitStore.delete(similaritySubmitKeyFor(team)));
+    teams.forEach((team) => {
+      memorySimilaritySubmitStore.delete(similaritySubmitKeyFor(team));
+      memorySimilarityFreeStore.delete(similarityFreeResubmitKeyFor(team));
+    });
     return removed;
   }
 
   const removed = await getSimilaritySentences(maxReturnedEvidenceLogs);
   await redisCommand(["DEL", similaritySentenceKey()]);
   await redisCommand(["DEL", ...teams.map(similaritySubmitKeyFor)]);
+  await redisCommand(["DEL", ...teams.map(similarityFreeResubmitKeyFor)]);
   return removed;
 }
 
@@ -1131,6 +1207,48 @@ async function consumeCredits(team, amount) {
   return { ok: true, team: normalized, remaining };
 }
 
+// 페널티(황금열쇠 환각·딥페이크)용 감소. consumeCredits는 전부-또는-전무라 잔량이
+// 부족하면 아무것도 못 깎지만, reduceCredits는 min(현재, amount)만큼만 원자적으로 깎고
+// 0에서 멈춘다(절대 실패하지 않고 음수가 되지 않는다). credits(남은 질문권)만 줄이고
+// granted(누적 부여)는 건드리지 않는다 — 질문 1개를 소모하는 consumeCredit과 같은 성격이라
+// 교사 화면의 "부여 N개"(누적 지급)는 그대로 두고 "남은 M개"만 줄인다.
+// { removed, remaining } 반환.
+async function reduceCredits(team, amount) {
+  const normalized = normalizeTeam(team);
+  const spend = cleanCredits(amount);
+  if (!normalized) {
+    return { ok: false, team: "", removed: 0, remaining: 0, reason: "INVALID_TEAM" };
+  }
+  if (spend <= 0) {
+    return { ok: true, team: normalized, removed: 0, remaining: cleanCredits(await getCredits(normalized)) };
+  }
+
+  if (!hasPersistentStore()) {
+    const key = keyFor(normalized);
+    const current = cleanCredits(memoryStore.get(key) || 0);
+    const removed = Math.min(current, spend);
+    const remaining = current - removed;
+    memoryStore.set(key, remaining);
+    return { ok: true, team: normalized, removed, remaining };
+  }
+
+  // consumeCredits와 같은 원자적 Lua. 다만 부족해도 실패시키지 않고 있는 만큼만 깎는다.
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "if current < 0 then current = 0 end",
+    "local spend = tonumber(ARGV[1])",
+    "local dec = current",
+    "if spend < current then dec = spend end",
+    "local remaining = current - dec",
+    "redis.call('SET', KEYS[1], remaining)",
+    "return {dec, remaining}"
+  ].join("; ");
+  const result = await redisCommand(["EVAL", script, "1", keyFor(normalized), String(spend)]);
+  const removed = Math.max(0, Number(Array.isArray(result) ? result[0] : 0) || 0);
+  const remaining = Math.max(0, Number(Array.isArray(result) ? result[1] : 0) || 0);
+  return { ok: true, team: normalized, removed, remaining };
+}
+
 module.exports = {
   addCredits,
   addCustomEthicsQuestion,
@@ -1159,6 +1277,9 @@ module.exports = {
   getQuestionLogs,
   getSimilaritySentences,
   getSimilaritySubmitCount,
+  getSimilarityFreeResubmits,
+  grantSimilarityFreeResubmit,
+  consumeSimilarityFreeResubmit,
   bumpSimilaritySubmitCount,
   getPresence,
   grantCredits,
@@ -1173,6 +1294,7 @@ module.exports = {
   requestClassId,
   redeemEthicsQuizQuestion,
   redeemEvidenceCode,
+  reduceCredits,
   resetCredits,
   clearEvidenceGrant,
   setEvidenceGrant,

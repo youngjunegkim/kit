@@ -11,10 +11,12 @@ const {
   getGrantedCredits,
   getQuestionLogs,
   grantCredits,
+  grantSimilarityFreeResubmit,
   hasPersistentStore,
   normalizeTeam,
   recordEvidenceRedemption,
   redeemEvidenceCode,
+  reduceCredits,
   requestClassId,
   setCredits,
   setEvidenceGrant,
@@ -37,6 +39,187 @@ const evidenceCodes = {
 };
 const evidenceRewardCredits = 1;
 const evidenceRevisitBonusCredits = 2;
+
+// ── 황금열쇠 코드 표 ─────────────────────────────────────────────────────────
+// 카드에는 수업에서 배운 AI 윤리 개념이 적혀 있고, 거기 적힌 코드를 입력하면 효과가 적용된다.
+//
+// 카드 추가 방법:
+//   (1) 같은 효과의 카드를 더 만들려면 → goldenKeyCards 표에 코드 한 줄만 추가한다.
+//   (2) 새로운 효과를 만들려면 → goldenKeyEffects에 { concept } 정의를 넣고, 그 효과를
+//       계산하는 분기를 applyGoldenKey에 추가한 뒤, goldenKeyCards에 코드를 추가한다.
+//
+// 코드 형식: 증거 코드(evidenceCodes)는 전부 숫자 5자리다. 황금열쇠는 숫자 6자리로 둔다.
+//   - 길이가 5 vs 6으로 달라 증거 코드와 절대 겹치지 않는다(아래 가드로 재확인).
+//   - 숫자만이라 학생이 한글 입력 상태로 쳐도 그대로 입력된다(영문 코드는 ㅎㅋ 등으로 깨짐).
+const goldenKeyEffects = {
+  reliability: { concept: "신뢰성" },
+  inclusion: { concept: "포용성" },
+  accountability: { concept: "책임성" },
+  hallucination: { concept: "환각" },
+  deepfake: { concept: "딥페이크" },
+  bias: { concept: "편향" }
+};
+// 6종 × 2장 = 코드 12개. 같은 효과라도 카드가 2장이면 코드도 2개(같은 코드는 팀당 한 번만).
+// (주체성 카드는 "선생님께 원하는 교실을 말하고 조사" — 교사 승인으로 처리하므로 코드가 없다.)
+const goldenKeyCards = {
+  810101: "reliability", 810102: "reliability",
+  810201: "inclusion", 810202: "inclusion",
+  810301: "accountability", 810302: "accountability",
+  810401: "hallucination", 810402: "hallucination",
+  810501: "deepfake", 810502: "deepfake",
+  810601: "bias", 810602: "bias"
+};
+
+// 안전장치: 황금열쇠 코드가 증거 코드와 하나라도 겹치면 로드 시점에 즉시 실패시킨다.
+Object.keys(goldenKeyCards).forEach((code) => {
+  if (evidenceCodes[code]) {
+    throw new Error(`황금열쇠 코드가 증거 코드와 겹칩니다: ${code}`);
+  }
+});
+
+function goldenCardByCode(code) {
+  const clean = cleanCode(code);
+  const effect = goldenKeyCards[clean];
+  return effect ? { code: clean, effect, concept: goldenKeyEffects[effect].concept } : null;
+}
+
+// "모든 팀"의 범위: 질문권을 받은 적 있는 팀만(question-granted > 0). 4팀만 운영하고
+// 8팀이 정의돼 있어, 안 쓰는 팀까지 주면 로그만 쌓이고 교사 화면이 지저분해진다.
+async function participatingTeams() {
+  const granted = await getAllGrantedCredits();
+  return Object.entries(granted)
+    .filter(([, value]) => Number(value) > 0)
+    .map(([team]) => team);
+}
+
+// 학생 화면 결과 안내(짧게 — 의미는 진행자가 붙인다).
+function goldenMessage(effect, { otherCount }) {
+  if (effect === "reliability") {
+    return { tone: "ok", text: "신뢰성! 우리 팀 질문권 +2." };
+  }
+  if (effect === "inclusion") {
+    return otherCount > 0
+      ? { tone: "ok", text: "포용성! 우리 팀 +2, 다른 팀 +1." }
+      : { tone: "ok", text: "포용성! 우리 팀 +2. (다른 팀은 아직 없어요.)" };
+  }
+  if (effect === "accountability") {
+    return { tone: "ok", text: "책임성! 다음 사건노트 재전송이 무료예요." };
+  }
+  if (effect === "hallucination") {
+    return {
+      tone: "bad",
+      text: "환각이었어요! 카드에는 +3이라고 적혀 있었지만 실제로는 질문권 2개가 줄어듭니다. 그럴듯해 보이는 게 다 사실은 아니에요."
+    };
+  }
+  if (effect === "deepfake") {
+    return { tone: "bad", text: "딥페이크! 모든 팀의 질문권이 1개씩 줄어듭니다." };
+  }
+  if (effect === "bias") {
+    return { tone: "bad", text: "편향! 우리 팀 질문권 -2." };
+  }
+  return { tone: "ok", text: "황금열쇠 효과가 적용되었습니다." };
+}
+
+// 황금열쇠 효과를 팀별로 적용하고, 교사 증거 로그에 팀당 1건씩 남긴다.
+// delta는 부호 있는 실제 반영량(있는 만큼만 깎이므로 페널티는 0 ~ 요청치).
+async function applyGoldenKey(team, card, actor) {
+  const concept = card.concept;
+  const applied = [];
+
+  async function applyDelta(targetTeam, wanted) {
+    let credits;
+    let delta;
+    if (wanted > 0) {
+      const result = await grantCredits(targetTeam, wanted); // credits+granted 둘 다 증가(증거 보상과 동일)
+      credits = result.credits;
+      delta = wanted;
+    } else if (wanted < 0) {
+      const result = await reduceCredits(targetTeam, -wanted); // 있는 만큼만, 0에서 멈춤, granted 유지
+      credits = result.remaining;
+      delta = -result.removed;
+    } else {
+      credits = Math.max(0, Number(await getCredits(targetTeam)) || 0);
+      delta = 0;
+    }
+    await recordEvidenceRedemption({
+      team: targetTeam,
+      user: actor,
+      code: card.code,
+      room: "황금열쇠",
+      evidence: `${concept} 카드`,
+      person: "",
+      added: delta > 0 ? delta : 0, // 교사 초기화(clear-reset) 시 양수 보너스만 되돌리도록
+      delta, // 교사 화면 표시는 부호 있는 delta 사용
+      remaining: credits
+    });
+    applied.push({ team: targetTeam, delta, credits });
+    return { credits, delta };
+  }
+
+  let selfDelta = 0;
+  let otherDelta = 0;
+  let otherCount = 0;
+  let freeResubmits = null;
+
+  if (card.effect === "reliability") {
+    ({ delta: selfDelta } = await applyDelta(team, 2)); // 본인 +2 (정액)
+  } else if (card.effect === "inclusion") {
+    const others = (await participatingTeams()).filter((other) => other !== team);
+    ({ delta: selfDelta } = await applyDelta(team, 2));
+    for (const other of others) {
+      await applyDelta(other, 1);
+    }
+    otherDelta = 1;
+    otherCount = others.length;
+  } else if (card.effect === "accountability") {
+    // 크레딧 변화 없음: 사건노트 재전송 무료권을 1개 지급한다(카드 2장이면 2개 누적).
+    freeResubmits = await grantSimilarityFreeResubmit(team);
+    await recordEvidenceRedemption({
+      team,
+      user: actor,
+      code: card.code,
+      room: "황금열쇠",
+      evidence: "책임성 카드 · 재전송 무료권",
+      person: "",
+      added: 0,
+      delta: 0,
+      remaining: Math.max(0, Number(await getCredits(team)) || 0)
+    });
+  } else if (card.effect === "hallucination") {
+    ({ delta: selfDelta } = await applyDelta(team, -2)); // 카드에는 +3, 실제로는 -2
+  } else if (card.effect === "deepfake") {
+    const targets = new Set(await participatingTeams());
+    targets.add(team); // "본인 포함"을 보장
+    for (const target of targets) {
+      const result = await applyDelta(target, -1);
+      if (target === team) selfDelta = result.delta;
+    }
+    otherDelta = -1;
+    otherCount = targets.size - 1;
+  } else if (card.effect === "bias") {
+    ({ delta: selfDelta } = await applyDelta(team, -2)); // 본인만 -2
+  }
+
+  const selfEntry = applied.find((entry) => entry.team === team);
+  const selfCredits = selfEntry ? selfEntry.credits : Math.max(0, Number(await getCredits(team)) || 0);
+  const message = goldenMessage(card.effect, { otherCount });
+
+  return {
+    concept,
+    effect: card.effect,
+    code: card.code,
+    team,
+    selfDelta,
+    otherDelta,
+    otherCount,
+    freeResubmits, // 책임성 카드일 때만 숫자, 그 외 null
+    credits: selfCredits,
+    message: message.text,
+    tone: message.tone,
+    logs: await getQuestionLogs(team)
+  };
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // evidenceCodes에서 방 카탈로그를 파생한다. roomId → { name, options: [{code, index, ...}] }
 const roomCatalog = Object.entries(evidenceCodes).reduce((catalog, [code, entry]) => {
@@ -517,6 +700,29 @@ async function handleEvidenceCode(request, response) {
       sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
       return;
     }
+
+    // ── 황금열쇠 코드 (증거 코드와 코드 공간이 겹치지 않는다: 증거=숫자5자리, 황금열쇠=숫자6자리) ──
+    // 증거 코드면 goldenCardByCode가 null이라 이 분기를 지나 아래 기존 증거 경로로 간다.
+    const goldenCard = goldenCardByCode(code);
+    if (goldenCard) {
+      const actor = decodedHeaderValue(request, "x-kit-user") || body.user || team;
+      // 중복 방지는 증거 코드와 동일하게 redeemEvidenceCode(SADD). 같은 코드는 팀당 한 번만.
+      const isNew = await redeemEvidenceCode(team, code);
+      if (!isNew) {
+        sendJson(response, 409, {
+          error: "이미 사용한 황금열쇠 코드입니다.",
+          code: "ALREADY_REDEEMED_GOLDEN",
+          kind: "golden",
+          concept: goldenCard.concept
+        });
+        return;
+      }
+
+      const golden = await applyGoldenKey(team, goldenCard, actor);
+      sendJson(response, 200, { ok: true, kind: "golden", ...golden, persistent: hasPersistentStore() });
+      return;
+    }
+
     if (!evidence) {
       sendJson(response, 404, { error: "증거 코드가 맞지 않습니다.", code: "INVALID_EVIDENCE_CODE" });
       return;

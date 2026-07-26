@@ -89,7 +89,8 @@
     claiming: false,
     submittingSimilarity: false,
     similaritySubmitCount: 0,
-    similarityResubmitCost: 5
+    similarityResubmitCost: 5,
+    similarityFreeResubmits: 0
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -973,6 +974,7 @@
       if (!response.ok) return;
       state.similaritySubmitCount = Number(data.submitCount) || 0;
       if (Number(data.resubmitCost) > 0) state.similarityResubmitCost = Number(data.resubmitCost);
+      state.similarityFreeResubmits = Math.max(0, Number(data.freeResubmits) || 0);
       updateSimilaritySubmitButton();
     } catch {}
   }
@@ -983,6 +985,12 @@
     const cost = state.similarityResubmitCost;
     if (!isResubmit) {
       similaritySubmit.textContent = "전송";
+      similaritySubmit.disabled = false;
+      return;
+    }
+    // 책임성 카드 무료권이 있으면 질문권 없이 무료로 재전송한다.
+    if (state.similarityFreeResubmits > 0) {
+      similaritySubmit.textContent = "다시 보내기 (무료)";
       similaritySubmit.disabled = false;
       return;
     }
@@ -999,15 +1007,19 @@
     if (!similarityConfirm) return;
     if (similarityConfirmSentence) similarityConfirmSentence.textContent = sentence;
     const isResubmit = state.similaritySubmitCount >= 1;
+    const isFree = isResubmit && state.similarityFreeResubmits > 0;
     if (similarityConfirmNotice) {
-      if (isResubmit) {
+      if (isFree) {
+        similarityConfirmNotice.textContent = "이 재전송은 무료예요 (책임성 카드).";
+        similarityConfirmNotice.hidden = false;
+      } else if (isResubmit) {
         similarityConfirmNotice.textContent = `다시 보내면 질문권 ${state.similarityResubmitCost}개가 차감됩니다.`;
         similarityConfirmNotice.hidden = false;
       } else {
         similarityConfirmNotice.hidden = true;
       }
     }
-    if (similarityConfirmSend) similarityConfirmSend.textContent = isResubmit ? `보내기 (질문권 ${state.similarityResubmitCost}개)` : "보내기";
+    if (similarityConfirmSend) similarityConfirmSend.textContent = isFree ? "보내기 (무료)" : isResubmit ? `보내기 (질문권 ${state.similarityResubmitCost}개)` : "보내기";
     if (similarityForm) similarityForm.hidden = true;
     similarityConfirm.hidden = false;
     setSimilarityStatus("");
@@ -1035,7 +1047,8 @@
       setSimilarityStatus(`${similaritySentenceLimit}자 이하로 줄여 주세요.`, "bad");
       return;
     }
-    if (state.similaritySubmitCount >= 1 && currentQuestionCredits() < state.similarityResubmitCost) {
+    // 무료권이 있으면 질문권 없이 재전송 가능하므로 부족 검사를 건너뛴다.
+    if (state.similaritySubmitCount >= 1 && state.similarityFreeResubmits <= 0 && currentQuestionCredits() < state.similarityResubmitCost) {
       setSimilarityStatus(`질문권이 ${state.similarityResubmitCost}개 있어야 다시 보낼 수 있어요.`, "bad");
       return;
     }
@@ -1089,11 +1102,15 @@
 
       if (data.credits !== undefined) applyCredits(data.credits);
       state.similaritySubmitCount = Number(data.submitCount) || state.similaritySubmitCount + 1;
+      if (data.freeResubmits !== undefined) state.similarityFreeResubmits = Math.max(0, Number(data.freeResubmits) || 0);
       hideSimilarityConfirm();
       updateSimilaritySubmitButton();
       const charged = Number(data.charged) || 0;
       // 초안은 남겨 둔다(다시 열어 수정·재전송 가능).
-      setSimilarityStatus(charged ? `질문권 ${charged}개가 차감되고 전송됐어요.` : "선생님 화면으로 전송했어요.", "ok");
+      const sentMessage = data.freeUsed
+        ? "무료권으로 전송했어요 (책임성 카드)."
+        : charged ? `질문권 ${charged}개가 차감되고 전송됐어요.` : "선생님 화면으로 전송했어요.";
+      setSimilarityStatus(sentMessage, "ok");
     } catch (error) {
       hideSimilarityConfirm();
       setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
@@ -1787,6 +1804,20 @@
             ? "증거 코드가 맞지 않습니다."
             : data.error || "증거 코드를 확인하지 못했습니다.";
         throw new Error(message);
+      }
+
+      // 황금열쇠 코드면 증거 카드 대신 효과 안내를 표시한다(같은 입력칸 재사용).
+      // 서버가 짧은 안내 문구(message)와 톤(tone)을 내려준다.
+      if (data.kind === "golden") {
+        applyCredits(data.credits);
+        // 책임성 카드면 재전송 무료권이 늘어나므로 유사도 버튼 라벨을 바로 갱신한다(폴링 아님).
+        if (data.freeResubmits !== undefined && data.freeResubmits !== null) {
+          state.similarityFreeResubmits = Math.max(0, Number(data.freeResubmits) || 0);
+          updateSimilaritySubmitButton();
+        }
+        setEvidenceMessage(data.message || "황금열쇠 효과가 적용되었습니다.", data.tone === "bad" ? "bad" : "ok");
+        if (evidenceInput) evidenceInput.value = "";
+        return;
       }
 
       applyCredits(data.credits);

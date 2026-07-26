@@ -2,9 +2,11 @@ const {
   bumpSimilaritySubmitCount,
   clearSimilaritySentences,
   consumeCredits,
+  consumeSimilarityFreeResubmit,
   getCredits,
   getSimilaritySentences,
   getSimilaritySubmitCount,
+  getSimilarityFreeResubmits,
   hasPersistentStore,
   normalizeTeam,
   recordSimilaritySentence,
@@ -106,11 +108,14 @@ async function handleSimilaritySentences(request, response) {
           return;
         }
         const submitCount = await getSimilaritySubmitCount(team);
+        // 재전송 무료권 개수도 함께 내려 버튼 라벨을 "다시 보내기 (무료)"로 바꿀 수 있게 한다.
+        const freeResubmits = await getSimilarityFreeResubmits(team);
         sendJson(response, 200, {
           ok: true,
           team,
           submitCount,
           resubmitCost,
+          freeResubmits,
           persistent: hasPersistentStore()
         });
         return;
@@ -174,9 +179,16 @@ async function handleSimilaritySentences(request, response) {
     const submitCount = await getSimilaritySubmitCount(team);
     const isResubmit = submitCount >= 1;
 
-    // 재전송인데 질문권이 부족하면 저장도 차감도 하지 않고 거부한다.
-    let credits = null;
+    // 책임성(황금열쇠) 카드로 얻은 재전송 무료권이 있으면 이번 재전송은 질문권 5개 대신
+    // 무료권을 1개 쓴다. 무료권이 있으면 질문권 부족(409)도 건너뛴다.
+    let freeAvailable = false;
     if (isResubmit) {
+      freeAvailable = (await getSimilarityFreeResubmits(team)) > 0;
+    }
+
+    // 재전송인데 무료권도 없고 질문권도 부족하면 저장도 차감도 하지 않고 거부한다.
+    let credits = null;
+    if (isResubmit && !freeAvailable) {
       credits = Math.max(0, Number(await getCredits(team)) || 0);
       if (credits < resubmitCost) {
         sendJson(response, 409, {
@@ -190,8 +202,8 @@ async function handleSimilaritySentences(request, response) {
       }
     }
 
-    // 문장을 먼저 저장하고, 그 다음에 질문권을 차감한다. (차감 먼저 하면 저장 실패 시
-    // 학생이 5개만 잃는 상황이 생김. 반대 순서면 최악이 공짜 재전송이라 덜 나쁘다.)
+    // 문장을 먼저 저장하고, 그 다음에 질문권/무료권을 처리한다. (차감 먼저 하면 저장 실패 시
+    // 학생이 손해를 봄. 반대 순서면 최악이 공짜 재전송이라 덜 나쁘다.)
     const entry = await recordSimilaritySentence({
       team,
       user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
@@ -203,25 +215,37 @@ async function handleSimilaritySentences(request, response) {
       return;
     }
 
-    // 심문 시 질문권 1개를 깎는 consumeCredit과 같은 방식(원자적 Lua 차감)으로 5개를 깎는다.
-    // 저장은 이미 끝났으므로, 혹시 경합으로 차감이 실패해도(공짜 재전송) 저장은 남는다.
+    // 차감: 무료권이 있으면 무료권을 1개 소진(질문권은 그대로), 없으면 심문과 같은
+    // 원자적 Lua 차감으로 질문권 5개를 깎는다. 저장은 이미 끝났으므로, 혹시 경합으로
+    // 차감/소진이 실패해도(공짜 재전송) 저장은 남는다.
     let charged = 0;
+    let freeUsed = false;
     if (isResubmit) {
-      const spend = await consumeCredits(team, resubmitCost);
-      credits = spend.ok ? spend.remaining : Math.max(0, Number(await getCredits(team)) || 0);
-      charged = spend.ok ? resubmitCost : 0;
+      const free = freeAvailable ? await consumeSimilarityFreeResubmit(team) : { used: false };
+      if (free.used) {
+        freeUsed = true;
+        credits = Math.max(0, Number(await getCredits(team)) || 0); // 질문권 유지
+      } else {
+        // 무료권이 없거나(일반 재전송) 경합으로 사라졌으면 질문권으로 차감(폴백).
+        const spend = await consumeCredits(team, resubmitCost);
+        credits = spend.ok ? spend.remaining : Math.max(0, Number(await getCredits(team)) || 0);
+        charged = spend.ok ? resubmitCost : 0;
+      }
     } else {
       credits = Math.max(0, Number(await getCredits(team)) || 0);
     }
     const newSubmitCount = await bumpSimilaritySubmitCount(team);
+    const freeResubmits = await getSimilarityFreeResubmits(team);
 
     sendJson(response, 200, {
       ok: true,
       sentence: publicSentence(entry),
       submitCount: newSubmitCount,
       charged,
+      freeUsed,
       credits,
       resubmitCost,
+      freeResubmits,
       persistent: hasPersistentStore()
     });
   } catch (error) {
