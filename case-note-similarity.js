@@ -76,21 +76,6 @@
     "가빈": "7",
     "채희": "8"
   };
-  const specificityChecks = [
-    { label: "강우진", patterns: [/강\s*우\s*진/, /우진/] },
-    { label: "교무실", patterns: [/교무실/] },
-    { label: "기말고사 문제지", patterns: [/기말\s*고사\s*문제지/, /시험지/, /문제지/] },
-    { label: "태블릿 촬영", patterns: [/(태블릿|테블릿).*(촬영|찍)/, /(촬영|찍).*(태블릿|테블릿)/] },
-    { label: "CCTV", patterns: [/cctv/i, /씨씨티비/] },
-    { label: "오후 6시", patterns: [/6\s*시/, /18\s*시/] },
-    { label: "오후 6시 15분", patterns: [/6\s*시\s*15\s*분/, /6:15/, /18:15/] },
-    { label: "AI 대화 기록", patterns: [/대화\s*기록/, /기록\s*일부/, /프롬프트/, /ai.*기록/i] },
-    { label: "예상 문제 생성", patterns: [/예상\s*문제/, /비슷한\s*유형/, /유사.*문제/, /문제.*만들/, /생성/] },
-    { label: "유출", patterns: [/유출/, /퍼졌/, /공유/, /노출/] },
-    { label: "전 여자친구 압박", patterns: [/전\s*여자친구/, /전여친/, /압박/, /성적/, /점수/] },
-    { label: "주체성", patterns: [/주체성/] }
-  ];
-
   const elements = {
     standardNote: document.querySelector("[data-standard-note]"),
     rubricList: document.querySelector("[data-rubric-list]"),
@@ -365,41 +350,6 @@
     return Number.isInteger(score) ? String(score) : score.toFixed(1);
   }
 
-  function noteLengthStats(note) {
-    const normalized = normalize(note);
-    const characters = compact(note).length;
-    const sentences = normalized
-      .split(/[.!?\n。！？]+/)
-      .map((sentence) => sentence.trim())
-      .filter((sentence) => sentence.length >= 8).length;
-    return { characters, sentences };
-  }
-
-  function concreteTermsFor(note) {
-    const raw = normalize(note);
-    const tight = compact(note);
-    return specificityChecks
-      .filter((check) => hasAny(raw, check.patterns) || hasAny(tight, check.patterns))
-      .map((check) => check.label);
-  }
-
-  function specificityBonus(note) {
-    const stats = noteLengthStats(note);
-    const terms = concreteTermsFor(note);
-    const lengthBonus =
-      (stats.characters >= 90 ? 0.2 : 0) +
-      (stats.characters >= 180 ? 0.2 : 0);
-    const sentenceBonus = stats.sentences >= 2 ? 0.1 : 0;
-    const detailBonus = Math.min(0.4, terms.length * 0.05);
-    const score = roundScore(Math.min(0.9, lengthBonus + sentenceBonus + detailBonus));
-    return {
-      score,
-      characters: stats.characters,
-      terms,
-      reason: score ? `길이·구체성 보정 +${formatScore(score)}점` : ""
-    };
-  }
-
   function questionCreditBonusFor(remainingCredits) {
     const credits = cleanRemainingCredits(remainingCredits);
     return {
@@ -437,8 +387,7 @@
     const rawScore = details.reduce((sum, item) => sum + item.score, 0);
     const adjusted = Math.max(0, Math.min(100, Math.min(rawScore - penalty.penalty, penalty.cap)));
     const baseScore = Math.round(adjusted);
-    const specificity = baseScore > 0 ? specificityBonus(note) : { score: 0, characters: noteLengthStats(note).characters, terms: [], reason: "" };
-    const contentScore = roundScore(Math.min(penalty.cap, baseScore + specificity.score));
+    const contentScore = roundScore(Math.min(penalty.cap, baseScore));
     const questionCreditBonus = questionCreditBonusFor(remainingCredits);
     const totalScore = contentScore + questionCreditBonus.score;
     const cappedTotal = penalty.cap < 100 ? Math.min(penalty.cap, totalScore) : totalScore;
@@ -448,7 +397,6 @@
       baseScore,
       rawScore,
       penalty,
-      specificity,
       questionCreditBonus,
       details
     };
@@ -556,12 +504,6 @@
         <b>-</b>
       </div>
     ` : "";
-    const specificityRow = result.specificity?.score ? `
-      <div class="breakdown-row">
-        <span>${escapeHtml(result.specificity.reason)}</span>
-        <b>+${formatScore(result.specificity.score)}</b>
-      </div>
-    ` : "";
     const questionBonusRow = result.questionCreditBonus?.credits ? `
       <div class="breakdown-row breakdown-row--bonus">
         <span>${escapeHtml(result.questionCreditBonus.reason)}</span>
@@ -573,7 +515,7 @@
         <span>${escapeHtml(item.label)}</span>
         <b>${item.score}/${item.max}</b>
       </div>
-    `).join("") + penaltyRow + specificityRow + questionBonusRow;
+    `).join("") + penaltyRow + questionBonusRow;
   }
 
   function updateTeamCardResult(card, team) {
@@ -649,9 +591,8 @@
     const sorted = [...result.details].sort((a, b) => (b.score / b.max) - (a.score / a.max));
     const best = sorted[0];
     if (!best || best.score === 0) return "핵심 단서 부족";
-    const bonus = result.specificity?.score ? ` · 보정 +${formatScore(result.specificity.score)}` : "";
     const creditBonus = result.questionCreditBonus?.credits ? ` · 질문권 +${formatScore(result.questionCreditBonus.score)}` : "";
-    return `${best.label} ${best.score}/${best.max}${bonus}${creditBonus}`;
+    return `${best.label} ${best.score}/${best.max}${creditBonus}`;
   }
 
   function rankedTeams() {
@@ -689,7 +630,6 @@
         remainingCredits: cleanRemainingCredits(team.remainingCredits),
         questionCreditBonus: team.result.questionCreditBonus || questionCreditBonusFor(team.remainingCredits),
         note: team.note,
-        specificity: team.result.specificity || null,
         details: team.result.details.map((detail) => ({
           label: detail.label,
           score: detail.score,
@@ -705,11 +645,10 @@
     const strong = sorted[0];
     const weak = [...team.details].sort((a, b) => (a.score / Math.max(1, a.max)) - (b.score / Math.max(1, b.max)))[0];
     if (!team.note.trim()) return "사건노트가 비어 있어 아직 판정할 근거가 없습니다.";
-    const bonus = team.specificity?.score ? ` 길이와 구체성 보정 +${formatScore(team.specificity.score)}점도 반영했습니다.` : "";
     const questionBonus = team.questionCreditBonus?.credits
       ? ` 남은 질문권 ${team.questionCreditBonus.credits}개를 질문권 보너스 +${formatScore(team.questionCreditBonus.score)}점으로 반영했습니다.`
       : " 남은 질문권 보너스는 없습니다.";
-    return `${team.name}은 사건노트 ${formatScore(team.contentScore ?? team.score)}점에 질문권 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${bonus}${questionBonus}`;
+    return `${team.name}은 사건노트 ${formatScore(team.contentScore ?? team.score)}점에 질문권 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${questionBonus}`;
   }
 
   function fallbackReports(teams) {
@@ -1330,7 +1269,7 @@
     calculateAll();
     renderTeams();
     renderRanking();
-    const rows = [["순위", "팀", "최종 유사도", "사건노트 점수", "남은 질문권", "질문권 보너스", "길이·구체성 보정", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
+    const rows = [["순위", "팀", "최종 유사도", "사건노트 점수", "남은 질문권", "질문권 보너스", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
     let rank = 0;
     let previousScore = null;
     let seen = 0;
@@ -1351,7 +1290,6 @@
         team.hasResult ? `${formatScore(team.result.contentScore ?? score)}점` : "",
         team.hasResult ? `${cleanRemainingCredits(team.remainingCredits)}개` : "",
         team.hasResult && team.result.questionCreditBonus?.score ? `+${formatScore(team.result.questionCreditBonus.score)}점` : "",
-        team.hasResult && team.result.specificity?.score ? `+${formatScore(team.result.specificity.score)}` : "",
         detailMap.culprit,
         detailMap.place,
         detailMap.method,
