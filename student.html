@@ -854,9 +854,6 @@
       min-width: 0;
       display: grid;
       gap: 16px;
-      /* 하단 고정 "최종 유사도 측정하기" 버튼에 마지막 내용(증거 보관함)이 가리지
-         않도록 그만큼 아래 여백을 둔다. */
-      padding-bottom: 88px;
     }
 
     .credit-pill {
@@ -1392,49 +1389,152 @@
     }
 
 
-    .similarity-launch {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 40;
-      display: flex;
-      justify-content: center;
-      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-      background: linear-gradient(to top, rgba(18, 15, 12, 0.97) 55%, rgba(18, 15, 12, 0));
-      pointer-events: none;
+    /* teacher.html의 case-note-button 배너 스타일을 학생 화면에도 복사해 톤을 맞춘다.
+       (두 파일이 각자 스타일을 가지는 구조라 복사가 불가피). 교사용은 <a> 링크,
+       학생용은 팝업을 여는 <button>이라 버튼용 기본값(width/text-align/cursor)을 더한다. */
+    .case-note-button {
+      position: relative;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr) 210px;
+      align-items: center;
+      min-height: 116px;
+      overflow: hidden;
+      border: 1px solid rgba(231, 196, 134, 0.58);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(31, 25, 21, 0.96) 0%, rgba(70, 47, 32, 0.95) 48%, rgba(229, 202, 156, 0.96) 100%);
+      color: #fff8eb;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
     }
 
-    .similarity-launch-btn {
-      pointer-events: auto;
-      width: min(520px, 92%);
-      padding: 13px 20px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #b91f1f, #7a1414);
-      color: #fff8ec;
-      font-size: 1.05rem;
+    .case-note-button:hover,
+    .case-note-button:focus-visible {
+      border-color: rgba(255, 232, 184, 0.9);
+      box-shadow:
+        0 0 0 1px rgba(255, 232, 184, 0.22),
+        0 18px 38px rgba(0, 0, 0, 0.38);
+      outline: none;
+      transform: translateY(-2px);
+    }
+
+    .case-note-button__icon {
+      position: relative;
+      width: 54px;
+      height: 54px;
+      margin-left: 20px;
+      border: 4px solid #2c61b9;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow:
+        0 0 0 4px rgba(255, 255, 255, 0.13),
+        0 10px 24px rgba(0, 0, 0, 0.24);
+    }
+
+    .case-note-button__icon::after {
+      content: "";
+      position: absolute;
+      right: -15px;
+      bottom: -10px;
+      width: 24px;
+      height: 8px;
+      border-radius: 999px;
+      background: #2c61b9;
+      transform: rotate(42deg);
+      transform-origin: left center;
+    }
+
+    .case-note-button__copy {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      padding: 18px 8px 18px 0;
+    }
+
+    .case-note-button__copy strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #fff;
+      font-size: clamp(1.26rem, 2vw, 2rem);
+      line-height: 1.12;
       font-weight: 950;
-      box-shadow: 0 10px 24px rgba(122, 20, 20, 0.4);
+      word-break: keep-all;
     }
 
-    .similarity-launch-btn:hover { filter: brightness(1.06); }
-
-    /* 크롬북처럼 브라우저 UI를 빼면 세로가 600px 정도인 짧은 화면에서는 고정 바가
-       화면을 덜 잡아먹도록 얇게 만들고, 그만큼 하단 여백도 줄인다. */
-    @media (max-height: 640px) {
-      .similarity-launch {
-        padding: 6px 16px calc(6px + env(safe-area-inset-bottom, 0px));
-      }
-      .similarity-launch-btn {
-        padding: 9px 18px;
-        font-size: 1rem;
-      }
-      .student-content {
-        padding-bottom: 64px;
-      }
+    .case-note-button__copy span {
+      display: block;
+      color: rgba(255, 248, 235, 0.78);
+      font-size: 0.96rem;
+      line-height: 1.4;
+      font-weight: 800;
+      word-break: keep-all;
     }
 
-    .similarity-launch-hint { display: none; }
+    .case-note-button__mascot {
+      align-self: stretch;
+      position: relative;
+      min-height: 116px;
+      background: rgba(255, 244, 222, 0.22);
+    }
+
+    .case-note-button__mascot img {
+      position: absolute;
+      right: -18px;
+      bottom: -22px;
+      width: 220px;
+      height: 148px;
+      object-fit: cover;
+      object-position: 47% 54%;
+      filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.3));
+    }
+
+    @media (max-width: 640px) {
+      .case-note-button {
+        grid-template-columns: 64px minmax(0, 1fr) 112px;
+        min-height: 98px;
+      }
+
+      .case-note-button__icon {
+        width: 42px;
+        height: 42px;
+        margin-left: 14px;
+        border-width: 3px;
+      }
+
+      .case-note-button__icon::after {
+        right: -12px;
+        bottom: -8px;
+        width: 20px;
+        height: 7px;
+      }
+
+      .case-note-button__copy {
+        padding: 14px 4px 14px 0;
+      }
+
+      .case-note-button__copy strong {
+        font-size: 1.08rem;
+      }
+
+      .case-note-button__copy span {
+        font-size: 0.78rem;
+      }
+
+      .case-note-button__mascot {
+        min-height: 98px;
+      }
+
+      .case-note-button__mascot img {
+        right: -52px;
+        bottom: -18px;
+        width: 148px;
+        height: 116px;
+      }
+    }
 
     .similarity-modal {
       position: fixed;
@@ -2273,10 +2373,16 @@
             </aside>
           </div>
         </section>
-          <section class="similarity-launch" aria-label="최종 유사도 측정">
-            <button class="similarity-launch-btn" type="button" data-similarity-open>최종 유사도 측정하기</button>
-            <p class="similarity-launch-hint" data-similarity-launch-status>추리를 마쳤으면 눌러서 최종 문장을 만들어 보내세요.</p>
-          </section>
+          <button class="case-note-button" type="button" data-similarity-open aria-label="최종 유사도 측정 팝업 열기">
+            <span class="case-note-button__icon" aria-hidden="true"></span>
+            <span class="case-note-button__copy">
+              <strong>사건노트 최종 제출</strong>
+              <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
+            </span>
+            <span class="case-note-button__mascot" aria-hidden="true">
+              <img src="assets/characters/detective-note-mascot.png" alt="">
+            </span>
+          </button>
         </div>
       </div>
     </div>

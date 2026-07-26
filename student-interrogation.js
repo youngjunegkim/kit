@@ -127,7 +127,6 @@
   const similarityCount = document.querySelector("[data-similarity-count]");
   const similaritySubmit = document.querySelector("[data-similarity-submit]");
   const similarityStatus = document.querySelector("[data-similarity-status]");
-  const similarityLaunchStatus = document.querySelector("[data-similarity-launch-status]");
   const similarityConfirm = document.querySelector("[data-similarity-confirm]");
   const similarityConfirmSentence = document.querySelector("[data-similarity-confirm-sentence]");
   const similarityConfirmNotice = document.querySelector("[data-similarity-confirm-notice]");
