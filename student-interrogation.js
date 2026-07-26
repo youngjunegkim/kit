@@ -85,7 +85,8 @@
     ethicsServerSolved: [],
     ethicsCurrent: 1,
     ethicsUnlocked: false,
-    ethicsSubmitting: false
+    ethicsSubmitting: false,
+    claiming: false
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -100,6 +101,9 @@
   const evidenceBoard = document.querySelector("[data-evidence-board]");
   const evidenceBoardCount = document.querySelector("[data-evidence-board-count]");
   const evidenceRoomDetail = document.querySelector("[data-evidence-room-detail]");
+  const evidenceClaimOpen = document.querySelector("[data-evidence-claim-open]");
+  const evidenceClaimStatus = document.querySelector("[data-evidence-claim-status]");
+  const evidenceClaimArea = document.querySelector("[data-evidence-claim]");
   const caseNoteArea = document.querySelector("[data-note-key='case']");
   const caseNoteStatus = document.querySelector("[data-note-status='case']");
   const clearCaseNote = document.querySelector("[data-clear-note='case']");
@@ -591,6 +595,207 @@
     });
 
     renderEvidenceRoomDetail();
+  }
+
+  // 이번 세션에 방금 획득한 증거키(roomId:index). 폴링 동기화 전이라도 즉시 "획득함"으로 표시.
+  const sessionClaimedKeys = new Set();
+
+  function isClaimOptionObtained(roomId, index) {
+    if (sessionClaimedKeys.has(`${roomId}:${index}`)) return true;
+    // 서버에 다시 묻지 않고 state.evidenceCards로만 대조 (폴링이 10초마다 갱신).
+    return state.evidenceCards.some((card) => card.roomId === roomId && Number(card.index) === Number(index));
+  }
+
+  function setClaimStatus(text, type = "") {
+    if (!evidenceClaimStatus) return;
+    evidenceClaimStatus.textContent = text || "";
+    evidenceClaimStatus.classList.toggle("is-ok", type === "ok");
+    evidenceClaimStatus.classList.toggle("is-bad", type === "bad");
+  }
+
+  function closeEvidenceClaim() {
+    if (evidenceClaimArea) {
+      evidenceClaimArea.hidden = true;
+      evidenceClaimArea.textContent = "";
+    }
+    state.claimGrant = null;
+    state.claimOptions = [];
+  }
+
+  function renderClaimArea(grant, options) {
+    if (!evidenceClaimArea || !grant) return;
+    evidenceClaimArea.textContent = "";
+    evidenceClaimArea.hidden = false;
+
+    const head = document.createElement("div");
+    head.className = "evidence-claim-head";
+    const title = document.createElement("h3");
+    title.textContent = `${grant.roomName || "교실"} 증거`;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "evidence-claim-close";
+    close.dataset.evidenceClaimClose = "1";
+    close.textContent = "닫기";
+    head.append(title, close);
+    evidenceClaimArea.append(head);
+
+    const list = Array.isArray(options) ? options : [];
+    const available = list.filter((option) => !isClaimOptionObtained(grant.roomId, option.index));
+
+    // 이미 두 증거를 모두 획득한 교실 (보드게임에서 같은 칸에 두 번 도착 등).
+    if (list.length && !available.length) {
+      const done = document.createElement("p");
+      done.className = "evidence-claim-empty";
+      done.textContent = "이 교실의 증거는 모두 획득했습니다. 닫기를 눌러 주세요.";
+      evidenceClaimArea.append(done);
+      return;
+    }
+
+    const photo = document.createElement("img");
+    photo.className = "evidence-claim-photo";
+    photo.src = `assets/evidence-rooms/${grant.roomId}-masked.png`;
+    photo.alt = `${grant.roomName || "교실"} 사진`;
+    photo.decoding = "async";
+    evidenceClaimArea.append(photo);
+
+    // 한 승인에 증거는 하나만 선택할 수 있음을 명시 (선택하면 승인이 소거됨).
+    const hint = document.createElement("p");
+    hint.className = "evidence-claim-hint";
+    hint.textContent = "증거 하나를 선택하세요. 한 번 선택하면 나머지는 다시 승인을 받아야 합니다.";
+    evidenceClaimArea.append(hint);
+
+    const optionsWrap = document.createElement("div");
+    optionsWrap.className = "evidence-claim-options";
+    list.forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "evidence-claim-option";
+      const obtained = isClaimOptionObtained(grant.roomId, option.index);
+      button.disabled = obtained;
+      // 증거는 이름만. 관련 인물은 카드를 받은 뒤에 알게 된다.
+      button.textContent = obtained ? `${option.evidence} · 획득함` : option.evidence;
+      if (!obtained) {
+        button.dataset.claimIndex = String(option.index);
+        button.dataset.claimRoom = grant.roomId;
+      }
+      optionsWrap.append(button);
+    });
+    evidenceClaimArea.append(optionsWrap);
+  }
+
+  async function openEvidenceClaim() {
+    if (state.claiming) return;
+    if (!state.team) {
+      setClaimStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    state.claiming = true;
+    if (evidenceClaimOpen) evidenceClaimOpen.disabled = true;
+    setClaimStatus("승인을 확인하는 중...");
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "claim",
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "승인을 확인하지 못했습니다.");
+
+      if (!data.grant) {
+        closeEvidenceClaim();
+        setClaimStatus("아직 승인되지 않았습니다. 선생님께 확인하세요.", "bad");
+        return;
+      }
+
+      state.claimGrant = data.grant;
+      state.claimOptions = Array.isArray(data.options) ? data.options : [];
+      renderClaimArea(state.claimGrant, state.claimOptions);
+      setClaimStatus(`${data.grant.roomName || "교실"} 조사가 승인되었습니다.`, "ok");
+    } catch (error) {
+      setClaimStatus(error.message || "승인을 확인하지 못했습니다.", "bad");
+    } finally {
+      state.claiming = false;
+      if (evidenceClaimOpen) evidenceClaimOpen.disabled = false;
+    }
+  }
+
+  async function pickEvidence(roomId, index) {
+    if (state.claiming) return;
+    if (!state.team) {
+      setClaimStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    state.claiming = true;
+    const optionButtons = evidenceClaimArea
+      ? [...evidenceClaimArea.querySelectorAll(".evidence-claim-option")]
+      : [];
+    optionButtons.forEach((button) => { button.disabled = true; });
+    setClaimStatus("증거를 받는 중...");
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "pick",
+          roomId,
+          index,
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        // 실패 원인별 안내.
+        if (data.code === "NO_GRANT") {
+          closeEvidenceClaim();
+          setClaimStatus("승인이 만료되었습니다. 선생님께 다시 요청하세요.", "bad");
+        } else if (data.code === "ALREADY_REDEEMED") {
+          sessionClaimedKeys.add(`${roomId}:${index}`);
+          if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
+          setClaimStatus("이미 획득한 증거입니다.", "bad");
+        } else {
+          if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
+          setClaimStatus(data.error || "증거를 받지 못했습니다.", "bad");
+        }
+        return;
+      }
+
+      // 백업 코드 입력 경로와 동일한 성공 안내(질문권 몇 개 + 어떤 증거).
+      sessionClaimedKeys.add(`${roomId}:${index}`);
+      applyCredits(data.credits);
+      const card = storeEvidenceCard(data.code, data.evidence);
+      const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
+      closeEvidenceClaim();
+      setClaimStatus(`${teamLabelFor(state.team)} 질문권 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+    } catch (error) {
+      setClaimStatus(error.message || "증거를 받지 못했습니다.", "bad");
+    } finally {
+      state.claiming = false;
+      optionButtons.forEach((button) => { button.disabled = false; });
+    }
   }
 
   function setupCaseNote() {
@@ -1541,6 +1746,20 @@
     evidenceInput.value = cleanCode(evidenceInput.value);
   });
   evidenceForm?.addEventListener("submit", submitEvidenceCode);
+
+  evidenceClaimOpen?.addEventListener("click", openEvidenceClaim);
+
+  // 선택 영역은 다시 그려질 때마다 버튼이 새로 생기므로 이벤트 위임으로 처리.
+  evidenceClaimArea?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-evidence-claim-close]")) {
+      closeEvidenceClaim();
+      setClaimStatus("");
+      return;
+    }
+    const option = event.target.closest("[data-claim-index]");
+    if (!option) return;
+    pickEvidence(option.dataset.claimRoom, Number(option.dataset.claimIndex));
+  });
 
   refreshButtons.forEach((button) => {
     button.addEventListener("click", refreshCredits);

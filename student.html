@@ -1473,6 +1473,100 @@
       overflow: hidden;
     }
 
+    .evidence-vault-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .evidence-claim-status {
+      margin: 0;
+      padding: 6px 12px 0;
+      min-height: 1em;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #4a5568;
+    }
+    .evidence-claim-status.is-ok { color: #1f7a44; }
+    .evidence-claim-status.is-bad { color: #c0362c; }
+
+    .evidence-claim-area {
+      display: grid;
+      gap: 10px;
+      margin: 8px 12px 0;
+      padding: 12px;
+      border: 1px solid #f0d9a8;
+      border-radius: 8px;
+      background: #fffdf6;
+    }
+
+    .evidence-claim-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .evidence-claim-head h3 {
+      margin: 0;
+      font-size: 0.98rem;
+      color: #22303c;
+    }
+
+    .evidence-claim-close {
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      font-weight: 850;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+
+    .evidence-claim-hint {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #6b7280;
+    }
+
+    .evidence-claim-photo {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      border-radius: 7px;
+      border: 1px solid #e6ddc8;
+    }
+
+    .evidence-claim-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .evidence-claim-option {
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 7px;
+      border: 1px solid #d9c79a;
+      background: #fff;
+      font-size: 0.9rem;
+      font-weight: 850;
+      color: #22303c;
+      cursor: pointer;
+    }
+    .evidence-claim-option:hover:not(:disabled) { background: #fff7e4; }
+    .evidence-claim-option:disabled {
+      cursor: default;
+      color: #9aa5b1;
+      background: #f4f6f8;
+      border-color: #e2e6ea;
+    }
+
+    .evidence-claim-empty {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 850;
+      color: #22303c;
+    }
+
     .evidence-vault-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(300px, 0.52fr);
@@ -1944,8 +2038,13 @@
         <section class="evidence-vault-card" aria-label="획득한 증거카드">
           <div class="student-log-head">
             <h2>획득한 증거카드</h2>
-            <strong data-evidence-board-count>0개</strong>
+            <div class="evidence-vault-head-actions">
+              <button class="receive-credit-btn" type="button" data-evidence-claim-open>받기</button>
+              <strong data-evidence-board-count>0개</strong>
+            </div>
           </div>
+          <p class="evidence-claim-status" data-evidence-claim-status role="status"></p>
+          <div class="evidence-claim-area" data-evidence-claim hidden></div>
           <div class="evidence-vault-layout">
             <div class="evidence-board" data-evidence-board></div>
             <aside class="evidence-room-detail" data-evidence-room-detail aria-live="polite">
