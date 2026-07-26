@@ -1428,7 +1428,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 12px;
       background: rgba(12, 9, 6, 0.72);
     }
 
@@ -1436,7 +1436,12 @@
 
     .similarity-modal__panel {
       width: min(560px, 100%);
-      max-height: min(90vh, 680px);
+      /* 화면 높이에 비례. 특정 픽셀에 고정하지 않고 뷰포트에서 모달 패딩(12*2)만
+         뺀 만큼을 상한으로 둔다. 내용이 더 짧으면 그만큼만 차지하고, 더 길면
+         본문만 스크롤되고 발(카운터+전송)은 항상 보인다. dvh는 모바일 주소창을
+         감안한 값이고, vh는 미지원 브라우저용 폴백. */
+      max-height: calc(100vh - 24px);
+      max-height: calc(100dvh - 24px);
       display: flex;
       flex-direction: column;
       gap: 10px;
