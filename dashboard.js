@@ -315,9 +315,6 @@
   }
 
   async function clearEvidenceLogs() {
-    const confirmed = window.confirm("학생들이 입력한 증거코드 기록과 해당 증거코드로 받은 질문권을 초기화할까요?");
-    if (!confirmed) return;
-
     const { response, data } = await requestCredits("/api/evidence-code", {
       method: "POST",
       body: JSON.stringify({
@@ -348,6 +345,39 @@
     });
   }
 
+  // room-investigation.js의 state.requesting 패턴을 따른다: 요청이 진행 중이면
+  // 모든 교사 버튼을 비활성화해 중복 제출을 막고, 성공/실패와 무관하게 finally에서
+  // 원상 복구해 영구 잠김을 방지한다.
+  let requesting = false;
+  const actionButtons = [
+    "publishScores",
+    "resetScores",
+    "refreshQuestionStats",
+    "clearQuestionLogs",
+    "refreshEvidenceLogs",
+    "clearEvidenceLogs"
+  ].map((id) => document.getElementById(id)).filter(Boolean);
+
+  function setRequesting(value) {
+    requesting = value;
+    actionButtons.forEach((button) => {
+      button.disabled = value;
+    });
+  }
+
+  async function runExclusive(button, task) {
+    if (requesting) return;
+    setRequesting(true);
+    const originalLabel = button ? button.textContent : "";
+    if (button) button.textContent = "처리 중...";
+    try {
+      await task();
+    } finally {
+      if (button) button.textContent = originalLabel;
+      setRequesting(false);
+    }
+  }
+
   document.querySelectorAll("[data-score-input]").forEach((input) => {
     input.addEventListener("input", () => {
       const team = input.dataset.scoreInput;
@@ -361,47 +391,61 @@
     });
   });
 
-  document.getElementById("resetScores").addEventListener("click", () => {
-    resetServerScores().catch((error) => {
-      remainingCredits = { ...emptyByTeam };
-      grantedCredits = { ...emptyByTeam };
-      pendingAdds = { ...emptyByTeam };
-      saveDraftAdds(pendingAdds);
-      renderScores();
-      setSyncStatus(error.message || "질문권 초기화 실패", "bad");
-    });
+  document.getElementById("resetScores")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      resetServerScores().catch((error) => {
+        remainingCredits = { ...emptyByTeam };
+        grantedCredits = { ...emptyByTeam };
+        pendingAdds = { ...emptyByTeam };
+        saveDraftAdds(pendingAdds);
+        renderScores();
+        setSyncStatus(error.message || "질문권 초기화 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("publishScores")?.addEventListener("click", () => {
-    publishScores().catch((error) => {
-      setSyncStatus(error.message || "질문권 추가 실패", "bad");
-    });
+  document.getElementById("publishScores")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      publishScores().catch((error) => {
+        setSyncStatus(error.message || "질문권 추가 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("refreshQuestionStats")?.addEventListener("click", () => {
-    fetchScores().catch((error) => {
-      setSyncStatus(error.message || "현황 새로고침 실패", "bad");
-    });
+  document.getElementById("refreshQuestionStats")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      fetchScores().catch((error) => {
+        setSyncStatus(error.message || "현황 새로고침 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("clearQuestionLogs")?.addEventListener("click", () => {
-    clearServerLogs().catch((error) => {
-      setSyncStatus(error.message || "로그 삭제 실패", "bad");
-    });
+  document.getElementById("clearQuestionLogs")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      clearServerLogs().catch((error) => {
+        setSyncStatus(error.message || "로그 삭제 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("refreshEvidenceLogs")?.addEventListener("click", () => {
-    fetchEvidenceLogs().then(() => {
-      setSyncStatus("증거코드 입력 기록을 불러왔습니다.", "ok");
-    }).catch((error) => {
-      setSyncStatus(error.message || "증거코드 입력 기록 불러오기 실패", "bad");
-    });
+  document.getElementById("refreshEvidenceLogs")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      fetchEvidenceLogs().then(() => {
+        setSyncStatus("증거코드 입력 기록을 불러왔습니다.", "ok");
+      }).catch((error) => {
+        setSyncStatus(error.message || "증거코드 입력 기록 불러오기 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("clearEvidenceLogs")?.addEventListener("click", () => {
-    clearEvidenceLogs().catch((error) => {
-      setSyncStatus(error.message || "증거코드 입력 초기화 실패", "bad");
-    });
+  document.getElementById("clearEvidenceLogs")?.addEventListener("click", (event) => {
+    const confirmed = window.confirm("학생들이 입력한 증거코드 기록과 해당 증거코드로 받은 질문권을 초기화할까요?");
+    if (!confirmed) return;
+    runExclusive(event.currentTarget, () =>
+      clearEvidenceLogs().catch((error) => {
+        setSyncStatus(error.message || "증거코드 입력 초기화 실패", "bad");
+      })
+    );
   });
 
   applyTeamDisplayLabels();
