@@ -1,8 +1,11 @@
 const {
+  clearEvidenceGrant,
   clearEvidenceRedemptions,
   getAllCredits,
+  getAllEvidenceGrants,
   getAllGrantedCredits,
   getCredits,
+  getEvidenceGrant,
   getEvidenceRedemptions,
   getGrantedCredits,
   getQuestionLogs,
@@ -13,23 +16,55 @@ const {
   redeemEvidenceCode,
   requestClassId,
   setCredits,
+  setEvidenceGrant,
   setGrantedCredits,
   withClassScope
 } = require("./_credits");
 
+// roomId·index는 room-investigation.js의 evidenceCatalog와 정확히 일치해야 한다.
 const evidenceCodes = {
-  39275: { room: "방송실", evidence: "방송실 장비 점검표", person: "서하린" },
-  26547: { room: "방송실", evidence: "AI 자료 열람 기록", person: "서하린" },
-  65927: { room: "미술실", evidence: "기말고사 유의사항 포스터 파일", person: "서하린" },
-  40018: { room: "미술실", evidence: "삭제된 AI 프롬프트 기록", person: "강우진" },
-  91648: { room: "교무실", evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진" },
-  11582: { room: "교무실", evidence: "책상 위 기말고사 문제지", person: "강우진" },
-  79610: { room: "과학실", evidence: "실험 보고서 제출 기록", person: "최다니엘" },
-  61408: { room: "과학실", evidence: "과학실 분실물함 기록", person: "최다니엘" },
-  87143: { room: "체육관", evidence: "전교 1등 전 여자친구의 메시지", person: "강우진" },
-  13450: { room: "체육관", evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
+  39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린" },
+  26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린" },
+  65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", person: "서하린" },
+  40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", person: "강우진" },
+  91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진" },
+  11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", person: "강우진" },
+  79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", person: "최다니엘" },
+  61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", person: "최다니엘" },
+  87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진" },
+  13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
 };
 const evidenceRewardCredits = 1;
+
+// evidenceCodes에서 방 카탈로그를 파생한다. roomId → { name, options: [{code, index, ...}] }
+const roomCatalog = Object.entries(evidenceCodes).reduce((catalog, [code, entry]) => {
+  const room = catalog[entry.roomId] || { roomId: entry.roomId, name: entry.room, options: [] };
+  room.options.push({ code: cleanCode(code), index: entry.index, evidence: entry.evidence, person: entry.person });
+  catalog[entry.roomId] = room;
+  return catalog;
+}, {});
+Object.values(roomCatalog).forEach((room) => room.options.sort((a, b) => a.index - b.index));
+
+function roomById(roomId) {
+  return roomCatalog[String(roomId || "").trim()] || null;
+}
+
+function codeForRoomIndex(roomId, index) {
+  const room = roomById(roomId);
+  const target = Number(index);
+  return room?.options.find((option) => option.index === target)?.code || "";
+}
+
+// 학생에게 보내는 방 증거 목록. 코드는 노출하지 않고 index로만 선택하게 한다.
+function roomOptionsFor(roomId) {
+  const room = roomById(roomId);
+  if (!room) return [];
+  return room.options.map((option) => ({
+    index: option.index,
+    evidence: option.evidence,
+    person: option.person
+  }));
+}
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
@@ -222,6 +257,171 @@ async function handleEvidenceCode(request, response) {
         evidenceLogs: [],
         credits: await getAllCredits(),
         granted: await getAllGrantedCredits(),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    // 교사 전용: 팀에 방 조사를 승인한다. 승인/취소 모두 전체 현황을 함께 반환해
+    // 교사 화면이 바로 갱신할 수 있게 한다.
+    if (action === "grant") {
+      const authError = teacherAuthError(request, body);
+      if (authError) {
+        sendJson(response, authError.status, { ...authError, fallback: true });
+        return;
+      }
+
+      const grantTeam = normalizeTeam(body.team);
+      if (!grantTeam) {
+        sendJson(response, 400, { error: "Valid team is required.", code: "INVALID_TEAM" });
+        return;
+      }
+      const room = roomById(body.roomId);
+      if (!room) {
+        sendJson(response, 400, { error: "Valid roomId is required.", code: "INVALID_ROOM" });
+        return;
+      }
+
+      const grant = await setEvidenceGrant(grantTeam, {
+        roomId: room.roomId,
+        roomName: room.name,
+        at: Date.now(),
+        by: decodedHeaderValue(request, "x-kit-user") || body.user || "teacher"
+      });
+
+      sendJson(response, 200, {
+        ok: true,
+        team: grantTeam,
+        grant,
+        grants: await getAllEvidenceGrants(),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    // 교사 전용: 잘못 승인한 팀을 되돌린다.
+    if (action === "revoke") {
+      const authError = teacherAuthError(request, body);
+      if (authError) {
+        sendJson(response, authError.status, { ...authError, fallback: true });
+        return;
+      }
+
+      const revokeTeam = normalizeTeam(body.team);
+      if (!revokeTeam) {
+        sendJson(response, 400, { error: "Valid team is required.", code: "INVALID_TEAM" });
+        return;
+      }
+
+      await clearEvidenceGrant(revokeTeam);
+      sendJson(response, 200, {
+        ok: true,
+        team: revokeTeam,
+        grants: await getAllEvidenceGrants(),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    // 학생: 자기 팀 승인을 확인한다. 승인이 없으면 grant:null로 알린다.
+    if (action === "claim") {
+      const claimRole = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
+      const claimTeam = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team);
+      if (claimRole !== "student") {
+        sendJson(response, 403, { error: "Student role is required.", code: "STUDENT_ROLE_REQUIRED" });
+        return;
+      }
+      if (!claimTeam) {
+        sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+        return;
+      }
+
+      const grant = await getEvidenceGrant(claimTeam);
+      if (!grant) {
+        sendJson(response, 200, { ok: true, team: claimTeam, grant: null, persistent: hasPersistentStore() });
+        return;
+      }
+
+      sendJson(response, 200, {
+        ok: true,
+        team: claimTeam,
+        grant,
+        options: roomOptionsFor(grant.roomId),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    // 학생: 승인된 방의 증거 하나를 index로 골라 지급받는다.
+    if (action === "pick") {
+      const pickRole = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
+      const pickTeam = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team);
+      if (pickRole !== "student") {
+        sendJson(response, 403, { error: "Student role is required.", code: "STUDENT_ROLE_REQUIRED" });
+        return;
+      }
+      if (!pickTeam) {
+        sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+        return;
+      }
+
+      const grant = await getEvidenceGrant(pickTeam);
+      if (!grant) {
+        sendJson(response, 409, { error: "승인된 조사가 없습니다.", code: "NO_GRANT" });
+        return;
+      }
+      const roomId = String(body.roomId || "").trim();
+      if (grant.roomId !== roomId) {
+        sendJson(response, 403, { error: "승인된 방과 다른 방입니다.", code: "GRANT_ROOM_MISMATCH", grant });
+        return;
+      }
+
+      const pickCode = codeForRoomIndex(roomId, body.index);
+      const pickEvidence = pickCode ? evidenceCodes[pickCode] : null;
+      if (!pickEvidence) {
+        sendJson(response, 404, { error: "증거를 찾을 수 없습니다.", code: "INVALID_EVIDENCE" });
+        return;
+      }
+
+      // 기존 코드 입력 경로와 동일한 중복 방지. 이미 획득한 증거면 grant를 유지해
+      // 나머지 하나를 고를 수 있게 한다.
+      const isNew = await redeemEvidenceCode(pickTeam, pickCode);
+      if (!isNew) {
+        sendJson(response, 409, {
+          error: "이미 획득한 증거입니다.",
+          code: "ALREADY_REDEEMED",
+          evidence: publicEvidence(pickEvidence),
+          grant,
+          options: roomOptionsFor(roomId)
+        });
+        return;
+      }
+
+      const result = await grantCredits(pickTeam, evidenceRewardCredits);
+      const evidenceLog = await recordEvidenceRedemption({
+        team: pickTeam,
+        user: decodedHeaderValue(request, "x-kit-user") || body.user || pickTeam,
+        code: pickCode,
+        room: pickEvidence.room,
+        evidence: pickEvidence.evidence,
+        person: pickEvidence.person,
+        added: evidenceRewardCredits,
+        remaining: result.credits
+      });
+      // 지급에 성공했으므로 승인을 소거한다. 이제 pick을 다시 호출해도 NO_GRANT.
+      await clearEvidenceGrant(pickTeam);
+
+      sendJson(response, 200, {
+        ok: true,
+        picked: true,
+        code: pickCode,
+        evidence: publicEvidence(pickEvidence),
+        evidenceLog: publicEvidenceLog(evidenceLog),
+        team: pickTeam,
+        added: evidenceRewardCredits,
+        credits: result.credits,
+        granted: result.granted,
+        logs: await getQuestionLogs(pickTeam),
         persistent: hasPersistentStore()
       });
       return;

@@ -9,6 +9,7 @@ const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
 const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
+const memoryEvidenceGrantStore = globalThis.__kitEvidenceGrantStore || new Map();
 const memoryEthicsQuizRedeemStore = globalThis.__kitEthicsQuizRedeemStore || new Map();
 const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
@@ -21,6 +22,7 @@ globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
 globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
 globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
+globalThis.__kitEvidenceGrantStore = memoryEvidenceGrantStore;
 globalThis.__kitEthicsQuizRedeemStore = memoryEthicsQuizRedeemStore;
 globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
@@ -31,6 +33,7 @@ const maxReturnedEvidenceLogs = 100;
 const maxEthicsSourceImageLength = 300000;
 const maxSimilaritySentenceLength = 500;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
+const evidenceGrantTtlMs = Number(process.env.KIT_EVIDENCE_GRANT_TTL_MS || 600000);
 const defaultClassId = "class-a";
 
 function decodeValue(value) {
@@ -158,6 +161,10 @@ function evidenceRedeemKeyFor(team) {
 
 function evidenceLogKey() {
   return `kit:${storeNamespace()}:evidence-logs`;
+}
+
+function evidenceGrantKeyFor(team) {
+  return `kit:${storeNamespace()}:evidence-grant:${team}`;
 }
 
 function ethicsQuizRedeemKeyFor(team) {
@@ -319,6 +326,82 @@ async function redeemEvidenceCode(team, code) {
 
   const added = Number(await redisCommand(["SADD", evidenceRedeemKeyFor(normalized), normalizedCode]));
   return added === 1;
+}
+
+function cleanEvidenceGrant(grant = {}) {
+  const roomId = String(grant.roomId || "").trim().slice(0, 20);
+  if (!roomId) return null;
+  return {
+    roomId,
+    roomName: String(grant.roomName || "").trim().slice(0, 40),
+    at: Number(grant.at || Date.now()),
+    by: String(grant.by || "").trim().slice(0, 40),
+    namespace: String(grant.namespace || storeNamespace()).trim()
+  };
+}
+
+async function setEvidenceGrant(team, grant) {
+  const normalized = normalizeTeam(team);
+  const cleanGrant = cleanEvidenceGrant(grant);
+  if (!normalized || !cleanGrant) return null;
+
+  // 팀당 하나만 유지: 기존 승인이 있어도 그대로 덮어쓴다.
+  if (!hasPersistentStore()) {
+    memoryEvidenceGrantStore.set(evidenceGrantKeyFor(normalized), cleanGrant);
+    return cleanGrant;
+  }
+
+  await redisCommand(["SET", evidenceGrantKeyFor(normalized), JSON.stringify(cleanGrant)]);
+  return cleanGrant;
+}
+
+async function getEvidenceGrant(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return null;
+  const now = Date.now();
+  const key = evidenceGrantKeyFor(normalized);
+
+  // presence와 동일한 방식: TTL이 지난 승인은 무시하고 정리한다.
+  if (!hasPersistentStore()) {
+    const grant = memoryEvidenceGrantStore.get(key);
+    if (!grant) return null;
+    if (now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+      memoryEvidenceGrantStore.delete(key);
+      return null;
+    }
+    return grant;
+  }
+
+  const raw = await redisCommand(["GET", key]);
+  if (!raw) return null;
+  let grant = null;
+  try {
+    grant = cleanEvidenceGrant(JSON.parse(raw));
+  } catch {
+    grant = null;
+  }
+  if (!grant || now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+    await redisCommand(["DEL", key]);
+    return null;
+  }
+  return grant;
+}
+
+async function clearEvidenceGrant(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return false;
+
+  if (!hasPersistentStore()) {
+    return memoryEvidenceGrantStore.delete(evidenceGrantKeyFor(normalized));
+  }
+
+  await redisCommand(["DEL", evidenceGrantKeyFor(normalized)]);
+  return true;
+}
+
+async function getAllEvidenceGrants() {
+  const entries = await Promise.all(teams.map(async (team) => [team, await getEvidenceGrant(team)]));
+  return Object.fromEntries(entries);
 }
 
 function cleanEvidenceEntry(entry = {}) {
@@ -932,8 +1015,10 @@ module.exports = {
   getAllCredits,
   getAllGrantedCredits,
   getAllQuestionCounts,
+  getAllEvidenceGrants,
   getCredits,
   getCustomEthicsQuestions,
+  getEvidenceGrant,
   getEvidenceRedemptions,
   getEthicsQuizRedemptions,
   getEthicsQuizSolvedQuestions,
@@ -955,6 +1040,8 @@ module.exports = {
   redeemEthicsQuizQuestion,
   redeemEvidenceCode,
   resetCredits,
+  clearEvidenceGrant,
+  setEvidenceGrant,
   setCustomEthicsQuestions,
   setGrantedCredits,
   setCredits,
