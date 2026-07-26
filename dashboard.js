@@ -228,7 +228,11 @@
       meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 1}개`;
 
       const text = document.createElement("p");
-      text.textContent = "증거코드 입력 완료 · 질문권 지급됨";
+      // 서버가 보내는 교실·증거 이름을 표시한다(예: "체육관 · 전교 1등 전 여자친구의 메시지").
+      // 재방문 보너스는 evidence가 "재방문 보너스"라 "체육관 · 재방문 보너스"로 구분된다.
+      // 둘 다 없는 옛 로그는 기존 문구로 넘어간다. "+N개" 표시는 meta에 그대로 유지.
+      const detail = [entry.room, entry.evidence].filter(Boolean).join(" · ");
+      text.textContent = detail || "증거코드 입력 완료 · 질문권 지급됨";
 
       item.append(meta, text);
       list.append(item);
