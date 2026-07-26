@@ -5,6 +5,14 @@
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
   const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));
   const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
+  // 증거 조사 승인 장소. roomId는 evidence-code.js / room-investigation.js와 일치.
+  const rooms = [
+    { id: "broadcast", name: "방송실" },
+    { id: "art", name: "미술실" },
+    { id: "office", name: "교무실" },
+    { id: "science", name: "과학실" },
+    { id: "gym", name: "체육관" }
+  ];
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
   let syncStatus = null;
@@ -13,6 +21,7 @@
   let questionCounts = { ...emptyByTeam };
   let questionLogs = [];
   let evidenceLogs = [];
+  let evidenceGrants = {};
 
   function cleanScore(value) {
     const number = Number(value);
@@ -246,6 +255,8 @@
     }
     evidenceLogs = Array.isArray(data.evidenceLogs) ? data.evidenceLogs : [];
     renderEvidenceLogs();
+    // 최초 로드 시 교사 GET에 실려온 승인 현황을 함께 반영한다(추가 요청 없음).
+    applyGrants(data);
     return data;
   }
 
@@ -345,6 +356,133 @@
     });
   }
 
+  function populateGrantSelects() {
+    const teamSelect = document.getElementById("grantTeamSelect");
+    if (teamSelect && !teamSelect.options.length) {
+      teams.forEach((team) => {
+        const option = document.createElement("option");
+        option.value = team;
+        option.textContent = teamLabelFor(team);
+        teamSelect.append(option);
+      });
+    }
+    const roomSelect = document.getElementById("grantRoomSelect");
+    if (roomSelect && !roomSelect.options.length) {
+      rooms.forEach((room) => {
+        const option = document.createElement("option");
+        option.value = room.id;
+        option.textContent = room.name;
+        roomSelect.append(option);
+      });
+    }
+  }
+
+  function setGrantStatus(text, type = "") {
+    const node = document.getElementById("grantStatus");
+    if (!node) return;
+    node.textContent = text;
+    node.classList.toggle("is-ok", type === "ok");
+    node.classList.toggle("is-bad", type === "bad");
+  }
+
+  function roomNameFor(roomId) {
+    return rooms.find((room) => room.id === roomId)?.name || String(roomId || "");
+  }
+
+  function formatRelativeTime(at) {
+    const ms = Date.now() - Number(at || 0);
+    if (!Number.isFinite(ms) || ms < 60000) return "방금";
+    const minutes = Math.floor(ms / 60000);
+    if (minutes < 60) return `${minutes}분 전`;
+    return `${Math.floor(minutes / 60)}시간 전`;
+  }
+
+  function renderGrants() {
+    const list = document.getElementById("evidenceGrantList");
+    if (!list) return;
+    list.textContent = "";
+
+    const active = teams
+      .map((team) => ({ team, grant: evidenceGrants[team] }))
+      .filter((entry) => entry.grant && entry.grant.roomId);
+
+    if (!active.length) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-grant-empty";
+      empty.textContent = "아직 승인된 팀이 없습니다.";
+      list.append(empty);
+      return;
+    }
+
+    active.forEach(({ team, grant }) => {
+      const item = document.createElement("article");
+      item.className = "evidence-grant-entry";
+
+      const meta = document.createElement("div");
+      meta.className = "evidence-grant-entry__meta";
+      meta.textContent = `${teamLabelFor(team)} · ${grant.roomName || roomNameFor(grant.roomId)} · ${formatRelativeTime(grant.at)}`;
+
+      const revoke = document.createElement("button");
+      revoke.className = "reset-btn";
+      revoke.type = "button";
+      revoke.textContent = "취소";
+      revoke.dataset.revokeTeam = team;
+
+      item.append(meta, revoke);
+      list.append(item);
+    });
+  }
+
+  // grant / revoke 응답과 교사 GET 응답 모두 grants를 담고 있어 그대로 갱신한다.
+  function applyGrants(data = {}) {
+    if (data && data.grants && typeof data.grants === "object") {
+      evidenceGrants = data.grants;
+      renderGrants();
+    }
+  }
+
+  async function fetchGrants() {
+    const { response, data } = await requestCredits("/api/evidence-code");
+    if (!response.ok) {
+      throw new Error(data.error || "승인 현황 불러오기 실패");
+    }
+    applyGrants(data);
+    return data;
+  }
+
+  async function grantEvidence() {
+    const team = document.getElementById("grantTeamSelect")?.value || "";
+    const roomId = document.getElementById("grantRoomSelect")?.value || "";
+    if (!team || !roomId) {
+      setGrantStatus("팀과 장소를 선택하세요.", "bad");
+      return;
+    }
+
+    const { response, data } = await requestCredits("/api/evidence-code", {
+      method: "POST",
+      body: JSON.stringify({ action: "grant", team, roomId })
+    });
+    if (!response.ok) {
+      setGrantStatus(data.error || "승인 실패", "bad");
+      return;
+    }
+    applyGrants(data);
+    setGrantStatus(`${teamLabelFor(team)} · ${roomNameFor(roomId)} 승인 완료.`, "ok");
+  }
+
+  async function revokeEvidence(team) {
+    const { response, data } = await requestCredits("/api/evidence-code", {
+      method: "POST",
+      body: JSON.stringify({ action: "revoke", team })
+    });
+    if (!response.ok) {
+      setGrantStatus(data.error || "승인 취소 실패", "bad");
+      return;
+    }
+    applyGrants(data);
+    setGrantStatus(`${teamLabelFor(team)} 승인을 취소했습니다.`, "ok");
+  }
+
   // room-investigation.js의 state.requesting 패턴을 따른다: 요청이 진행 중이면
   // 모든 교사 버튼을 비활성화해 중복 제출을 막고, 성공/실패와 무관하게 finally에서
   // 원상 복구해 영구 잠김을 방지한다.
@@ -355,7 +493,9 @@
     "refreshQuestionStats",
     "clearQuestionLogs",
     "refreshEvidenceLogs",
-    "clearEvidenceLogs"
+    "clearEvidenceLogs",
+    "grantSubmit",
+    "refreshGrants"
   ].map((id) => document.getElementById(id)).filter(Boolean);
 
   function setRequesting(value) {
@@ -448,10 +588,44 @@
     );
   });
 
+  document.getElementById("grantSubmit")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      grantEvidence().catch((error) => {
+        setGrantStatus(error.message || "승인 실패", "bad");
+      })
+    );
+  });
+
+  document.getElementById("refreshGrants")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      fetchGrants().then(() => {
+        setGrantStatus("승인 현황을 새로고침했습니다.", "ok");
+      }).catch((error) => {
+        setGrantStatus(error.message || "승인 현황 불러오기 실패", "bad");
+      })
+    );
+  });
+
+  // 취소 버튼은 목록이 다시 그려질 때마다 새로 생기므로 이벤트 위임으로 처리한다.
+  // confirm은 잠금 진입 전에 두어 대화상자 대기 중 버튼이 "처리 중..."이 되지 않게 한다.
+  document.getElementById("evidenceGrantList")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-revoke-team]");
+    if (!button) return;
+    const team = button.dataset.revokeTeam;
+    if (!window.confirm(`${teamLabelFor(team)} 승인을 취소할까요?`)) return;
+    runExclusive(button, () =>
+      revokeEvidence(team).catch((error) => {
+        setGrantStatus(error.message || "승인 취소 실패", "bad");
+      })
+    );
+  });
+
   applyTeamDisplayLabels();
+  populateGrantSelects();
   renderScores();
   renderQuestionStats();
   renderEvidenceLogs();
+  renderGrants();
   startScoreSync();
 
   const stopwatchDisplay = document.getElementById("stopwatchDisplay");
