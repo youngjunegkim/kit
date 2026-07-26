@@ -820,6 +820,11 @@
       background: rgba(19, 12, 7, 0.86);
       box-shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
       color: #fff;
+      /* 메뉴 내용이 화면보다 길면(예: 1366x768) 로그아웃 등 아래쪽 버튼이 화면 밖으로
+         밀린다. 메뉴 자체를 뷰포트 높이에 맞춰 내부 스크롤하게 해, 어떤 세로 높이에서도
+         모든 버튼에 도달할 수 있게 한다. (좁은 화면에서 static으로 바뀔 때는 아래 반응형에서 해제) */
+      max-height: calc(100dvh - 36px);
+      overflow-y: auto;
     }
 
     .student-menu-title {
@@ -2139,6 +2144,9 @@
 
       .student-menu {
         position: static;
+        /* 스택 레이아웃에선 메뉴가 전체 폭으로 펼쳐지므로 내부 스크롤 클램프를 해제한다. */
+        max-height: none;
+        overflow: visible;
       }
 
       .student-tools {
