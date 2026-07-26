@@ -85,7 +85,14 @@
     ethicsServerSolved: [],
     ethicsCurrent: 1,
     ethicsUnlocked: false,
-    ethicsSubmitting: false
+    ethicsSubmitting: false,
+    claiming: false,
+    claimGrant: null,
+    claimOptions: [],
+    claimRevisitBonus: 0,
+    submittingSimilarity: false,
+    similaritySubmitCount: 0,
+    similarityResubmitCost: 5
   };
 
   const creditCounts = [...document.querySelectorAll("[data-credit-count]")];
@@ -100,6 +107,9 @@
   const evidenceBoard = document.querySelector("[data-evidence-board]");
   const evidenceBoardCount = document.querySelector("[data-evidence-board-count]");
   const evidenceRoomDetail = document.querySelector("[data-evidence-room-detail]");
+  const evidenceClaimOpen = document.querySelector("[data-evidence-claim-open]");
+  const evidenceClaimStatus = document.querySelector("[data-evidence-claim-status]");
+  const evidenceClaimArea = document.querySelector("[data-evidence-claim]");
   const caseNoteArea = document.querySelector("[data-note-key='case']");
   const caseNoteStatus = document.querySelector("[data-note-status='case']");
   const clearCaseNote = document.querySelector("[data-clear-note='case']");
@@ -116,10 +126,20 @@
   const ethicsRewardCredits = 1;
   const evidenceRewardCredits = 1;
   const similarityForm = document.querySelector("[data-similarity-form]");
-  const similarityInput = document.querySelector("[data-similarity-sentence]");
+  const similarityOpenBtn = document.querySelector("[data-similarity-open]");
+  const similarityModal = document.querySelector("[data-similarity-modal]");
+  const similarityCloseBtn = document.querySelector("[data-similarity-close]");
+  const similarityBlanks = [...document.querySelectorAll("[data-similarity-blank]")];
   const similarityCount = document.querySelector("[data-similarity-count]");
   const similaritySubmit = document.querySelector("[data-similarity-submit]");
   const similarityStatus = document.querySelector("[data-similarity-status]");
+  const similarityConfirm = document.querySelector("[data-similarity-confirm]");
+  const similarityConfirmSentence = document.querySelector("[data-similarity-confirm-sentence]");
+  const similarityConfirmNotice = document.querySelector("[data-similarity-confirm-notice]");
+  const similarityConfirmSend = document.querySelector("[data-similarity-confirm-send]");
+  const similarityConfirmCancel = document.querySelector("[data-similarity-confirm-cancel]");
+  const similarityTemplate = (v) =>
+    `범인은 ${v.culprit || ""}이고, 사건 장소는 ${v.place || ""}이다. 범인은 ${v.tool || ""}를 사용해 ${v.method || ""} 해서 시험 예상 문제가 유출되었다. 그 근거는 ${v.evidence || ""}이다. 범인에게 가장 부족했던 AI 윤리 역량은 ${v.competency || ""}이다.`;
 
   function normalize(text) {
     return String(text || "").toLowerCase().replace(/\s+/g, "");
@@ -414,7 +434,7 @@
 
   function evidenceCardsFromLogs(logs = []) {
     return logs
-      .filter((entry) => entry?.code && entry?.evidence)
+      .filter((entry) => entry?.code && entry?.evidence && evidenceCatalog[cleanCode(entry.code)])
       .map((entry) => evidenceFromResponse(entry.code, {
         room: entry.room,
         evidence: entry.evidence,
@@ -593,6 +613,264 @@
     renderEvidenceRoomDetail();
   }
 
+  const sessionClaimedKeys = new Set();
+
+  function isClaimOptionObtained(roomId, index) {
+    if (sessionClaimedKeys.has(`${roomId}:${index}`)) return true;
+    return state.evidenceCards.some((card) => card.roomId === roomId && Number(card.index) === Number(index));
+  }
+
+  function setClaimStatus(text, type = "") {
+    if (!evidenceClaimStatus) return;
+    evidenceClaimStatus.textContent = text || "";
+    evidenceClaimStatus.classList.toggle("is-ok", type === "ok");
+    evidenceClaimStatus.classList.toggle("is-bad", type === "bad");
+  }
+
+  function closeEvidenceClaim() {
+    if (evidenceClaimArea) {
+      evidenceClaimArea.hidden = true;
+      evidenceClaimArea.textContent = "";
+    }
+    state.claimGrant = null;
+    state.claimOptions = [];
+  }
+
+  function renderClaimArea(grant, options) {
+    if (!evidenceClaimArea || !grant) return;
+    evidenceClaimArea.textContent = "";
+    evidenceClaimArea.hidden = false;
+
+    const head = document.createElement("div");
+    head.className = "evidence-claim-head";
+    const title = document.createElement("h3");
+    title.textContent = `${grant.roomName || "교실"} 증거`;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "evidence-claim-close";
+    close.dataset.evidenceClaimClose = "1";
+    close.textContent = "닫기";
+    head.append(title, close);
+    evidenceClaimArea.append(head);
+
+    const list = Array.isArray(options) ? options : [];
+    const available = list.filter((option) => !isClaimOptionObtained(grant.roomId, option.index));
+
+    if (list.length && !available.length) {
+      const done = document.createElement("p");
+      done.className = "evidence-claim-empty";
+      done.textContent = "이 교실의 증거는 모두 모았습니다. 다시 도착했다면 보너스 코인을 받을 수 있습니다.";
+      const bonusAmount = Number(state.claimRevisitBonus) || 0;
+      const bonusButton = document.createElement("button");
+      bonusButton.type = "button";
+      bonusButton.className = "receive-credit-btn";
+      bonusButton.dataset.revisitBonus = "1";
+      bonusButton.dataset.claimRoom = grant.roomId;
+      bonusButton.textContent = bonusAmount ? `코인 ${bonusAmount}개 받기` : "코인 받기";
+      evidenceClaimArea.append(done, bonusButton);
+      return;
+    }
+
+    const photo = document.createElement("img");
+    photo.className = "evidence-claim-photo";
+    photo.src = `assets/evidence-rooms/${grant.roomId}-masked.png`;
+    photo.alt = `${grant.roomName || "교실"} 사진`;
+    photo.decoding = "async";
+    evidenceClaimArea.append(photo);
+
+    const hint = document.createElement("p");
+    hint.className = "evidence-claim-hint";
+    hint.textContent = "증거 하나만 고를 수 있습니다. 선택하면 이번 승인은 닫힙니다.";
+    evidenceClaimArea.append(hint);
+
+    const optionsWrap = document.createElement("div");
+    optionsWrap.className = "evidence-claim-options";
+    list.forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "evidence-claim-option";
+      const obtained = isClaimOptionObtained(grant.roomId, option.index);
+      button.disabled = obtained;
+      button.textContent = obtained ? `증거 카드 ${option.index} · 획득함` : `증거 카드 ${option.index}`;
+      if (!obtained) {
+        button.dataset.claimIndex = String(option.index);
+        button.dataset.claimRoom = grant.roomId;
+      }
+      optionsWrap.append(button);
+    });
+    evidenceClaimArea.append(optionsWrap);
+  }
+
+  async function openEvidenceClaim() {
+    if (state.claiming) return;
+    if (!state.team) {
+      setClaimStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    state.claiming = true;
+    if (evidenceClaimOpen) evidenceClaimOpen.disabled = true;
+    setClaimStatus("승인을 확인하는 중...");
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "claim",
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "승인을 확인하지 못했습니다.");
+
+      if (!data.grant) {
+        closeEvidenceClaim();
+        setClaimStatus("아직 선생님이 승인한 증거 조사가 없습니다.", "bad");
+        return;
+      }
+
+      state.claimGrant = data.grant;
+      state.claimOptions = Array.isArray(data.options) ? data.options : [];
+      state.claimRevisitBonus = Number(data.revisitBonus) || 0;
+      renderClaimArea(state.claimGrant, state.claimOptions);
+      setClaimStatus(`${data.grant.roomName || "교실"} 조사가 승인되었습니다.`, "ok");
+    } catch (error) {
+      setClaimStatus(error.message || "승인을 확인하지 못했습니다.", "bad");
+    } finally {
+      state.claiming = false;
+      if (evidenceClaimOpen) evidenceClaimOpen.disabled = false;
+    }
+  }
+
+  async function pickEvidence(roomId, index) {
+    if (state.claiming) return;
+    if (!state.team) {
+      setClaimStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    state.claiming = true;
+    const optionButtons = evidenceClaimArea ? [...evidenceClaimArea.querySelectorAll(".evidence-claim-option")] : [];
+    optionButtons.forEach((button) => { button.disabled = true; });
+    setClaimStatus("증거를 받는 중...");
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "pick",
+          roomId,
+          index,
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (data.code === "NO_GRANT") {
+          closeEvidenceClaim();
+          setClaimStatus("승인 시간이 지나서 닫혔습니다. 선생님께 다시 요청하세요.", "bad");
+        } else if (data.code === "ALREADY_REDEEMED") {
+          sessionClaimedKeys.add(`${roomId}:${index}`);
+          if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
+          setClaimStatus("이미 가지고 있는 증거입니다. 다른 증거를 고르세요.", "bad");
+        } else {
+          if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
+          setClaimStatus(data.error || "증거를 받지 못했습니다.", "bad");
+        }
+        return;
+      }
+
+      sessionClaimedKeys.add(`${roomId}:${index}`);
+      applyCredits(data.credits);
+      const card = storeEvidenceCard(data.code, data.evidence);
+      closeEvidenceClaim();
+      setClaimStatus(`코인 ${Number(data.added || evidenceRewardCredits)}개를 받았습니다 · ${card.room} 증거 카드 ${card.index}`, "ok");
+    } catch (error) {
+      setClaimStatus(error.message || "증거를 받지 못했습니다.", "bad");
+    } finally {
+      state.claiming = false;
+      optionButtons.forEach((button) => { button.disabled = false; });
+    }
+  }
+
+  async function claimRevisitBonus(roomId) {
+    if (state.claiming) return;
+    if (!state.team) {
+      setClaimStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    state.claiming = true;
+    const bonusButton = evidenceClaimArea ? evidenceClaimArea.querySelector("[data-revisit-bonus]") : null;
+    if (bonusButton) bonusButton.disabled = true;
+    setClaimStatus("보너스를 받는 중...");
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "revisit",
+          roomId,
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (data.code === "NO_GRANT") {
+          closeEvidenceClaim();
+          setClaimStatus("승인 시간이 지나서 닫혔습니다. 선생님께 다시 요청하세요.", "bad");
+        } else if (data.code === "EVIDENCE_REMAINING") {
+          if (state.claimGrant) renderClaimArea(state.claimGrant, state.claimOptions);
+          setClaimStatus("아직 받을 수 있는 증거가 남아 있습니다. 먼저 증거를 선택하세요.", "bad");
+        } else if (data.code === "GRANT_ROOM_MISMATCH") {
+          closeEvidenceClaim();
+          setClaimStatus("승인된 방과 다릅니다. 선생님께 확인하세요.", "bad");
+        } else {
+          setClaimStatus(data.error || "보너스를 받지 못했습니다.", "bad");
+        }
+        return;
+      }
+
+      applyCredits(data.credits);
+      closeEvidenceClaim();
+      setClaimStatus(`코인 ${Number(data.added || 0)}개를 받았습니다 · 재방문 보너스`, "ok");
+    } catch (error) {
+      setClaimStatus(error.message || "보너스를 받지 못했습니다.", "bad");
+    } finally {
+      state.claiming = false;
+      if (bonusButton) bonusButton.disabled = false;
+    }
+  }
+
   function setupCaseNote() {
     if (!caseNoteArea) return;
     caseNoteArea.value = localStorage.getItem(noteStorageKey()) || "";
@@ -611,35 +889,178 @@
     });
   }
 
+  function similarityDraftKey() {
+    return `kit-similarity-draft:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function similarityBlankValues() {
+    const values = {};
+    similarityBlanks.forEach((element) => {
+      values[element.dataset.similarityBlank] = String(element.value || "").trim();
+    });
+    return values;
+  }
+
+  function assembleSimilaritySentence() {
+    return similarityTemplate(similarityBlankValues()).replace(/\s+/g, " ").trim();
+  }
+
   function updateSimilarityCounter() {
-    if (!similarityInput || !similarityCount) return;
-    const length = String(similarityInput.value || "").length;
+    if (!similarityCount) return;
+    const length = assembleSimilaritySentence().length;
     similarityCount.textContent = `${length}/${similaritySentenceLimit}`;
     similarityCount.classList.toggle("is-bad", length > similaritySentenceLimit);
   }
 
-  async function submitSimilaritySentence(event) {
-    event.preventDefault();
-    if (!similarityInput) return;
+  function saveSimilarityDraft() {
+    try {
+      localStorage.setItem(similarityDraftKey(), JSON.stringify(similarityBlankValues()));
+    } catch {}
+  }
 
-    const sentence = String(similarityInput.value || "").replace(/\s+/g, " ").trim();
+  function autoGrowSimilarityBlank(element) {
+    if (!element || element.tagName !== "TEXTAREA") return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }
+
+  function autoGrowAllSimilarityBlanks() {
+    similarityBlanks.forEach(autoGrowSimilarityBlank);
+  }
+
+  function loadSimilarityDraft() {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(similarityDraftKey()) || "{}") || {};
+    } catch {
+      saved = {};
+    }
+    similarityBlanks.forEach((element) => {
+      const key = element.dataset.similarityBlank;
+      if (typeof saved[key] === "string") element.value = saved[key];
+    });
+    autoGrowAllSimilarityBlanks();
+    updateSimilarityCounter();
+  }
+
+  function allSimilarityBlanksFilled() {
+    return similarityBlanks.length > 0 && similarityBlanks.every((element) => String(element.value || "").trim().length > 0);
+  }
+
+  function hideSimilarityConfirm() {
+    if (similarityConfirm) similarityConfirm.hidden = true;
+    if (similarityForm) similarityForm.hidden = false;
+  }
+
+  function openSimilarityModal() {
+    if (!similarityModal) return;
+    loadSimilarityDraft();
+    hideSimilarityConfirm();
+    setSimilarityStatus("");
+    similarityModal.hidden = false;
+    document.body.classList.add("lightbox-open");
+    similarityBlanks[0]?.focus({ preventScroll: true });
+    fetchSimilarityStatus();
+    refreshCredits().then(updateSimilaritySubmitButton).catch(() => {});
+  }
+
+  function closeSimilarityModal() {
+    if (!similarityModal) return;
+    similarityModal.hidden = true;
+    hideSimilarityConfirm();
+    document.body.classList.remove("lightbox-open");
+  }
+
+  async function fetchSimilarityStatus() {
+    if (!state.team) return;
+    try {
+      const response = await fetch(`/api/similarity-sentences?team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      state.similaritySubmitCount = Number(data.submitCount) || 0;
+      if (Number(data.resubmitCost) > 0) state.similarityResubmitCost = Number(data.resubmitCost);
+      updateSimilaritySubmitButton();
+    } catch {}
+  }
+
+  function updateSimilaritySubmitButton() {
+    if (!similaritySubmit) return;
+    const isResubmit = state.similaritySubmitCount >= 1;
+    const cost = state.similarityResubmitCost;
+    if (!isResubmit) {
+      similaritySubmit.textContent = "전송";
+      similaritySubmit.disabled = false;
+      return;
+    }
+    similaritySubmit.textContent = `다시 보내기 (코인 ${cost}개)`;
+    if (currentQuestionCredits() < cost) {
+      similaritySubmit.disabled = true;
+      setSimilarityStatus(`코인이 ${cost}개 있어야 다시 보낼 수 있습니다. 지금은 ${currentQuestionCredits()}개입니다.`, "bad");
+    } else {
+      similaritySubmit.disabled = false;
+    }
+  }
+
+  function showSimilarityConfirm(sentence) {
+    if (!similarityConfirm) return;
+    if (similarityConfirmSentence) similarityConfirmSentence.textContent = sentence;
+    const isResubmit = state.similaritySubmitCount >= 1;
+    if (similarityConfirmNotice) {
+      if (isResubmit) {
+        similarityConfirmNotice.textContent = `다시 보내면 코인 ${state.similarityResubmitCost}개가 차감됩니다.`;
+        similarityConfirmNotice.hidden = false;
+      } else {
+        similarityConfirmNotice.hidden = true;
+      }
+    }
+    if (similarityConfirmSend) similarityConfirmSend.textContent = isResubmit ? `보내기 (코인 ${state.similarityResubmitCost}개)` : "보내기";
+    if (similarityForm) similarityForm.hidden = true;
+    similarityConfirm.hidden = false;
+    setSimilarityStatus("");
+  }
+
+  function reviewSimilaritySentence(event) {
+    event.preventDefault();
+    if (state.submittingSimilarity) return;
     if (!state.team) {
       setSimilarityStatus("학생 팀 정보가 없습니다.", "bad");
       return;
     }
-    if (!sentence) {
-      setSimilarityStatus("보낼 문장을 입력하세요.", "bad");
-      similarityInput.focus();
+    if (!allSimilarityBlanksFilled()) {
+      setSimilarityStatus("빈칸을 모두 채워 주세요.", "bad");
       return;
     }
+    const sentence = assembleSimilaritySentence();
     if (sentence.length > similaritySentenceLimit) {
       setSimilarityStatus(`${similaritySentenceLimit}자 이하로 줄여 주세요.`, "bad");
-      similarityInput.focus();
       return;
     }
+    if (state.similaritySubmitCount >= 1 && currentQuestionCredits() < state.similarityResubmitCost) {
+      setSimilarityStatus(`코인이 ${state.similarityResubmitCost}개 있어야 다시 보낼 수 있습니다.`, "bad");
+      return;
+    }
+    showSimilarityConfirm(sentence);
+  }
 
-    if (similaritySubmit) similaritySubmit.disabled = true;
-    setSimilarityStatus("남은 코인을 확인한 뒤 선생님 화면으로 전송 중입니다.");
+  async function sendSimilaritySentence() {
+    if (state.submittingSimilarity) return;
+    if (!state.team) {
+      setSimilarityStatus("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+    const sentence = assembleSimilaritySentence();
+
+    state.submittingSimilarity = true;
+    if (similarityConfirmSend) similarityConfirmSend.disabled = true;
+    setSimilarityStatus("선생님 화면으로 전송 중입니다...");
 
     try {
       await refreshCredits();
@@ -662,34 +1083,71 @@
         })
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.ok) throw new Error(data.error || "전송 실패");
+      if (!response.ok || !data.ok) {
+        if (data.code === "INSUFFICIENT_CREDITS") {
+          if (data.credits !== undefined) applyCredits(data.credits);
+          hideSimilarityConfirm();
+          updateSimilaritySubmitButton();
+          setSimilarityStatus(`코인이 ${data.needed || state.similarityResubmitCost}개 있어야 다시 보낼 수 있습니다.`, "bad");
+          return;
+        }
+        throw new Error(data.error || "전송 실패");
+      }
 
-      setSimilarityStatus(`선생님 화면으로 전송했습니다. 남은 코인 ${remainingCredits}개도 함께 반영됩니다.`, "ok");
+      if (data.credits !== undefined) applyCredits(data.credits);
+      state.similaritySubmitCount = Number(data.submitCount) || state.similaritySubmitCount + 1;
+      hideSimilarityConfirm();
+      updateSimilaritySubmitButton();
+      const charged = Number(data.charged) || 0;
+      setSimilarityStatus(charged ? `코인 ${charged}개가 차감되고 전송됐습니다.` : "선생님 화면으로 전송했습니다.", "ok");
     } catch (error) {
+      hideSimilarityConfirm();
       setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
     } finally {
-      if (similaritySubmit) similaritySubmit.disabled = false;
+      state.submittingSimilarity = false;
+      if (similarityConfirmSend) similarityConfirmSend.disabled = false;
     }
   }
 
   function setupSimilaritySentenceForm() {
     updateSimilarityCounter();
-    similarityInput?.addEventListener("input", updateSimilarityCounter);
-    similarityForm?.addEventListener("submit", submitSimilaritySentence);
+    similarityBlanks.forEach((element) => {
+      element.addEventListener("input", () => {
+        autoGrowSimilarityBlank(element);
+        saveSimilarityDraft();
+        updateSimilarityCounter();
+      });
+    });
+    similarityOpenBtn?.addEventListener("click", openSimilarityModal);
+    similarityCloseBtn?.addEventListener("click", closeSimilarityModal);
+    similarityModal?.addEventListener("click", (event) => {
+      if (event.target === similarityModal) closeSimilarityModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && similarityModal && !similarityModal.hidden) closeSimilarityModal();
+    });
+    similarityForm?.addEventListener("submit", reviewSimilaritySentence);
+    similarityConfirmSend?.addEventListener("click", sendSimilaritySentence);
+    similarityConfirmCancel?.addEventListener("click", hideSimilarityConfirm);
   }
 
   function updateEvidenceControls() {
-    const disabled = state.redeeming || !state.team;
+    const disabled = state.redeeming || state.claiming || !state.team;
     if (evidenceInput) evidenceInput.disabled = disabled;
     if (evidenceSubmit) {
       evidenceSubmit.disabled = disabled;
       evidenceSubmit.textContent = state.redeeming ? "확인 중" : "입력";
     }
+    if (evidenceClaimOpen) {
+      evidenceClaimOpen.disabled = disabled;
+      evidenceClaimOpen.textContent = state.claiming ? "확인 중" : "받기";
+    }
+    updateSimilaritySubmitButton();
   }
 
   function setRefreshBusy(isBusy) {
     refreshButtons.forEach((button) => {
-      button.disabled = isBusy || state.requesting || state.redeeming;
+      button.disabled = isBusy || state.requesting || state.redeeming || state.claiming;
       button.textContent = isBusy ? "받는 중..." : "코인 받기";
     });
   }
@@ -1541,6 +1999,24 @@
     evidenceInput.value = cleanCode(evidenceInput.value);
   });
   evidenceForm?.addEventListener("submit", submitEvidenceCode);
+  evidenceClaimOpen?.addEventListener("click", openEvidenceClaim);
+  evidenceClaimArea?.addEventListener("click", (event) => {
+    const close = event.target.closest("[data-evidence-claim-close]");
+    if (close) {
+      closeEvidenceClaim();
+      setClaimStatus("");
+      return;
+    }
+    const bonus = event.target.closest("[data-revisit-bonus]");
+    if (bonus) {
+      claimRevisitBonus(bonus.dataset.claimRoom || "");
+      return;
+    }
+    const option = event.target.closest("[data-claim-index]");
+    if (option) {
+      pickEvidence(option.dataset.claimRoom || "", option.dataset.claimIndex || "");
+    }
+  });
 
   refreshButtons.forEach((button) => {
     button.addEventListener("click", refreshCredits);

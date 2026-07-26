@@ -5,6 +5,13 @@
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
   const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));
   const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
+  const rooms = [
+    { id: "broadcast", name: "방송실" },
+    { id: "art", name: "미술실" },
+    { id: "office", name: "교무실" },
+    { id: "science", name: "과학실" },
+    { id: "gym", name: "체육관" }
+  ];
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
   let syncStatus = null;
@@ -13,6 +20,7 @@
   let questionCounts = { ...emptyByTeam };
   let questionLogs = [];
   let evidenceLogs = [];
+  let evidenceGrants = {};
 
   function cleanScore(value) {
     const number = Number(value);
@@ -245,6 +253,7 @@
       throw new Error(data.error || "증거코드 입력 기록 불러오기 실패");
     }
     evidenceLogs = Array.isArray(data.evidenceLogs) ? data.evidenceLogs : [];
+    applyGrants(data);
     renderEvidenceLogs();
     return data;
   }
@@ -330,6 +339,7 @@
     }
 
     evidenceLogs = [];
+    applyGrants(data);
     renderEvidenceLogs();
     if (data.credits) {
       applyCreditData({ credits: data.credits, granted: data.granted, counts: questionCounts });
@@ -348,6 +358,165 @@
     });
   }
 
+  function populateGrantSelects() {
+    const teamSelect = document.getElementById("grantTeamSelect");
+    if (teamSelect && !teamSelect.options.length) {
+      teams.forEach((team) => {
+        const option = document.createElement("option");
+        option.value = team;
+        option.textContent = teamLabelFor(team);
+        teamSelect.append(option);
+      });
+    }
+
+    const roomSelect = document.getElementById("grantRoomSelect");
+    if (roomSelect && !roomSelect.options.length) {
+      rooms.forEach((room) => {
+        const option = document.createElement("option");
+        option.value = room.id;
+        option.textContent = room.name;
+        roomSelect.append(option);
+      });
+    }
+  }
+
+  function setGrantStatus(text, type = "") {
+    const node = document.getElementById("grantStatus");
+    if (!node) return;
+    node.textContent = text;
+    node.classList.toggle("is-ok", type === "ok");
+    node.classList.toggle("is-bad", type === "bad");
+  }
+
+  function roomNameFor(roomId) {
+    return rooms.find((room) => room.id === roomId)?.name || String(roomId || "");
+  }
+
+  function formatRelativeTime(at) {
+    const ms = Date.now() - Number(at || 0);
+    if (!Number.isFinite(ms) || ms < 60000) return "방금";
+    const minutes = Math.floor(ms / 60000);
+    if (minutes < 60) return `${minutes}분 전`;
+    return `${Math.floor(minutes / 60)}시간 전`;
+  }
+
+  function renderGrants() {
+    const list = document.getElementById("evidenceGrantList");
+    if (!list) return;
+    list.textContent = "";
+
+    const active = teams
+      .map((team) => ({ team, grant: evidenceGrants[team] }))
+      .filter((entry) => entry.grant && entry.grant.roomId);
+
+    if (!active.length) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-grant-empty";
+      empty.textContent = "아직 승인된 팀이 없습니다.";
+      list.append(empty);
+      return;
+    }
+
+    active.forEach(({ team, grant }) => {
+      const item = document.createElement("article");
+      item.className = "evidence-grant-entry";
+
+      const meta = document.createElement("div");
+      meta.className = "evidence-grant-entry__meta";
+      meta.textContent = `${teamLabelFor(team)} · ${grant.roomName || roomNameFor(grant.roomId)} · ${formatRelativeTime(grant.at)}`;
+
+      const revoke = document.createElement("button");
+      revoke.className = "reset-btn";
+      revoke.type = "button";
+      revoke.textContent = "취소";
+      revoke.dataset.revokeTeam = team;
+
+      item.append(meta, revoke);
+      list.append(item);
+    });
+  }
+
+  function applyGrants(data = {}) {
+    if (data && data.grants && typeof data.grants === "object") {
+      evidenceGrants = data.grants;
+      renderGrants();
+    }
+  }
+
+  async function fetchGrants() {
+    const { response, data } = await requestCredits("/api/evidence-code");
+    if (!response.ok) {
+      throw new Error(data.error || "승인 현황 불러오기 실패");
+    }
+    applyGrants(data);
+    return data;
+  }
+
+  async function grantEvidence() {
+    const team = document.getElementById("grantTeamSelect")?.value || "";
+    const roomId = document.getElementById("grantRoomSelect")?.value || "";
+    if (!team || !roomId) {
+      setGrantStatus("팀과 장소를 선택하세요.", "bad");
+      return;
+    }
+
+    const { response, data } = await requestCredits("/api/evidence-code", {
+      method: "POST",
+      body: JSON.stringify({ action: "grant", team, roomId })
+    });
+    if (!response.ok) {
+      setGrantStatus(data.error || "승인 실패", "bad");
+      return;
+    }
+    applyGrants(data);
+    setGrantStatus(`${teamLabelFor(team)} · ${roomNameFor(roomId)} 승인 완료.`, "ok");
+  }
+
+  async function revokeEvidence(team) {
+    const { response, data } = await requestCredits("/api/evidence-code", {
+      method: "POST",
+      body: JSON.stringify({ action: "revoke", team })
+    });
+    if (!response.ok) {
+      setGrantStatus(data.error || "승인 취소 실패", "bad");
+      return;
+    }
+    applyGrants(data);
+    setGrantStatus(`${teamLabelFor(team)} 승인을 취소했습니다.`, "ok");
+  }
+
+  let requesting = false;
+  const actionButtons = [
+    "publishScores",
+    "resetScores",
+    "refreshQuestionStats",
+    "clearQuestionLogs",
+    "refreshEvidenceLogs",
+    "clearEvidenceLogs",
+    "grantSubmit",
+    "refreshGrants"
+  ].map((id) => document.getElementById(id)).filter(Boolean);
+
+  function setRequesting(value) {
+    requesting = value;
+    actionButtons.forEach((button) => {
+      button.disabled = value;
+    });
+  }
+
+  async function runExclusive(button, task) {
+    if (requesting) return;
+    setRequesting(true);
+    const originalLabel = button ? button.textContent : "";
+    if (button) button.textContent = "처리 중...";
+    try {
+      await task();
+    } finally {
+      if (button) button.textContent = originalLabel;
+      setRequesting(false);
+    }
+  }
+
   document.querySelectorAll("[data-score-input]").forEach((input) => {
     input.addEventListener("input", () => {
       const team = input.dataset.scoreInput;
@@ -361,53 +530,97 @@
     });
   });
 
-  document.getElementById("resetScores").addEventListener("click", () => {
-    resetServerScores().catch((error) => {
-      remainingCredits = { ...emptyByTeam };
-      grantedCredits = { ...emptyByTeam };
-      pendingAdds = { ...emptyByTeam };
-      saveDraftAdds(pendingAdds);
-      renderScores();
-      setSyncStatus(error.message || "코인 초기화 실패", "bad");
-    });
+  document.getElementById("resetScores")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      resetServerScores().catch((error) => {
+        remainingCredits = { ...emptyByTeam };
+        grantedCredits = { ...emptyByTeam };
+        pendingAdds = { ...emptyByTeam };
+        saveDraftAdds(pendingAdds);
+        renderScores();
+        setSyncStatus(error.message || "코인 초기화 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("publishScores")?.addEventListener("click", () => {
-    publishScores().catch((error) => {
-      setSyncStatus(error.message || "코인 추가 실패", "bad");
-    });
+  document.getElementById("publishScores")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      publishScores().catch((error) => {
+        setSyncStatus(error.message || "코인 추가 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("refreshQuestionStats")?.addEventListener("click", () => {
-    fetchScores().catch((error) => {
-      setSyncStatus(error.message || "현황 새로고침 실패", "bad");
-    });
+  document.getElementById("refreshQuestionStats")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      fetchScores().catch((error) => {
+        setSyncStatus(error.message || "현황 새로고침 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("clearQuestionLogs")?.addEventListener("click", () => {
-    clearServerLogs().catch((error) => {
-      setSyncStatus(error.message || "로그 삭제 실패", "bad");
-    });
+  document.getElementById("clearQuestionLogs")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      clearServerLogs().catch((error) => {
+        setSyncStatus(error.message || "로그 삭제 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("refreshEvidenceLogs")?.addEventListener("click", () => {
-    fetchEvidenceLogs().then(() => {
-      setSyncStatus("증거코드 입력 기록을 불러왔습니다.", "ok");
-    }).catch((error) => {
-      setSyncStatus(error.message || "증거코드 입력 기록 불러오기 실패", "bad");
-    });
+  document.getElementById("refreshEvidenceLogs")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      fetchEvidenceLogs().then(() => {
+        setSyncStatus("증거코드 입력 기록을 불러왔습니다.", "ok");
+      }).catch((error) => {
+        setSyncStatus(error.message || "증거코드 입력 기록 불러오기 실패", "bad");
+      })
+    );
   });
 
-  document.getElementById("clearEvidenceLogs")?.addEventListener("click", () => {
-    clearEvidenceLogs().catch((error) => {
-      setSyncStatus(error.message || "증거코드 입력 초기화 실패", "bad");
-    });
+  document.getElementById("clearEvidenceLogs")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      clearEvidenceLogs().catch((error) => {
+        setSyncStatus(error.message || "증거코드 입력 초기화 실패", "bad");
+      })
+    );
+  });
+
+  document.getElementById("grantSubmit")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      grantEvidence().catch((error) => {
+        setGrantStatus(error.message || "승인 실패", "bad");
+      })
+    );
+  });
+
+  document.getElementById("refreshGrants")?.addEventListener("click", (event) => {
+    runExclusive(event.currentTarget, () =>
+      fetchGrants().then(() => {
+        setGrantStatus("승인 현황을 새로고침했습니다.", "ok");
+      }).catch((error) => {
+        setGrantStatus(error.message || "승인 현황 불러오기 실패", "bad");
+      })
+    );
+  });
+
+  document.getElementById("evidenceGrantList")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-revoke-team]");
+    if (!button) return;
+    const team = button.dataset.revokeTeam;
+    if (!window.confirm(`${teamLabelFor(team)} 승인을 취소할까요?`)) return;
+    runExclusive(button, () =>
+      revokeEvidence(team).catch((error) => {
+        setGrantStatus(error.message || "승인 취소 실패", "bad");
+      })
+    );
   });
 
   applyTeamDisplayLabels();
+  populateGrantSelects();
   renderScores();
   renderQuestionStats();
   renderEvidenceLogs();
+  renderGrants();
   startScoreSync();
 
   const stopwatchDisplay = document.getElementById("stopwatchDisplay");

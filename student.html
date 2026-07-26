@@ -846,7 +846,7 @@
     .student-main {
       min-width: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-columns: minmax(0, 1fr);
       gap: 16px;
       align-items: start;
     }
@@ -1465,12 +1465,432 @@
       color: #b3221d;
     }
 
+    .case-note-button {
+      position: relative;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr) 210px;
+      align-items: center;
+      min-height: 116px;
+      overflow: hidden;
+      border: 1px solid rgba(231, 196, 134, 0.58);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(31, 25, 21, 0.96) 0%, rgba(70, 47, 32, 0.95) 48%, rgba(229, 202, 156, 0.96) 100%);
+      color: #fff8eb;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .case-note-button:hover,
+    .case-note-button:focus-visible {
+      border-color: rgba(255, 232, 184, 0.9);
+      box-shadow:
+        0 0 0 1px rgba(255, 232, 184, 0.22),
+        0 18px 38px rgba(0, 0, 0, 0.38);
+      outline: none;
+      transform: translateY(-2px);
+    }
+
+    .case-note-button__icon {
+      position: relative;
+      width: 54px;
+      height: 54px;
+      margin-left: 20px;
+      border: 4px solid #2c61b9;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow:
+        0 0 0 4px rgba(255, 255, 255, 0.13),
+        0 10px 24px rgba(0, 0, 0, 0.24);
+    }
+
+    .case-note-button__icon::after {
+      content: "";
+      position: absolute;
+      right: -15px;
+      bottom: -10px;
+      width: 24px;
+      height: 8px;
+      border-radius: 999px;
+      background: #2c61b9;
+      transform: rotate(42deg);
+      transform-origin: left center;
+    }
+
+    .case-note-button__copy {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      padding: 18px 8px 18px 0;
+    }
+
+    .case-note-button__copy strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #fff;
+      font-size: clamp(1.26rem, 2vw, 2rem);
+      line-height: 1.12;
+      font-weight: 950;
+      word-break: keep-all;
+    }
+
+    .case-note-button__copy span {
+      display: block;
+      color: rgba(255, 248, 235, 0.78);
+      font-size: 0.96rem;
+      line-height: 1.4;
+      font-weight: 800;
+      word-break: keep-all;
+    }
+
+    .case-note-button__mascot {
+      align-self: stretch;
+      position: relative;
+      min-height: 116px;
+      background: rgba(255, 244, 222, 0.22);
+    }
+
+    .case-note-button__mascot img {
+      position: absolute;
+      right: -18px;
+      bottom: -22px;
+      width: 220px;
+      height: 148px;
+      object-fit: cover;
+      object-position: 47% 54%;
+      filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.3));
+    }
+
+    .similarity-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background: rgba(12, 9, 6, 0.72);
+    }
+
+    .similarity-modal[hidden] {
+      display: none;
+    }
+
+    .similarity-modal__panel {
+      width: min(620px, 100%);
+      max-height: calc(100vh - 24px);
+      max-height: calc(100dvh - 24px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-radius: 14px;
+      background: #fffaf0;
+      border: 1px solid #e4d3ab;
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+      padding: 16px;
+    }
+
+    .similarity-modal__head,
+    .similarity-modal__foot,
+    .similarity-confirm__actions {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .similarity-modal__head h2 {
+      margin: 0;
+      color: #24180f;
+      font-size: 1.1rem;
+      font-weight: 950;
+    }
+
+    .similarity-modal__close {
+      background: transparent;
+      color: #7a5a3a;
+      font-size: 1.1rem;
+      font-weight: 900;
+      padding: 4px 8px;
+    }
+
+    .similarity-modal__form,
+    .similarity-confirm {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .similarity-modal__form[hidden],
+    .similarity-confirm[hidden],
+    .similarity-confirm__notice[hidden] {
+      display: none;
+    }
+
+    .similarity-modal__body,
+    .similarity-confirm__body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .similarity-modal__intro,
+    .similarity-modal__status,
+    .similarity-modal__count {
+      margin: 0;
+      color: #6b563a;
+      font-size: 0.82rem;
+      font-weight: 850;
+    }
+
+    .similarity-template {
+      display: grid;
+      gap: 6px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #ecdcbb;
+      padding: 10px;
+    }
+
+    .s-line {
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      color: #24180f;
+      font-size: 0.9rem;
+      font-weight: 850;
+      line-height: 1.4;
+    }
+
+    .s-blank {
+      border: 1px solid #d6c49b;
+      border-radius: 7px;
+      background: #fffdf7;
+      color: #24180f;
+      padding: 6px 8px;
+      font: inherit;
+      font-weight: 800;
+    }
+
+    .s-blank:focus {
+      border-color: #b91f1f;
+      box-shadow: 0 0 0 3px rgba(185, 31, 31, 0.12);
+      outline: none;
+    }
+
+    .s-blank--sm {
+      width: 132px;
+    }
+
+    .s-blank--md {
+      width: 210px;
+      max-width: 100%;
+    }
+
+    .s-blank--area {
+      width: 100%;
+      min-height: 44px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+
+    .similarity-modal__foot {
+      padding-top: 8px;
+      border-top: 1px solid #ecdcbb;
+    }
+
+    .similarity-modal__count.is-bad,
+    .similarity-modal__status.is-bad {
+      color: #b3221d;
+    }
+
+    .similarity-modal__status.is-ok {
+      color: #116c46;
+    }
+
+    .similarity-modal__submit,
+    .similarity-confirm__send {
+      padding: 11px 20px;
+      border-radius: 9px;
+      background: #b91f1f;
+      color: #fff8ec;
+      font-size: 0.98rem;
+      font-weight: 950;
+    }
+
+    .similarity-modal__submit:disabled,
+    .similarity-confirm__send:disabled {
+      background: #c9b79a;
+      color: #fff;
+      cursor: default;
+    }
+
+    .similarity-confirm__label {
+      margin: 0;
+      color: #24180f;
+      font-size: 1rem;
+      font-weight: 950;
+    }
+
+    .similarity-confirm__sentence {
+      margin: 0;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #ecdcbb;
+      padding: 12px;
+      color: #24180f;
+      font-size: 0.92rem;
+      font-weight: 800;
+      line-height: 1.55;
+    }
+
+    .similarity-confirm__notice {
+      margin: 0;
+      border-radius: 8px;
+      background: #fdecec;
+      border: 1px solid #f2c4c4;
+      padding: 9px 11px;
+      color: #a5211c;
+      font-size: 0.85rem;
+      font-weight: 900;
+    }
+
+    .similarity-confirm__actions {
+      justify-content: flex-end;
+    }
+
+    .similarity-confirm__back {
+      padding: 11px 18px;
+      border-radius: 9px;
+      background: #efe6d4;
+      color: #5a321c;
+      font-weight: 900;
+    }
+
     .evidence-vault-card {
       border: 1px solid rgba(255, 255, 255, 0.62);
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.96);
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
       overflow: hidden;
+    }
+
+    .evidence-vault-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .evidence-claim-status {
+      margin: 0;
+      padding: 6px 12px 0;
+      min-height: 1em;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #4a5568;
+    }
+
+    .evidence-claim-status.is-ok {
+      color: #1f7a44;
+    }
+
+    .evidence-claim-status.is-bad {
+      color: #c0362c;
+    }
+
+    .evidence-claim-area {
+      display: grid;
+      gap: 10px;
+      margin: 8px 12px 0;
+      padding: 12px;
+      border: 1px solid #f0d9a8;
+      border-radius: 8px;
+      background: #fffdf6;
+    }
+
+    .evidence-claim-area[hidden] {
+      display: none;
+    }
+
+    .evidence-claim-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .evidence-claim-head h3 {
+      margin: 0;
+      font-size: 0.98rem;
+      color: #22303c;
+    }
+
+    .evidence-claim-close {
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      font-weight: 850;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+
+    .evidence-claim-hint,
+    .evidence-claim-empty {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #6b7280;
+    }
+
+    .evidence-claim-photo {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 340px;
+      object-fit: contain;
+      border-radius: 7px;
+      border: 1px solid #e6ddc8;
+    }
+
+    .evidence-claim-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .evidence-claim-option {
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 7px;
+      border: 1px solid #d9c79a;
+      background: #fff;
+      font-size: 0.9rem;
+      font-weight: 850;
+      color: #22303c;
+      cursor: pointer;
+    }
+
+    .evidence-claim-option:hover:not(:disabled) {
+      background: #fff7e4;
+    }
+
+    .evidence-claim-option:disabled {
+      cursor: default;
+      color: #9aa5b1;
+      background: #f4f6f8;
+      border-color: #e2e6ea;
     }
 
     .evidence-vault-layout {
@@ -1783,6 +2203,48 @@
         grid-template-columns: 1fr;
       }
 
+      .case-note-button {
+        grid-template-columns: 64px minmax(0, 1fr) 112px;
+        min-height: 98px;
+      }
+
+      .case-note-button__icon {
+        width: 42px;
+        height: 42px;
+        margin-left: 14px;
+        border-width: 3px;
+      }
+
+      .case-note-button__icon::after {
+        right: -12px;
+        bottom: -8px;
+        width: 20px;
+        height: 7px;
+      }
+
+      .case-note-button__copy {
+        padding: 14px 4px 14px 0;
+      }
+
+      .case-note-button__copy strong {
+        font-size: 1.08rem;
+      }
+
+      .case-note-button__copy span {
+        font-size: 0.78rem;
+      }
+
+      .case-note-button__mascot {
+        min-height: 98px;
+      }
+
+      .case-note-button__mascot img {
+        right: -52px;
+        bottom: -18px;
+        width: 148px;
+        height: 116px;
+      }
+
       .suspect-column,
       .footer-grid {
         grid-template-columns: 1fr;
@@ -1944,8 +2406,13 @@
         <section class="evidence-vault-card" aria-label="획득한 증거카드">
           <div class="student-log-head">
             <h2>획득한 증거카드</h2>
-            <strong data-evidence-board-count>0개</strong>
+            <div class="evidence-vault-head-actions">
+              <button class="receive-credit-btn" type="button" data-evidence-claim-open>받기</button>
+              <strong data-evidence-board-count>0개</strong>
+            </div>
           </div>
+          <p class="evidence-claim-status" data-evidence-claim-status role="status"></p>
+          <div class="evidence-claim-area" data-evidence-claim hidden></div>
           <div class="evidence-vault-layout">
             <div class="evidence-board" data-evidence-board></div>
             <aside class="evidence-room-detail" data-evidence-room-detail aria-live="polite">
@@ -1953,31 +2420,71 @@
             </aside>
           </div>
         </section>
+          <button class="case-note-button" type="button" data-similarity-open aria-label="최종 유사도 측정 팝업 열기">
+            <span class="case-note-button__icon" aria-hidden="true"></span>
+            <span class="case-note-button__copy">
+              <strong>사건노트 최종 제출</strong>
+              <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
+            </span>
+            <span class="case-note-button__mascot" aria-hidden="true">
+              <img src="assets/characters/detective-note-mascot.png" alt="">
+            </span>
+          </button>
         </div>
-
-        <aside class="note-card case-note-card" aria-label="심문 노트">
-          <h3>심문 노트</h3>
-          <textarea class="note-area" data-note-key="case" placeholder="심문 내용을 자유롭게 정리하세요."></textarea>
-          <div class="note-tools">
-            <span data-note-status="case">자동 저장</span>
-            <button class="clear-note" type="button" data-clear-note="case">비우기</button>
-          </div>
-          <form class="similarity-submit-box" data-similarity-form>
-            <label for="similaritySentence">유사도 측정 문장 보내기</label>
-            <textarea class="similarity-submit-input" id="similaritySentence" data-similarity-sentence maxlength="500" placeholder="선생님에게 보낼 최종 문장을 500자 안으로 입력하세요."></textarea>
-            <div class="similarity-submit-actions">
-              <span class="similarity-submit-count" data-similarity-count>0/500</span>
-              <button class="clear-note" type="submit" data-similarity-submit>전송</button>
-            </div>
-            <p class="similarity-submit-status" data-similarity-status></p>
-          </form>
-        </aside>
       </div>
     </div>
   </main>
   <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="Suspect card">
     <button class="card-lightbox__close" type="button" data-close-card aria-label="Close">X</button>
     <img class="card-lightbox__image" data-card-lightbox-image alt="">
+  </div>
+  <div class="similarity-modal" data-similarity-modal hidden role="dialog" aria-modal="true" aria-label="최종 유사도 측정">
+    <div class="similarity-modal__panel">
+      <div class="similarity-modal__head">
+        <h2>최종 유사도 측정</h2>
+        <button class="similarity-modal__close" type="button" data-similarity-close aria-label="닫기">X</button>
+      </div>
+      <form class="similarity-modal__form" data-similarity-form>
+        <div class="similarity-modal__body">
+          <p class="similarity-modal__intro">빈칸을 채우면 문장이 완성됩니다. 정답 단서는 직접 조사한 내용을 바탕으로 적어 주세요.</p>
+          <div class="similarity-template">
+            <p class="s-line">
+              <span>범인은</span>
+              <input class="s-blank s-blank--sm" type="text" data-similarity-blank="culprit" maxlength="15" placeholder="인물">
+              <span>이고, 사건 장소는</span>
+              <input class="s-blank s-blank--sm" type="text" data-similarity-blank="place" maxlength="15" placeholder="장소">
+              <span>이다. 범인은</span>
+              <input class="s-blank s-blank--md" type="text" data-similarity-blank="tool" maxlength="35" placeholder="사용한 도구">
+              <span>를 사용해</span>
+            </p>
+            <textarea class="s-blank s-blank--area" data-similarity-blank="method" maxlength="140" rows="2" placeholder="어떤 방식으로 범행이 이어졌는지 적으세요"></textarea>
+            <p class="s-line"><span>해서 시험 예상 문제가 유출되었다. 그 근거는</span></p>
+            <textarea class="s-blank s-blank--area" data-similarity-blank="evidence" maxlength="160" rows="2" placeholder="확인한 근거를 쉼표로 구분해 적으세요"></textarea>
+            <p class="s-line">
+              <span>이다. 범인에게 가장 부족했던 AI 윤리 역량은</span>
+              <input class="s-blank s-blank--sm" type="text" data-similarity-blank="competency" maxlength="15" placeholder="역량">
+              <span>이다.</span>
+            </p>
+          </div>
+        </div>
+        <div class="similarity-modal__foot">
+          <span class="similarity-modal__count" data-similarity-count>0/500</span>
+          <button class="similarity-modal__submit" type="submit" data-similarity-submit>전송</button>
+        </div>
+      </form>
+      <div class="similarity-confirm" data-similarity-confirm hidden>
+        <div class="similarity-confirm__body">
+          <p class="similarity-confirm__label">이 문장을 선생님께 보낼까요?</p>
+          <blockquote class="similarity-confirm__sentence" data-similarity-confirm-sentence></blockquote>
+          <p class="similarity-confirm__notice" data-similarity-confirm-notice hidden></p>
+        </div>
+        <div class="similarity-confirm__actions">
+          <button class="similarity-confirm__back" type="button" data-similarity-confirm-cancel>뒤로</button>
+          <button class="similarity-confirm__send" type="button" data-similarity-confirm-send>보내기</button>
+        </div>
+      </div>
+      <p class="similarity-modal__status" data-similarity-status role="status"></p>
+    </div>
   </div>
 </body>
 </html>

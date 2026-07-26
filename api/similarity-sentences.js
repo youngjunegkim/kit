@@ -1,6 +1,10 @@
 const {
+  bumpSimilaritySubmitCount,
   clearSimilaritySentences,
+  consumeCredits,
+  getCredits,
   getSimilaritySentences,
+  getSimilaritySubmitCount,
   hasPersistentStore,
   normalizeTeam,
   recordSimilaritySentence,
@@ -9,6 +13,7 @@ const {
 } = require("./_credits");
 
 const maxSentenceChars = 500;
+const resubmitCost = 5;
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
@@ -93,6 +98,22 @@ async function handleSimilaritySentences(request, response) {
     const role = String(headerValue(request, "x-kit-role") || queryValue(request, "role") || "").toLowerCase();
 
     if (request.method === "GET") {
+      if (role === "student") {
+        const team = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || queryValue(request, "team"));
+        if (!team) {
+          sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+          return;
+        }
+        const submitCount = await getSimilaritySubmitCount(team);
+        sendJson(response, 200, {
+          ok: true,
+          team,
+          submitCount,
+          resubmitCost,
+          persistent: hasPersistentStore()
+        });
+        return;
+      }
       if (role !== "teacher") {
         sendJson(response, 403, { error: "Teacher role is required.", code: "TEACHER_ROLE_REQUIRED" });
         return;
@@ -148,15 +169,56 @@ async function handleSimilaritySentences(request, response) {
       return;
     }
 
+    const submitCount = await getSimilaritySubmitCount(team);
+    const isResubmit = submitCount >= 1;
+    let credits = Math.max(0, Number(await getCredits(team)) || 0);
+    let charged = 0;
+    if (isResubmit) {
+      if (credits < resubmitCost) {
+        sendJson(response, 409, {
+          error: "코인이 부족합니다.",
+          code: "INSUFFICIENT_CREDITS",
+          needed: resubmitCost,
+          credits,
+          submitCount
+        });
+        return;
+      }
+      const spend = await consumeCredits(team, resubmitCost);
+      if (!spend.ok) {
+        sendJson(response, 409, {
+          error: "코인이 부족합니다.",
+          code: "INSUFFICIENT_CREDITS",
+          needed: resubmitCost,
+          credits: spend.remaining,
+          submitCount
+        });
+        return;
+      }
+      credits = spend.remaining;
+      charged = resubmitCost;
+    }
+
     const entry = await recordSimilaritySentence({
       team,
       user: decodedHeaderValue(request, "x-kit-user") || body.user || team,
       sentence,
-      remainingCredits: body.remainingCredits
+      remainingCredits: credits
     });
+    if (!entry) {
+      sendJson(response, 503, { error: "Similarity sentence store failed.", fallback: true });
+      return;
+    }
+
+    const newSubmitCount = await bumpSimilaritySubmitCount(team);
+
     sendJson(response, 200, {
       ok: true,
       sentence: publicSentence(entry),
+      submitCount: newSubmitCount,
+      charged,
+      credits,
+      resubmitCost,
       persistent: hasPersistentStore()
     });
   } catch (error) {

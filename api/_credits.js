@@ -9,10 +9,12 @@ const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
 const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
+const memoryEvidenceGrantStore = globalThis.__kitEvidenceGrantStore || new Map();
 const memoryEthicsQuizRedeemStore = globalThis.__kitEthicsQuizRedeemStore || new Map();
 const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
 const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore || [];
+const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -21,16 +23,19 @@ globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
 globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
 globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
+globalThis.__kitEvidenceGrantStore = memoryEvidenceGrantStore;
 globalThis.__kitEthicsQuizRedeemStore = memoryEthicsQuizRedeemStore;
 globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
 globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
+globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
 const maxEthicsSourceImageLength = 300000;
 const maxSimilaritySentenceLength = 500;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
+const evidenceGrantTtlMs = Number(process.env.KIT_EVIDENCE_GRANT_TTL_MS || 600000);
 const defaultClassId = "class-a";
 
 function decodeValue(value) {
@@ -85,21 +90,8 @@ function requestRole(request, body = {}) {
   return String(headerValue(request, "x-kit-role") || body.role || "").trim().toLowerCase();
 }
 
-function requestUser(request, body = {}) {
-  return decodeValue(headerValue(request, "x-kit-user") || body.user).toLowerCase();
-}
-
-function lockedClassIdForRequest(request, body = {}) {
-  if (requestRole(request, body) !== "teacher") return "";
-  const user = requestUser(request, body);
-  if (user === "master") return "class-a";
-  if (user === "master2") return "class-b";
-  return "";
-}
-
 function requestClassId(request, body = {}) {
   return normalizeClassId(
-    lockedClassIdForRequest(request, body) ||
     headerValue(request, "x-kit-class-id") ||
     headerValue(request, "x-kit-class") ||
     body.classId ||
@@ -160,6 +152,10 @@ function evidenceLogKey() {
   return `kit:${storeNamespace()}:evidence-logs`;
 }
 
+function evidenceGrantKeyFor(team) {
+  return `kit:${storeNamespace()}:evidence-grant:${team}`;
+}
+
 function ethicsQuizRedeemKeyFor(team) {
   return `kit:${storeNamespace()}:ethics-quiz-solved:${team}`;
 }
@@ -174,6 +170,10 @@ function ethicsQuestionKey() {
 
 function similaritySentenceKey() {
   return `kit:${storeNamespace()}:similarity-sentences`;
+}
+
+function similaritySubmitKeyFor(team) {
+  return `kit:${storeNamespace()}:similarity-submits:${team}`;
 }
 
 function hasPersistentStore() {
@@ -319,6 +319,132 @@ async function redeemEvidenceCode(team, code) {
 
   const added = Number(await redisCommand(["SADD", evidenceRedeemKeyFor(normalized), normalizedCode]));
   return added === 1;
+}
+
+async function areEvidenceCodesRedeemed(team, codes = []) {
+  const normalized = normalizeTeam(team);
+  const list = (Array.isArray(codes) ? codes : [])
+    .map((code) => String(code || "").trim().toUpperCase())
+    .filter(Boolean);
+  if (!normalized || !list.length) return [];
+
+  if (!hasPersistentStore()) {
+    const set = memoryEvidenceRedeemStore.get(evidenceRedeemKeyFor(normalized)) || new Set();
+    return list.map((code) => set.has(code));
+  }
+
+  const members = await redisCommand(["SMEMBERS", evidenceRedeemKeyFor(normalized)]);
+  const owned = new Set(Array.isArray(members) ? members.map((member) => String(member)) : []);
+  return list.map((code) => owned.has(code));
+}
+
+function cleanEvidenceGrant(grant = {}) {
+  const roomId = String(grant.roomId || "").trim().slice(0, 20);
+  if (!roomId) return null;
+  return {
+    roomId,
+    roomName: String(grant.roomName || "").trim().slice(0, 40),
+    at: Number(grant.at || Date.now()),
+    by: String(grant.by || "").trim().slice(0, 40),
+    namespace: String(grant.namespace || storeNamespace()).trim()
+  };
+}
+
+async function setEvidenceGrant(team, grant) {
+  const normalized = normalizeTeam(team);
+  const cleanGrant = cleanEvidenceGrant(grant);
+  if (!normalized || !cleanGrant) return null;
+
+  if (!hasPersistentStore()) {
+    memoryEvidenceGrantStore.set(evidenceGrantKeyFor(normalized), cleanGrant);
+    return cleanGrant;
+  }
+
+  await redisCommand(["SET", evidenceGrantKeyFor(normalized), JSON.stringify(cleanGrant)]);
+  return cleanGrant;
+}
+
+async function getEvidenceGrant(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return null;
+  const now = Date.now();
+  const key = evidenceGrantKeyFor(normalized);
+
+  if (!hasPersistentStore()) {
+    const grant = memoryEvidenceGrantStore.get(key);
+    if (!grant) return null;
+    if (now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+      memoryEvidenceGrantStore.delete(key);
+      return null;
+    }
+    return grant;
+  }
+
+  const raw = await redisCommand(["GET", key]);
+  if (!raw) return null;
+  let grant = null;
+  try {
+    grant = cleanEvidenceGrant(JSON.parse(raw));
+  } catch {
+    grant = null;
+  }
+  if (!grant || now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+    await redisCommand(["DEL", key]);
+    return null;
+  }
+  return grant;
+}
+
+async function clearEvidenceGrant(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return false;
+
+  if (!hasPersistentStore()) {
+    return memoryEvidenceGrantStore.delete(evidenceGrantKeyFor(normalized));
+  }
+
+  await redisCommand(["DEL", evidenceGrantKeyFor(normalized)]);
+  return true;
+}
+
+async function getAllEvidenceGrants() {
+  const now = Date.now();
+
+  if (!hasPersistentStore()) {
+    const entries = teams.map((team) => {
+      const key = evidenceGrantKeyFor(team);
+      const grant = memoryEvidenceGrantStore.get(key);
+      if (grant && now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+        memoryEvidenceGrantStore.delete(key);
+        return [team, null];
+      }
+      return [team, grant || null];
+    });
+    return Object.fromEntries(entries);
+  }
+
+  const raws = await redisCommand(["MGET", ...teams.map(evidenceGrantKeyFor)]);
+  const staleKeys = [];
+  const entries = teams.map((team, index) => {
+    const raw = Array.isArray(raws) ? raws[index] : null;
+    if (!raw) return [team, null];
+    let grant = null;
+    try {
+      grant = cleanEvidenceGrant(JSON.parse(raw));
+    } catch {
+      grant = null;
+    }
+    if (!grant || now - Number(grant.at || 0) > evidenceGrantTtlMs) {
+      staleKeys.push(evidenceGrantKeyFor(team));
+      return [team, null];
+    }
+    return [team, grant];
+  });
+
+  if (staleKeys.length) {
+    await redisCommand(["DEL", ...staleKeys]);
+  }
+  return Object.fromEntries(entries);
 }
 
 function cleanEvidenceEntry(entry = {}) {
@@ -623,6 +749,31 @@ function cleanSimilaritySentenceEntry(entry = {}) {
   };
 }
 
+async function getSimilaritySubmitCount(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    return cleanCredits(memorySimilaritySubmitStore.get(similaritySubmitKeyFor(normalized)) || 0);
+  }
+
+  return cleanCredits(await redisCommand(["GET", similaritySubmitKeyFor(normalized)]));
+}
+
+async function bumpSimilaritySubmitCount(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    const key = similaritySubmitKeyFor(normalized);
+    const next = cleanCredits(memorySimilaritySubmitStore.get(key) || 0) + 1;
+    memorySimilaritySubmitStore.set(key, next);
+    return next;
+  }
+
+  return cleanCredits(await redisCommand(["INCR", similaritySubmitKeyFor(normalized)]));
+}
+
 async function recordSimilaritySentence(entry) {
   const cleanEntry = cleanSimilaritySentenceEntry(entry);
   if (!cleanEntry) return null;
@@ -670,11 +821,13 @@ async function clearSimilaritySentences() {
         memorySimilaritySentenceStore.splice(index, 1);
       }
     }
+    teams.forEach((team) => memorySimilaritySubmitStore.delete(similaritySubmitKeyFor(team)));
     return removed;
   }
 
   const removed = await getSimilaritySentences(maxReturnedEvidenceLogs);
   await redisCommand(["DEL", similaritySentenceKey()]);
+  await redisCommand(["DEL", ...teams.map(similaritySubmitKeyFor)]);
   return removed;
 }
 
@@ -918,22 +1071,64 @@ async function consumeCredit(team) {
   return { ok: true, team: normalized, remaining };
 }
 
+async function consumeCredits(team, amount) {
+  const normalized = normalizeTeam(team);
+  const spend = cleanCredits(amount);
+  if (!normalized) {
+    return { ok: false, team: "", remaining: 0, reason: "INVALID_TEAM" };
+  }
+  if (spend <= 0) {
+    return { ok: true, team: normalized, remaining: cleanCredits(await getCredits(normalized)) };
+  }
+
+  if (!hasPersistentStore()) {
+    const key = keyFor(normalized);
+    const current = cleanCredits(memoryStore.get(key) || 0);
+    if (current < spend) {
+      return { ok: false, team: normalized, remaining: current, reason: "NO_CREDITS" };
+    }
+    const remaining = current - spend;
+    memoryStore.set(key, remaining);
+    return { ok: true, team: normalized, remaining };
+  }
+
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "local spend = tonumber(ARGV[1]) or 0",
+    "if current < spend then return -1 end",
+    "current = current - spend",
+    "redis.call('SET', KEYS[1], current)",
+    "return current"
+  ].join("; ");
+  const remaining = Number(await redisCommand(["EVAL", script, "1", keyFor(normalized), String(spend)]));
+  if (!Number.isFinite(remaining) || remaining < 0) {
+    return { ok: false, team: normalized, remaining: cleanCredits(await getCredits(normalized)), reason: "NO_CREDITS" };
+  }
+  return { ok: true, team: normalized, remaining };
+}
+
 module.exports = {
   addCredits,
   addCustomEthicsQuestion,
+  areEvidenceCodesRedeemed,
+  bumpSimilaritySubmitCount,
   classLabelFor,
   deleteCustomEthicsQuestion,
+  clearEvidenceGrant,
   clearEvidenceRedemptions,
   clearSimilaritySentences,
   clearEthicsQuizRedemptions,
   consumeCredit,
+  consumeCredits,
   clearQuestionLogs,
   currentClassId,
   getAllCredits,
+  getAllEvidenceGrants,
   getAllGrantedCredits,
   getAllQuestionCounts,
   getCredits,
   getCustomEthicsQuestions,
+  getEvidenceGrant,
   getEvidenceRedemptions,
   getEthicsQuizRedemptions,
   getEthicsQuizSolvedQuestions,
@@ -941,6 +1136,7 @@ module.exports = {
   getQuestionCount,
   getQuestionLogs,
   getSimilaritySentences,
+  getSimilaritySubmitCount,
   getPresence,
   grantCredits,
   hasPersistentStore,
@@ -955,6 +1151,7 @@ module.exports = {
   redeemEthicsQuizQuestion,
   redeemEvidenceCode,
   resetCredits,
+  setEvidenceGrant,
   setCustomEthicsQuestions,
   setGrantedCredits,
   setCredits,
