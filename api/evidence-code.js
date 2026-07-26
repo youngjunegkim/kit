@@ -59,9 +59,7 @@ function roomOptionsFor(roomId) {
   const room = roomById(roomId);
   if (!room) return [];
   return room.options.map((option) => ({
-    index: option.index,
-    evidence: option.evidence,
-    person: option.person
+    index: option.index
   }));
 }
 

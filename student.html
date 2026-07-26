@@ -1934,7 +1934,7 @@
     .evidence-board-thumb {
       width: 92px;
       aspect-ratio: 1 / 0.82;
-      object-fit: cover;
+      object-fit: contain;
       border-radius: 7px;
       background: #16110d;
     }
@@ -2000,9 +2000,11 @@
 
     .evidence-room-hero img {
       display: block;
-      width: 100%;
-      aspect-ratio: 16 / 9;
+      width: min(100%, 520px);
+      max-height: min(70vh, 760px);
+      aspect-ratio: 2 / 3;
       object-fit: contain;
+      justify-self: center;
       border-radius: 8px;
       background: #16110d;
       border: 1px solid #e4d8bd;
@@ -2050,7 +2052,7 @@
       display: block;
       width: 84px;
       aspect-ratio: 1 / 0.78;
-      object-fit: cover;
+      object-fit: contain;
       border-radius: 7px;
       background: #16110d;
     }

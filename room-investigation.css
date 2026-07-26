@@ -185,7 +185,7 @@ button {
 .evidence-card__image {
   width: 100%;
   aspect-ratio: 16 / 9;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   border-radius: 6px;
   background: #17110d;
@@ -471,7 +471,7 @@ body.room-page[data-auth="teacher"] .interrogation-panel {
 .obtained-evidence-card img {
   width: 66px;
   aspect-ratio: 1 / 0.86;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 6px;
   background: #17110d;
 }
