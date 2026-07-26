@@ -93,7 +93,7 @@ async function participatingTeams() {
 }
 
 // 학생 화면 결과 안내(짧게 — 의미는 진행자가 붙인다).
-function goldenMessage(effect, { otherCount }) {
+function goldenMessage(effect, { otherCount, freeResubmits }) {
   if (effect === "reliability") {
     return { tone: "ok", text: "신뢰성! 우리 팀 질문권 +2." };
   }
@@ -103,7 +103,9 @@ function goldenMessage(effect, { otherCount }) {
       : { tone: "ok", text: "포용성! 우리 팀 +2. (다른 팀은 아직 없어요.)" };
   }
   if (effect === "accountability") {
-    return { tone: "ok", text: "책임성! 다음 사건노트 재전송이 무료예요." };
+    // 코드 입력은 게임 초중반, 사건노트 제출은 마지막이라 시간 차가 크다. 지금 무료권이
+    // 몇 개인지 결과에 함께 보여줘, 나중에 "우리 무료권 있었나?" 하지 않게 한다.
+    return { tone: "ok", text: `책임성 카드! 사건노트를 무료로 다시 보낼 수 있어요 (무료 ${Math.max(0, Number(freeResubmits) || 0)}개).` };
   }
   if (effect === "hallucination") {
     return {
@@ -202,7 +204,7 @@ async function applyGoldenKey(team, card, actor) {
 
   const selfEntry = applied.find((entry) => entry.team === team);
   const selfCredits = selfEntry ? selfEntry.credits : Math.max(0, Number(await getCredits(team)) || 0);
-  const message = goldenMessage(card.effect, { otherCount });
+  const message = goldenMessage(card.effect, { otherCount, freeResubmits });
 
   return {
     concept,

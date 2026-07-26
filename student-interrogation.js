@@ -988,9 +988,10 @@
       similaritySubmit.disabled = false;
       return;
     }
-    // 책임성 카드 무료권이 있으면 질문권 없이 무료로 재전송한다.
+    // 책임성 카드 무료권이 있으면 질문권 없이 무료로 재전송한다. 남은 개수도 함께 보여줘
+    // 몇 번 더 무료인지 알 수 있게 한다(0이면 이 분기로 오지 않아 아무것도 안 뜬다).
     if (state.similarityFreeResubmits > 0) {
-      similaritySubmit.textContent = "다시 보내기 (무료)";
+      similaritySubmit.textContent = `다시 보내기 (무료 ${state.similarityFreeResubmits}번 남음)`;
       similaritySubmit.disabled = false;
       return;
     }
