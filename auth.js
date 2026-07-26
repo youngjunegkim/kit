@@ -10,8 +10,7 @@
     "채희": { password: "cogml1", role: "student", label: "8", team: "채희" }
   };
   const accounts = {
-    master: { password: "master1", role: "teacher", label: "1반 선생님", classId: "class-a" },
-    master2: { password: "master2", role: "teacher", label: "2반 선생님", classId: "class-b" },
+    master: { password: "master1", role: "teacher", label: "선생님" },
     ...studentAccounts,
     "1": { ...studentAccounts["승우"] },
     "2": { ...studentAccounts["연수"] },
@@ -46,12 +45,12 @@
     return normalizeClassId(value) === "class-b" ? "2반" : "1반";
   }
 
-  function teacherAccountIdForClass(classId) {
-    return normalizeClassId(classId) === "class-b" ? "master2" : "master";
+  function teacherAccountIdForClass() {
+    return "master";
   }
 
   function isTeacherAccountId(id) {
-    return ["master", "master2"].includes(String(id || "").trim().toLowerCase());
+    return String(id || "").trim().toLowerCase() === "master";
   }
 
   function classIdForAccount(account, fallbackClassId) {
