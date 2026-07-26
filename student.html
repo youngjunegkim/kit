@@ -854,6 +854,9 @@
       min-width: 0;
       display: grid;
       gap: 16px;
+      /* 하단 고정 "최종 유사도 측정하기" 버튼에 마지막 내용(증거 보관함)이 가리지
+         않도록 그만큼 아래 여백을 둔다. */
+      padding-bottom: 88px;
     }
 
     .credit-pill {
@@ -1390,32 +1393,33 @@
 
 
     .similarity-launch {
-      display: grid;
-      gap: 8px;
-      justify-items: center;
-      padding: 6px 0 2px;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      display: flex;
+      justify-content: center;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: linear-gradient(to top, rgba(18, 15, 12, 0.97) 55%, rgba(18, 15, 12, 0));
+      pointer-events: none;
     }
 
     .similarity-launch-btn {
-      width: min(520px, 100%);
-      padding: 16px 20px;
+      pointer-events: auto;
+      width: min(520px, 92%);
+      padding: 13px 20px;
       border-radius: 12px;
       background: linear-gradient(135deg, #b91f1f, #7a1414);
       color: #fff8ec;
-      font-size: 1.12rem;
+      font-size: 1.05rem;
       font-weight: 950;
-      box-shadow: 0 12px 26px rgba(122, 20, 20, 0.34);
+      box-shadow: 0 10px 24px rgba(122, 20, 20, 0.4);
     }
 
     .similarity-launch-btn:hover { filter: brightness(1.06); }
 
-    .similarity-launch-hint {
-      margin: 0;
-      color: rgba(255, 248, 236, 0.78);
-      font-size: 0.82rem;
-      font-weight: 800;
-      text-align: center;
-    }
+    .similarity-launch-hint { display: none; }
 
     .similarity-modal {
       position: fixed;
@@ -1432,18 +1436,19 @@
 
     .similarity-modal__panel {
       width: min(560px, 100%);
-      max-height: min(90vh, 760px);
-      overflow-y: auto;
-      display: grid;
-      gap: 12px;
+      max-height: min(90vh, 680px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       border-radius: 14px;
       background: #fffaf0;
       border: 1px solid #e4d3ab;
       box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
-      padding: 18px;
+      padding: 16px;
     }
 
     .similarity-modal__head {
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1453,7 +1458,7 @@
     .similarity-modal__head h2 {
       margin: 0;
       color: #24180f;
-      font-size: 1.16rem;
+      font-size: 1.1rem;
       font-weight: 950;
     }
 
@@ -1465,22 +1470,40 @@
       padding: 4px 8px;
     }
 
-    .similarity-modal__form { display: grid; gap: 12px; }
+    /* 본문(안내+문장 틀)만 스크롤되고 아래 발(카운터+전송)은 항상 보이게 한다. */
+    .similarity-modal__form {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .similarity-modal__form[hidden] { display: none; }
+
+    .similarity-modal__body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
 
     .similarity-modal__intro {
       margin: 0;
       color: #6b563a;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 850;
     }
 
     .similarity-template {
       display: grid;
-      gap: 8px;
+      gap: 6px;
       border-radius: 10px;
       background: #fff;
       border: 1px solid #ecdcbb;
-      padding: 12px;
+      padding: 10px;
     }
 
     .s-line {
@@ -1488,11 +1511,11 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       color: #24180f;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 850;
-      line-height: 1.5;
+      line-height: 1.4;
     }
 
     .s-blank {
@@ -1500,7 +1523,7 @@
       border-radius: 7px;
       background: #fffdf7;
       color: #24180f;
-      padding: 7px 9px;
+      padding: 6px 8px;
       font: inherit;
       font-weight: 800;
     }
@@ -1511,16 +1534,19 @@
       outline: none;
     }
 
-    .s-blank--sm { width: 140px; }
-    .s-blank--md { width: 220px; max-width: 100%; }
-    .s-blank--area { width: 100%; resize: vertical; line-height: 1.45; }
+    .s-blank--sm { width: 132px; }
+    .s-blank--md { width: 210px; max-width: 100%; }
+    .s-blank--area { width: 100%; min-height: 44px; resize: vertical; line-height: 1.4; }
 
     .similarity-modal__foot {
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+      padding-top: 8px;
+      border-top: 1px solid #ecdcbb;
     }
 
     .similarity-modal__count {
@@ -1547,8 +1573,9 @@
     }
 
     .similarity-modal__status {
+      flex: 0 0 auto;
       margin: 0;
-      min-height: 20px;
+      min-height: 18px;
       color: #6b563a;
       font-size: 0.82rem;
       font-weight: 850;
@@ -1557,8 +1584,23 @@
     .similarity-modal__status.is-ok { color: #116c46; }
     .similarity-modal__status.is-bad { color: #b3221d; }
 
-    .similarity-confirm { display: grid; gap: 12px; }
+    .similarity-confirm {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
     .similarity-confirm[hidden] { display: none; }
+
+    .similarity-confirm__body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
 
     .similarity-confirm__label {
       margin: 0;
@@ -1593,6 +1635,7 @@
     .similarity-confirm__notice[hidden] { display: none; }
 
     .similarity-confirm__actions {
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: flex-end;
@@ -2229,17 +2272,16 @@
         <button class="similarity-modal__close" type="button" data-similarity-close aria-label="닫기">✕</button>
       </div>
       <form class="similarity-modal__form" data-similarity-form>
-        <p class="similarity-modal__intro">빈칸을 채우면 아래 문장이 완성돼요. 정답은 스스로 채워 주세요.</p>
-        <div class="similarity-template">
-          <p class="s-line"><span>범인은</span><input class="s-blank s-blank--sm" type="text" data-similarity-blank="culprit" maxlength="15" placeholder="누구인지 쓰세요"><span>이다.</span></p>
-          <p class="s-line"><span>범인은</span><input class="s-blank s-blank--md" type="text" data-similarity-blank="tool" maxlength="30" placeholder="무엇을 사용했는지 쓰세요"><span>를 사용해</span></p>
-          <textarea class="s-blank s-blank--area" data-similarity-blank="method" maxlength="120" rows="2" placeholder="어떻게 했는지 쓰세요"></textarea>
-          <p class="s-line"><span>해서 시험 예상 문제가 유출되었다.</span></p>
-          <p class="s-line"><span>그 근거는</span></p>
-          <textarea class="s-blank s-blank--area" data-similarity-blank="evidence" maxlength="130" rows="2" placeholder="증거를 쉼표로 구분해 쓰세요"></textarea>
-          <p class="s-line"><span>이다.</span></p>
-          <p class="s-line"><span>범인에게 가장 부족했던 AI 윤리 역량은</span><input class="s-blank s-blank--sm" type="text" data-similarity-blank="competency" maxlength="15" placeholder="어떤 역량이 부족했는지 쓰세요"><span>이며, 그 이유는</span></p>
-          <textarea class="s-blank s-blank--area" data-similarity-blank="reason" maxlength="100" rows="2" placeholder="왜 그렇게 생각했는지 쓰세요"></textarea>
+        <div class="similarity-modal__body">
+          <p class="similarity-modal__intro">빈칸을 채우면 아래 문장이 완성돼요. 정답은 스스로 채워 주세요.</p>
+          <div class="similarity-template">
+            <p class="s-line"><span>범인은</span><input class="s-blank s-blank--sm" type="text" data-similarity-blank="culprit" maxlength="15" placeholder="누구인지 쓰세요"><span>이다. 범인은</span><input class="s-blank s-blank--md" type="text" data-similarity-blank="tool" maxlength="30" placeholder="무엇을 사용했는지 쓰세요"><span>를 사용해</span></p>
+            <textarea class="s-blank s-blank--area" data-similarity-blank="method" maxlength="120" rows="2" placeholder="어떻게 했는지 쓰세요"></textarea>
+            <p class="s-line"><span>해서 시험 예상 문제가 유출되었다. 그 근거는</span></p>
+            <textarea class="s-blank s-blank--area" data-similarity-blank="evidence" maxlength="130" rows="2" placeholder="증거를 쉼표로 구분해 쓰세요"></textarea>
+            <p class="s-line"><span>이다. 범인에게 가장 부족했던 AI 윤리 역량은</span><input class="s-blank s-blank--sm" type="text" data-similarity-blank="competency" maxlength="15" placeholder="어떤 역량이 부족했는지 쓰세요"><span>이며, 그 이유는</span></p>
+            <textarea class="s-blank s-blank--area" data-similarity-blank="reason" maxlength="100" rows="2" placeholder="왜 그렇게 생각했는지 쓰세요"></textarea>
+          </div>
         </div>
         <div class="similarity-modal__foot">
           <span class="similarity-modal__count" data-similarity-count>0/500</span>
@@ -2247,9 +2289,11 @@
         </div>
       </form>
       <div class="similarity-confirm" data-similarity-confirm hidden>
-        <p class="similarity-confirm__label">이 문장을 선생님께 보낼까요?</p>
-        <blockquote class="similarity-confirm__sentence" data-similarity-confirm-sentence></blockquote>
-        <p class="similarity-confirm__notice" data-similarity-confirm-notice hidden></p>
+        <div class="similarity-confirm__body">
+          <p class="similarity-confirm__label">이 문장을 선생님께 보낼까요?</p>
+          <blockquote class="similarity-confirm__sentence" data-similarity-confirm-sentence></blockquote>
+          <p class="similarity-confirm__notice" data-similarity-confirm-notice hidden></p>
+        </div>
         <div class="similarity-confirm__actions">
           <button class="similarity-confirm__back" type="button" data-similarity-confirm-cancel>뒤로</button>
           <button class="similarity-confirm__send" type="button" data-similarity-confirm-send>보내기</button>

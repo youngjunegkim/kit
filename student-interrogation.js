@@ -907,6 +907,17 @@
     } catch {}
   }
 
+  // 긴 칸(textarea)은 내용에 맞춰 높이를 늘려, 채운 내용이 잘리지 않고 다 보이게 한다.
+  function autoGrowSimilarityBlank(el) {
+    if (!el || el.tagName !== "TEXTAREA") return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
+
+  function autoGrowAllSimilarityBlanks() {
+    similarityBlanks.forEach(autoGrowSimilarityBlank);
+  }
+
   function loadSimilarityDraft() {
     let saved = {};
     try {
@@ -918,6 +929,7 @@
       const key = el.dataset.similarityBlank;
       if (typeof saved[key] === "string") el.value = saved[key];
     });
+    autoGrowAllSimilarityBlanks();
     updateSimilarityCounter();
   }
 
@@ -1096,6 +1108,7 @@
     updateSimilarityCounter();
     similarityBlanks.forEach((el) => {
       el.addEventListener("input", () => {
+        autoGrowSimilarityBlank(el);
         saveSimilarityDraft();
         updateSimilarityCounter();
       });
