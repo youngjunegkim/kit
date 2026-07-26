@@ -1419,6 +1419,21 @@
 
     .similarity-launch-btn:hover { filter: brightness(1.06); }
 
+    /* 크롬북처럼 브라우저 UI를 빼면 세로가 600px 정도인 짧은 화면에서는 고정 바가
+       화면을 덜 잡아먹도록 얇게 만들고, 그만큼 하단 여백도 줄인다. */
+    @media (max-height: 640px) {
+      .similarity-launch {
+        padding: 6px 16px calc(6px + env(safe-area-inset-bottom, 0px));
+      }
+      .similarity-launch-btn {
+        padding: 9px 18px;
+        font-size: 1rem;
+      }
+      .student-content {
+        padding-bottom: 64px;
+      }
+    }
+
     .similarity-launch-hint { display: none; }
 
     .similarity-modal {
