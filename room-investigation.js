@@ -245,7 +245,7 @@
 
     const panel = document.createElement("section");
     panel.className = "room-control-panel";
-    panel.setAttribute("aria-label", "증거 코드 및 질문권 관리");
+    panel.setAttribute("aria-label", "증거 코드 및 코인 관리");
     nodes.evidenceSection.classList.add("room-control-panel__section");
     panel.append(nodes.evidenceSection);
     (nodes.sceneFrame || nodes.roomMain.lastElementChild)?.after(panel);
@@ -298,7 +298,7 @@
       nodes.chatInput.placeholder = noTeam
         ? "팀 선택이 필요합니다"
         : noCredits
-          ? "질문권이 필요합니다"
+          ? "코인이 필요합니다"
           : `${suspects[state.currentSuspect].name}에게 질문`;
       updateTokenCounter();
     }
@@ -441,7 +441,7 @@
   }
 
   function setEvidenceTotal(team, credits) {
-    const label = team ? `${teamLabelFor(team)} 총 질문권` : "총 질문권";
+    const label = team ? `${teamLabelFor(team)} 총 코인` : "총 코인";
     const value = credits === null || credits === undefined || Number.isNaN(Number(credits))
       ? "확인 중"
       : `${Math.max(0, Number(credits) || 0)}개`;
@@ -473,7 +473,7 @@
         }
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "총 질문권 확인 실패");
+      if (!response.ok) throw new Error(data.error || "총 코인 확인 실패");
       setEvidenceTotal(team, data.credits);
       state.count = Math.max(0, Number(data.count ?? state.count) || 0);
       setText(nodes.logCount, `${state.count}회`);
@@ -510,11 +510,11 @@
         }
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "질문권 확인 실패");
+      if (!response.ok) throw new Error(data.error || "코인 확인 실패");
       applyCredits(data);
     } catch (error) {
       setText(nodes.creditCount, "확인 실패");
-      setEvidenceMessage(error.message || "질문권을 확인하지 못했습니다.", "bad");
+      setEvidenceMessage(error.message || "코인을 확인하지 못했습니다.", "bad");
       updateControls();
     }
   }
@@ -590,7 +590,7 @@
 
       const card = storeEvidenceCard(code, data.evidence, targetTeam);
       const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-      setEvidenceMessage(`${teamLabelFor(targetTeam)} 질문권 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setEvidenceMessage(`${teamLabelFor(targetTeam)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
       if (nodes.evidenceInput) nodes.evidenceInput.value = "";
       setEvidenceTotal(targetTeam, data.credits);
       if (state.role === "student") {
@@ -607,7 +607,7 @@
 
   async function resetTeamCredits() {
     if (state.role !== "teacher") {
-      setEvidenceMessage("받은 질문권 초기화는 선생님 계정에서만 가능합니다.", "bad");
+      setEvidenceMessage("받은 코인 초기화는 선생님 계정에서만 가능합니다.", "bad");
       return;
     }
 
@@ -616,12 +616,12 @@
       setEvidenceMessage("초기화할 팀을 선택하세요.", "bad");
       return;
     }
-    const confirmed = window.confirm(`${teamLabelFor(targetTeam)}이 받은 질문권을 0개로 초기화할까요?`);
+    const confirmed = window.confirm(`${teamLabelFor(targetTeam)}이 받은 코인을 0개로 초기화할까요?`);
     if (!confirmed) return;
 
     state.requesting = true;
     updateControls();
-    setEvidenceMessage("받은 질문권 초기화 중...", "");
+    setEvidenceMessage("받은 코인 초기화 중...", "");
 
     try {
       const response = await fetch("/api/credits", {
@@ -642,12 +642,12 @@
         })
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "받은 질문권 초기화 실패");
+      if (!response.ok) throw new Error(data.error || "받은 코인 초기화 실패");
 
       applyCredits({ credits: data.credits, count: data.count ?? state.count }, targetTeam);
-      setEvidenceMessage(`${teamLabelFor(targetTeam)} 받은 질문권을 초기화했습니다.`, "ok");
+      setEvidenceMessage(`${teamLabelFor(targetTeam)} 받은 코인을 초기화했습니다.`, "ok");
     } catch (error) {
-      setEvidenceMessage(error.message || "받은 질문권을 초기화하지 못했습니다.", "bad");
+      setEvidenceMessage(error.message || "받은 코인을 초기화하지 못했습니다.", "bad");
       await refreshCredits();
     } finally {
       state.requesting = false;
@@ -675,7 +675,7 @@
     }
 
     if (state.role === "student" && state.credits <= 0) {
-      setChatState("질문권 필요");
+      setChatState("코인 필요");
       updateControls();
       return;
     }
@@ -730,7 +730,7 @@
           sessionStorage.removeItem("kit-teacher-access-code");
         }
         const message = data.code === "NO_CREDITS"
-          ? "질문권이 부족합니다. 증거 코드를 입력해 질문권을 얻으세요."
+          ? "코인이 부족합니다. 증거 코드를 입력해 코인을 얻으세요."
           : data.code === "TEACHER_CODE_REQUIRED"
             ? "선생님 보안 코드가 필요합니다. 다시 입력해 주세요."
           : data.error || "답변을 받지 못했습니다.";
@@ -774,7 +774,7 @@
       totalCard.className = "credit-total-card";
       const totalLabel = document.createElement("span");
       const totalCount = document.createElement("strong");
-      totalLabel.textContent = "총 질문권";
+      totalLabel.textContent = "총 코인";
       totalCount.textContent = "확인 중";
       totalCard.append(totalLabel, totalCount);
       nodes.evidenceForm.after(totalCard);
@@ -792,7 +792,7 @@
         const resetButton = document.createElement("button");
         resetButton.className = "reset-credit-btn";
         resetButton.type = "button";
-        resetButton.textContent = "받은 질문권 초기화";
+        resetButton.textContent = "받은 코인 초기화";
         totalCard.after(resetButton);
         nodes.resetCreditsButton = resetButton;
         resetButton.addEventListener("click", resetTeamCredits);
@@ -802,7 +802,7 @@
     if (state.role === "teacher" && nodes.evidenceForm && !state.team) {
       const select = document.createElement("select");
       select.className = "team-select";
-      select.setAttribute("aria-label", "질문권 적립 대상");
+      select.setAttribute("aria-label", "코인 적립 대상");
       teams.forEach((team) => {
         const option = document.createElement("option");
         option.value = team;

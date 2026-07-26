@@ -47,9 +47,9 @@
       if (name) name.textContent = id;
 
       const meta = row?.querySelector(".team-meta");
-      if (meta) meta.setAttribute("aria-label", `${label} 질문권 현황`);
+      if (meta) meta.setAttribute("aria-label", `${label} 코인 현황`);
 
-      if (input) input.setAttribute("aria-label", `${label} 추가할 질문권`);
+      if (input) input.setAttribute("aria-label", `${label} 추가할 코인`);
     });
   }
 
@@ -77,7 +77,7 @@
     if (!scoreHead) return null;
     syncStatus = document.createElement("p");
     syncStatus.className = "score-sync-status";
-    syncStatus.textContent = "추가할 질문권 수를 입력한 뒤 질문권 추가를 누르세요.";
+    syncStatus.textContent = "추가할 코인 수를 입력한 뒤 코인 추가를 누르세요.";
     scoreHead.insertAdjacentElement("afterend", syncStatus);
     return syncStatus;
   }
@@ -219,7 +219,7 @@
       meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 1}개`;
 
       const text = document.createElement("p");
-      text.textContent = "증거코드 입력 완료 · 질문권 지급됨";
+      text.textContent = "증거코드 입력 완료 · 코인 지급됨";
 
       item.append(meta, text);
       list.append(item);
@@ -229,14 +229,14 @@
   async function fetchScores() {
     const { response, data } = await requestCredits("/api/credits");
     if (!response.ok || !data.credits) {
-      throw new Error(data.error || "질문권 현황 불러오기 실패");
+      throw new Error(data.error || "코인 현황 불러오기 실패");
     }
     applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : [];
     await fetchEvidenceLogs();
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "질문권 현황을 불러왔습니다." : "공유 저장소 미연결: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "코인 현황을 불러왔습니다." : "공유 저장소 미연결: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function fetchEvidenceLogs() {
@@ -253,11 +253,11 @@
     const amounts = cleanTeamMap(pendingAdds);
     const total = totalAdditions(amounts);
     if (!total) {
-      setSyncStatus("추가할 질문권 수를 입력하세요.");
+      setSyncStatus("추가할 코인 수를 입력하세요.");
       return;
     }
 
-    setSyncStatus("질문권을 추가하는 중입니다...");
+    setSyncStatus("코인을 추가하는 중입니다...");
     const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
       body: JSON.stringify({
@@ -266,7 +266,7 @@
       })
     });
     if (!response.ok) {
-      throw new Error(data.error || "질문권 추가 실패");
+      throw new Error(data.error || "코인 추가 실패");
     }
     applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
@@ -276,7 +276,7 @@
     renderQuestionStats();
     setSyncStatus(
       data.persistent
-        ? `질문권 ${total}개 추가 완료. 학생은 질문권 받기를 누르면 반영됩니다.`
+        ? `코인 ${total}개 추가 완료. 학생은 코인 받기를 누르면 반영됩니다.`
         : `임시 추가 완료(${total}개): 여러 기기 공유에는 Upstash 환경변수가 필요합니다.`,
       data.persistent ? "ok" : "bad"
     );
@@ -288,7 +288,7 @@
       body: JSON.stringify({ action: "reset" })
     });
     if (!response.ok) {
-      throw new Error(data.error || "질문권 초기화 실패");
+      throw new Error(data.error || "코인 초기화 실패");
     }
     applyCreditData(data);
     questionLogs = Array.isArray(data.logs) ? data.logs : questionLogs;
@@ -296,7 +296,7 @@
     saveDraftAdds(pendingAdds);
     renderScores();
     renderQuestionStats();
-    setSyncStatus(data.persistent ? "부여한 질문권과 남은 질문권이 초기화됨" : "임시 초기화됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
+    setSyncStatus(data.persistent ? "부여한 코인과 남은 코인이 초기화됨" : "임시 초기화됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
   async function clearServerLogs() {
@@ -315,7 +315,7 @@
   }
 
   async function clearEvidenceLogs() {
-    const confirmed = window.confirm("학생들이 입력한 증거코드 기록과 해당 증거코드로 받은 질문권을 초기화할까요?");
+    const confirmed = window.confirm("학생들이 입력한 증거코드 기록과 해당 증거코드로 받은 코인을 초기화할까요?");
     if (!confirmed) return;
 
     const { response, data } = await requestCredits("/api/evidence-code", {
@@ -338,13 +338,13 @@
     } else {
       await fetchScores();
     }
-    setSyncStatus(`증거코드 입력 ${data.removed || 0}건과 해당 질문권을 초기화했습니다.`, data.persistent ? "ok" : "bad");
+    setSyncStatus(`증거코드 입력 ${data.removed || 0}건과 해당 코인을 초기화했습니다.`, data.persistent ? "ok" : "bad");
   }
 
   function startScoreSync() {
     fetchScores().catch((error) => {
       renderScores();
-      setSyncStatus(error.message || "질문권 현황 불러오기 실패", "bad");
+      setSyncStatus(error.message || "코인 현황 불러오기 실패", "bad");
     });
   }
 
@@ -353,7 +353,7 @@
       const team = input.dataset.scoreInput;
       pendingAdds[team] = cleanScore(input.value);
       saveDraftAdds(pendingAdds);
-      setSyncStatus(totalAdditions() ? "추가 대기 중. 질문권 추가를 누르면 학생에게 더해집니다." : "추가할 질문권 수를 입력하세요.");
+      setSyncStatus(totalAdditions() ? "추가 대기 중. 코인 추가를 누르면 학생에게 더해집니다." : "추가할 코인 수를 입력하세요.");
     });
 
     input.addEventListener("blur", () => {
@@ -368,13 +368,13 @@
       pendingAdds = { ...emptyByTeam };
       saveDraftAdds(pendingAdds);
       renderScores();
-      setSyncStatus(error.message || "질문권 초기화 실패", "bad");
+      setSyncStatus(error.message || "코인 초기화 실패", "bad");
     });
   });
 
   document.getElementById("publishScores")?.addEventListener("click", () => {
     publishScores().catch((error) => {
-      setSyncStatus(error.message || "질문권 추가 실패", "bad");
+      setSyncStatus(error.message || "코인 추가 실패", "bad");
     });
   });
 

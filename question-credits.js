@@ -39,7 +39,7 @@
   function setRefreshBusy(isBusy) {
     refreshButtons.forEach((button) => {
       button.disabled = isBusy;
-      button.textContent = isBusy ? "받는 중..." : "질문권 받기";
+      button.textContent = isBusy ? "받는 중..." : "코인 받기";
     });
   }
 

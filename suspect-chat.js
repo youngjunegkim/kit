@@ -188,7 +188,7 @@
   function setRefreshBusy(isBusy) {
     refreshCreditButtons.forEach((button) => {
       button.disabled = isBusy || state.waiting;
-      button.textContent = isBusy ? "받는 중..." : "질문권 받기";
+      button.textContent = isBusy ? "받는 중..." : "코인 받기";
     });
   }
 
@@ -203,7 +203,7 @@
       button.disabled = locked || state.waiting;
     });
     if (locked) {
-      input.placeholder = state.credits === 0 ? "질문권 받기를 눌러 확인하세요" : "질문권이 0개입니다";
+      input.placeholder = state.credits === 0 ? "코인 받기를 눌러 확인하세요" : "코인이 0개입니다";
     } else if (defaultInputPlaceholder) {
       input.placeholder = defaultInputPlaceholder;
     }
@@ -345,7 +345,7 @@
       }
       if (response.status === 402 && data.code === "NO_CREDITS") {
         applyCredits(0);
-        return "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 누르면 다시 질문할 수 있어요.";
+        return "코인이 0개입니다. 선생님이 코인을 준 뒤 코인 받기를 누르면 다시 질문할 수 있어요.";
       }
       if (response.ok && data.reply) {
         return data.reply;
@@ -370,7 +370,7 @@
     const text = question.trim();
     if (!text || state.waiting) return;
     if (state.role === "student" && state.credits === 0) {
-      addMessage("bot", "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 눌러주세요.");
+      addMessage("bot", "코인이 0개입니다. 선생님이 코인을 준 뒤 코인 받기를 눌러주세요.");
       updateInputAvailability();
       return;
     }

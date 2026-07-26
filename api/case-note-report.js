@@ -112,9 +112,9 @@ function fallbackReports(teams) {
     };
     const bonus = team.specificity?.score ? ` 길이와 구체성 보정 +${formatScore(team.specificity.score)}점도 반영했습니다.` : "";
     const questionBonus = team.questionCreditBonus?.credits
-      ? ` 남은 질문권 ${team.questionCreditBonus.credits}개를 +${formatScore(team.questionCreditBonus.score)}점으로 더했습니다.`
-      : " 남은 질문권 보너스는 없습니다.";
-    entry.report = `${team.name}은 사건노트 ${formatScore(team.contentScore)}점에 질문권 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위에 영향을 줬습니다.${bonus}${questionBonus}`;
+      ? ` 남은 코인 ${team.questionCreditBonus.credits}개를 +${formatScore(team.questionCreditBonus.score)}점으로 더했습니다.`
+      : " 남은 코인 보너스는 없습니다.";
+    entry.report = `${team.name}은 사건노트 ${formatScore(team.contentScore)}점에 코인 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위에 영향을 줬습니다.${bonus}${questionBonus}`;
     return entry;
   });
 }
@@ -147,7 +147,7 @@ async function callOpenAi(teams, standardNote) {
       ].join("\n"),
       input: JSON.stringify({
         standardNote,
-        rubricHint: "범인 지목, 사건 장소, 태블릿 촬영, 교무실 기말고사 문제지 기반, AI 입력, 예상 문제 생성, 유출 결과, 전 여자친구 압박·오후 6시 접속·CCTV·오후 6시 15분 AI 대화 기록 근거, AI 윤리 역량 주체성 충족도를 기준으로 사건노트 점수를 계산했다. 윤리 역량은 주체성 언급을 기준으로 보며, 부정행위 목적이나 스스로 결정했다는 이유 설명은 필수 채점 요소로 보지 않는다. 최종 유사도에는 남은 질문권 1개당 1점 보너스를 별도로 더했으며, 리포트에서 사건노트 점수와 질문권 보너스를 구분해 설명한다.",
+        rubricHint: "범인 지목, 사건 장소, 태블릿 촬영, 교무실 기말고사 문제지 기반, AI 입력, 예상 문제 생성, 유출 결과, 전 여자친구 압박·오후 6시 접속·CCTV·오후 6시 15분 AI 대화 기록 근거, AI 윤리 역량 주체성 충족도를 기준으로 사건노트 점수를 계산했다. 윤리 역량은 주체성 언급을 기준으로 보며, 부정행위 목적이나 스스로 결정했다는 이유 설명은 필수 채점 요소로 보지 않는다. 최종 유사도에는 남은 코인 1개당 1점 보너스를 별도로 더했으며, 리포트에서 사건노트 점수와 코인 보너스를 구분해 설명한다.",
         teams
       })
     })

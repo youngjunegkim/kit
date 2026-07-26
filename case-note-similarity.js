@@ -264,8 +264,8 @@
       saveState();
       renderTeams();
       renderRanking();
-      renderReports([], `학생 문장 ${imported}개와 남은 질문권 보너스를 입력칸에 반영했습니다. 유사도 측정을 누르기 전까지는 채점하지 않습니다.`);
-      setStudentSentenceStatus(`학생 문장 ${imported}개를 받았습니다. 남은 질문권은 측정 시 1개당 1점으로 반영됩니다.`, "ok");
+      renderReports([], `학생 문장 ${imported}개와 남은 코인 보너스를 입력칸에 반영했습니다. 유사도 측정을 누르기 전까지는 채점하지 않습니다.`);
+      setStudentSentenceStatus(`학생 문장 ${imported}개를 받았습니다. 남은 코인은 측정 시 1개당 1점으로 반영됩니다.`, "ok");
     } catch (error) {
       setStudentSentenceStatus(error.message || "학생 문장 받기에 실패했습니다.", "bad");
     } finally {
@@ -400,7 +400,7 @@
     return {
       credits,
       score: credits,
-      reason: credits ? `남은 질문권 ${credits}개 = +${credits}점` : "남은 질문권 보너스 없음"
+      reason: credits ? `남은 코인 ${credits}개 = +${credits}점` : "남은 코인 보너스 없음"
     };
   }
 
@@ -522,7 +522,7 @@
             </div>
             <div class="score-bar" style="--score-width: ${displayScore}%"><span data-score-bar></span></div>
             <div class="question-credit-bonus" data-question-credit-bonus>
-              남은 질문권 ${remainingCredits}개 · 측정 시 +${remainingCredits}점
+              남은 코인 ${remainingCredits}개 · 측정 시 +${remainingCredits}점
             </div>
             <div class="breakdown" data-breakdown>
               ${renderBreakdown(hasResult ? result : null)}
@@ -580,7 +580,7 @@
     card.querySelector(".score-bar")?.style.setProperty("--score-width", `${score}%`);
     const bonus = cleanRemainingCredits(team.remainingCredits);
     const bonusNode = card.querySelector("[data-question-credit-bonus]");
-    if (bonusNode) bonusNode.textContent = `남은 질문권 ${bonus}개 · 측정 시 +${bonus}점`;
+    if (bonusNode) bonusNode.textContent = `남은 코인 ${bonus}개 · 측정 시 +${bonus}점`;
     const breakdown = card.querySelector("[data-breakdown]");
     if (breakdown) breakdown.innerHTML = renderBreakdown(hasResult ? result : null);
   }
@@ -647,7 +647,7 @@
     const best = sorted[0];
     if (!best || best.score === 0) return "핵심 단서 부족";
     const bonus = result.specificity?.score ? ` · 보정 +${formatScore(result.specificity.score)}` : "";
-    const creditBonus = result.questionCreditBonus?.credits ? ` · 질문권 +${formatScore(result.questionCreditBonus.score)}` : "";
+    const creditBonus = result.questionCreditBonus?.credits ? ` · 코인 +${formatScore(result.questionCreditBonus.score)}` : "";
     return `${best.label} ${best.score}/${best.max}${bonus}${creditBonus}`;
   }
 
@@ -701,9 +701,9 @@
     if (!team.note.trim()) return "사건노트가 비어 있어 아직 판정할 근거가 없습니다.";
     const bonus = team.specificity?.score ? ` 길이와 구체성 보정 +${formatScore(team.specificity.score)}점도 반영했습니다.` : "";
     const questionBonus = team.questionCreditBonus?.credits
-      ? ` 남은 질문권 ${team.questionCreditBonus.credits}개를 질문권 보너스 +${formatScore(team.questionCreditBonus.score)}점으로 반영했습니다.`
-      : " 남은 질문권 보너스는 없습니다.";
-    return `${team.name}은 사건노트 ${formatScore(team.contentScore ?? team.score)}점에 질문권 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${bonus}${questionBonus}`;
+      ? ` 남은 코인 ${team.questionCreditBonus.credits}개를 코인 보너스 +${formatScore(team.questionCreditBonus.score)}점으로 반영했습니다.`
+      : " 남은 코인 보너스는 없습니다.";
+    return `${team.name}은 사건노트 ${formatScore(team.contentScore ?? team.score)}점에 코인 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${bonus}${questionBonus}`;
   }
 
   function fallbackReports(teams) {
@@ -1320,7 +1320,7 @@
     calculateAll();
     renderTeams();
     renderRanking();
-    const rows = [["순위", "팀", "최종 유사도", "사건노트 점수", "남은 질문권", "질문권 보너스", "길이·구체성 보정", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
+    const rows = [["순위", "팀", "최종 유사도", "사건노트 점수", "남은 코인", "코인 보너스", "길이·구체성 보정", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
     let rank = 0;
     let previousScore = null;
     let seen = 0;

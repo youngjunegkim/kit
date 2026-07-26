@@ -639,7 +639,7 @@
     }
 
     if (similaritySubmit) similaritySubmit.disabled = true;
-    setSimilarityStatus("남은 질문권을 확인한 뒤 선생님 화면으로 전송 중입니다.");
+    setSimilarityStatus("남은 코인을 확인한 뒤 선생님 화면으로 전송 중입니다.");
 
     try {
       await refreshCredits();
@@ -664,7 +664,7 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "전송 실패");
 
-      setSimilarityStatus(`선생님 화면으로 전송했습니다. 남은 질문권 ${remainingCredits}개도 함께 반영됩니다.`, "ok");
+      setSimilarityStatus(`선생님 화면으로 전송했습니다. 남은 코인 ${remainingCredits}개도 함께 반영됩니다.`, "ok");
     } catch (error) {
       setSimilarityStatus(error.message || "전송하지 못했습니다.", "bad");
     } finally {
@@ -690,7 +690,7 @@
   function setRefreshBusy(isBusy) {
     refreshButtons.forEach((button) => {
       button.disabled = isBusy || state.requesting || state.redeeming;
-      button.textContent = isBusy ? "받는 중..." : "질문권 받기";
+      button.textContent = isBusy ? "받는 중..." : "코인 받기";
     });
   }
 
@@ -779,7 +779,7 @@
       panel.submit.disabled = inputDisabled || overTokenLimit;
       updateTokenCounter(panel);
       panel.input.placeholder = locked
-        ? "질문권 받기를 눌러 확인하세요"
+        ? "코인 받기를 눌러 확인하세요"
         : `${panel.name}에게 질문하기`;
     });
     setRefreshBusy(false);
@@ -1028,7 +1028,7 @@
       if (answer.rewarded && !nextNumber) {
         status.textContent = "정답입니다. 모든 윤리퀴즈를 완료했습니다.";
       } else if (answer.rewarded) {
-        status.textContent = `정답입니다. 질문권 ${ethicsRewardCredits}개가 바로 반영되었습니다.`;
+        status.textContent = `정답입니다. 코인 ${ethicsRewardCredits}개가 바로 반영되었습니다.`;
       } else {
         status.textContent = "정답입니다.";
       }
@@ -1345,7 +1345,7 @@
       applyCredits(data.credits);
       const card = storeEvidenceCard(code, data.evidence);
       const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-      setEvidenceMessage(`${teamLabelFor(state.team)} 질문권 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setEvidenceMessage(`${teamLabelFor(state.team)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
       if (evidenceInput) evidenceInput.value = "";
     } catch (error) {
       setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");
@@ -1436,7 +1436,7 @@
       }
       if (response.status === 402 && data.code === "NO_CREDITS") {
         applyCredits(0);
-        return "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 눌러주세요.";
+        return "코인이 0개입니다. 선생님이 코인을 준 뒤 코인 받기를 눌러주세요.";
       }
       if (response.status === 413 && data.code === "MESSAGE_TOKEN_LIMIT") {
         return data.error || "질문이 너무 깁니다. 조금 줄여서 다시 질문해 주세요.";
@@ -1469,7 +1469,7 @@
       return;
     }
     if (state.role === "student" && state.credits <= 0) {
-      addMessage(panel, "bot", "질문권이 0개입니다. 선생님이 질문권을 준 뒤 질문권 받기를 눌러주세요.");
+      addMessage(panel, "bot", "코인이 0개입니다. 선생님이 코인을 준 뒤 코인 받기를 눌러주세요.");
       updateControls();
       return;
     }
