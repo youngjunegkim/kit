@@ -847,18 +847,35 @@
       font-size: 0.72rem;
     }
 
+    /* 2단: 왼쪽 용의자 영역 + 오른쪽 340px 증거 보관함, 유사도 배너는 아래 전체 폭.
+       (심문 노트를 없앤 340px 자리를 증거 보관함으로 되살려 균형을 맞춘다.) */
     .student-main {
       min-width: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-areas:
+        "content vault"
+        "banner banner";
       gap: 16px;
       align-items: start;
     }
 
     .student-content {
+      grid-area: content;
       min-width: 0;
       display: grid;
       gap: 16px;
+    }
+
+    .student-main > .evidence-vault-card {
+      grid-area: vault;
+      /* 오른쪽 칸 상단 고정: 스크롤 없이 항상 보이게 한다. */
+      position: sticky;
+      top: 18px;
+    }
+
+    .student-main > .case-note-button {
+      grid-area: banner;
     }
 
     .credit-pill {
@@ -882,48 +899,6 @@
     .student-tools button {
       width: 100%;
       justify-content: center;
-    }
-
-    /* 윤리퀴즈 접기(details). 접힘 상태에선 summary만 보이고 4블록은 숨겨진다(DOM엔 유지). */
-    .ethics-details {
-      display: grid;
-      gap: 9px;
-    }
-
-    .ethics-details > summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      cursor: pointer;
-      list-style: none;
-      padding: 9px 12px;
-      border: 1px solid rgba(225, 174, 45, 0.5);
-      border-radius: 8px;
-      background: rgba(225, 174, 45, 0.12);
-      color: #f4e4bd;
-      font-weight: 800;
-      font-size: 0.9rem;
-    }
-
-    .ethics-details > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .ethics-details > summary::after {
-      content: "\25BE";
-      color: #e1ae2d;
-      transition: transform 0.15s ease;
-    }
-
-    .ethics-details[open] > summary::after {
-      transform: rotate(180deg);
-    }
-
-    .ethics-details-body {
-      display: grid;
-      gap: 9px;
-      margin-top: 9px;
     }
 
     .ethics-quiz-tile {
@@ -1190,9 +1165,12 @@
       place-items: center;
       margin: 0;
       width: 100%;
-      min-height: 430px;
+      min-height: 0;
       height: auto;
-      aspect-ratio: 1 / 1.22;
+      /* 카드 이미지는 사진+이름+설명이 세로로 구워져 있다. 상단 ~53%(이름 배너+사진)만
+         보이도록 비율을 줄여 설명 패널을 잘라낸다(클릭 시 라이트박스에서 전체가 보임).
+         카드 세로가 짧아진 만큼 아래 채팅창이 커진다. */
+      aspect-ratio: 1 / 1.05;
       border-radius: 8px;
       overflow: hidden;
       background: #000;
@@ -1281,7 +1259,9 @@
 
     .chat-card {
       display: grid;
-      grid-template-rows: auto minmax(150px, 24vh) auto;
+      /* 용의자 카드가 짧아진 만큼 대화창(가운데 행)을 키우되, 카드+채팅이 한 화면(≈600px)에
+         들어오도록 26vh로 잡는다. */
+      grid-template-rows: auto minmax(170px, 26vh) auto;
     }
 
     .chat-head,
@@ -1941,7 +1921,8 @@
 
     .evidence-vault-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.52fr);
+      /* 340px 오른쪽 칸에 들어가므로 board와 room-detail을 세로로 쌓는다. */
+      grid-template-columns: minmax(0, 1fr);
       gap: 10px;
       padding: 12px;
       background: #fffaf0;
@@ -2182,6 +2163,15 @@
 
       .student-main {
         grid-template-columns: 1fr;
+        /* 좁은 화면에선 2단을 풀어 content → 증거 보관함 → 배너 순으로 세로 스택한다. */
+        grid-template-areas:
+          "content"
+          "vault"
+          "banner";
+      }
+
+      .student-main > .evidence-vault-card {
+        position: static;
       }
 
       .student-menu {
@@ -2195,9 +2185,10 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
       }
 
-      /* 윤리퀴즈 4블록은 이제 .ethics-details 안에 있으므로, 4열 그리드에서 전체 폭을
-         차지해야 하는 대상은 details 컨테이너다. */
-      .ethics-details {
+      .ethics-quiz-tile,
+      .ethics-picker-form,
+      .ethics-reset-btn,
+      .ethics-solved-summary {
         grid-column: 1 / -1;
       }
 
@@ -2322,30 +2313,25 @@
           </div>
           <!-- 질문권 받기: 수업 중 계속 눌러야 하는 버튼이라 접속 인원 바로 아래 상단에 둔다. -->
           <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
-          <!-- 윤리퀴즈는 수업 중 한두 번만 쓰므로 기본 접힘(details). 안의 요소들은 접혀 있어도
-               DOM에 그대로 있어 JS 참조·동작에 영향이 없다. -->
-          <details class="ethics-details">
-            <summary class="ethics-details-summary">윤리퀴즈</summary>
-            <div class="ethics-details-body">
-              <button class="ethics-quiz-tile" type="button" data-student-ethics-open aria-controls="studentEthicsCard">
-                <span class="ethics-quiz-mark" aria-hidden="true">?</span>
-                <span class="ethics-quiz-label">윤리퀴즈</span>
-              </button>
-              <form class="ethics-picker-form" data-student-ethics-form>
-                <label class="ethics-picker-field" for="studentEthicsPassword">
-                  윤리퀴즈 비밀번호
-                  <input class="ethics-picker-input" id="studentEthicsPassword" data-student-ethics-password type="password" autocomplete="off" placeholder="비밀번호 입력">
-                </label>
-                <label class="ethics-picker-field" for="studentEthicsNumber">
-                  문제 번호
-                  <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="text" inputmode="numeric" placeholder="1" readonly>
-                </label>
-                <button class="ethics-picker-submit" type="submit">시작</button>
-              </form>
-              <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
-              <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
-            </div>
-          </details>
+          <!-- 윤리퀴즈: 오른쪽 증거 보관함 복원으로 세로 여유가 생겨 다시 펼쳐 둔다
+               (주강사가 "윤리퀴즈 시작" 안내 시 학생이 바로 찾을 수 있게). -->
+          <button class="ethics-quiz-tile" type="button" data-student-ethics-open aria-controls="studentEthicsCard">
+            <span class="ethics-quiz-mark" aria-hidden="true">?</span>
+            <span class="ethics-quiz-label">윤리퀴즈</span>
+          </button>
+          <form class="ethics-picker-form" data-student-ethics-form>
+            <label class="ethics-picker-field" for="studentEthicsPassword">
+              윤리퀴즈 비밀번호
+              <input class="ethics-picker-input" id="studentEthicsPassword" data-student-ethics-password type="password" autocomplete="off" placeholder="비밀번호 입력">
+            </label>
+            <label class="ethics-picker-field" for="studentEthicsNumber">
+              문제 번호
+              <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="text" inputmode="numeric" placeholder="1" readonly>
+            </label>
+            <button class="ethics-picker-submit" type="submit">시작</button>
+          </form>
+          <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
+          <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
           <button class="logout-btn" type="button" data-logout>로그아웃</button>
         </div>
       </aside>
@@ -2412,7 +2398,9 @@
     </section>
 
         <section class="student-ethics-card" id="studentEthicsCard" data-student-ethics-card hidden aria-live="polite"></section>
+        </div>
 
+        <!-- 오른쪽 340px(심문 노트가 있던 자리): 획득한 증거카드 + 받기 버튼. 스크롤 없이 항상 보이게. -->
         <section class="evidence-vault-card" aria-label="획득한 증거카드">
           <div class="student-log-head">
             <h2>획득한 증거카드</h2>
@@ -2430,17 +2418,17 @@
             </aside>
           </div>
         </section>
-          <button class="case-note-button" type="button" data-similarity-open aria-label="최종 유사도 측정 팝업 열기">
-            <span class="case-note-button__icon" aria-hidden="true"></span>
-            <span class="case-note-button__copy">
-              <strong>사건노트 최종 제출</strong>
-              <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
-            </span>
-            <span class="case-note-button__mascot" aria-hidden="true">
-              <img src="assets/characters/detective-note-mascot.png" alt="">
-            </span>
-          </button>
-        </div>
+        <!-- 유사도 배너: 두 단 아래 전체 폭에 그대로. -->
+        <button class="case-note-button" type="button" data-similarity-open aria-label="최종 유사도 측정 팝업 열기">
+          <span class="case-note-button__icon" aria-hidden="true"></span>
+          <span class="case-note-button__copy">
+            <strong>사건노트 최종 제출</strong>
+            <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
+          </span>
+          <span class="case-note-button__mascot" aria-hidden="true">
+            <img src="assets/characters/detective-note-mascot.png" alt="">
+          </span>
+        </button>
       </div>
     </div>
   </main>
