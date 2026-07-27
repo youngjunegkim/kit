@@ -224,10 +224,15 @@
 
       const meta = document.createElement("div");
       meta.className = "evidence-redeem-entry__meta";
-      meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · +${entry.added || 1}개`;
+      const rawDelta = entry.delta !== undefined ? Number(entry.delta) : Number(entry.added || 1);
+      const delta = Number.isFinite(rawDelta) ? Math.round(rawDelta) : 0;
+      const deltaText = delta > 0 ? `+${delta}개` : delta < 0 ? `${delta}개` : "변동 없음";
+      meta.textContent = `${teamLabelFor(entry.team)} · ${formatLogTime(entry.at)} · ${deltaText}`;
 
       const text = document.createElement("p");
-      text.textContent = "증거코드 입력 완료 · 코인 지급됨";
+      text.textContent = entry.room === "황금열쇠"
+        ? `${entry.evidence || "황금열쇠 카드"} 적용 · 코인 ${deltaText}`
+        : `증거코드 입력 완료 · 코인 ${deltaText}`;
 
       item.append(meta, text);
       list.append(item);

@@ -2,8 +2,10 @@ const {
   bumpSimilaritySubmitCount,
   clearSimilaritySentences,
   consumeCredits,
+  consumeSimilarityFreeResubmit,
   getCredits,
   getSimilaritySentences,
+  getSimilarityFreeResubmits,
   getSimilaritySubmitCount,
   hasPersistentStore,
   normalizeTeam,
@@ -105,11 +107,13 @@ async function handleSimilaritySentences(request, response) {
           return;
         }
         const submitCount = await getSimilaritySubmitCount(team);
+        const freeResubmits = await getSimilarityFreeResubmits(team);
         sendJson(response, 200, {
           ok: true,
           team,
           submitCount,
           resubmitCost,
+          freeResubmits,
           persistent: hasPersistentStore()
         });
         return;
@@ -173,8 +177,11 @@ async function handleSimilaritySentences(request, response) {
     const isResubmit = submitCount >= 1;
     let credits = Math.max(0, Number(await getCredits(team)) || 0);
     let charged = 0;
+    let freeUsed = false;
+    let freeAvailable = false;
     if (isResubmit) {
-      if (credits < resubmitCost) {
+      freeAvailable = (await getSimilarityFreeResubmits(team)) > 0;
+      if (!freeAvailable && credits < resubmitCost) {
         sendJson(response, 409, {
           error: "코인이 부족합니다.",
           code: "INSUFFICIENT_CREDITS",
@@ -184,19 +191,25 @@ async function handleSimilaritySentences(request, response) {
         });
         return;
       }
-      const spend = await consumeCredits(team, resubmitCost);
-      if (!spend.ok) {
-        sendJson(response, 409, {
-          error: "코인이 부족합니다.",
-          code: "INSUFFICIENT_CREDITS",
-          needed: resubmitCost,
-          credits: spend.remaining,
-          submitCount
-        });
-        return;
+      if (freeAvailable) {
+        const free = await consumeSimilarityFreeResubmit(team);
+        freeUsed = Boolean(free.used);
       }
-      credits = spend.remaining;
-      charged = resubmitCost;
+      if (!freeUsed) {
+        const spend = await consumeCredits(team, resubmitCost);
+        if (!spend.ok) {
+          sendJson(response, 409, {
+            error: "코인이 부족합니다.",
+            code: "INSUFFICIENT_CREDITS",
+            needed: resubmitCost,
+            credits: spend.remaining,
+            submitCount
+          });
+          return;
+        }
+        credits = spend.remaining;
+        charged = resubmitCost;
+      }
     }
 
     const entry = await recordSimilaritySentence({
@@ -211,14 +224,17 @@ async function handleSimilaritySentences(request, response) {
     }
 
     const newSubmitCount = await bumpSimilaritySubmitCount(team);
+    const freeResubmits = await getSimilarityFreeResubmits(team);
 
     sendJson(response, 200, {
       ok: true,
       sentence: publicSentence(entry),
       submitCount: newSubmitCount,
       charged,
+      freeUsed,
       credits,
       resubmitCost,
+      freeResubmits,
       persistent: hasPersistentStore()
     });
   } catch (error) {

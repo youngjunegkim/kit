@@ -15,6 +15,7 @@ const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
 const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore || [];
 const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new Map();
+const memorySimilarityFreeStore = globalThis.__kitSimilarityFreeStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -29,6 +30,7 @@ globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
 globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
 globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
+globalThis.__kitSimilarityFreeStore = memorySimilarityFreeStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
@@ -174,6 +176,10 @@ function similaritySentenceKey() {
 
 function similaritySubmitKeyFor(team) {
   return `kit:${storeNamespace()}:similarity-submits:${team}`;
+}
+
+function similarityFreeResubmitKeyFor(team) {
+  return `kit:${storeNamespace()}:similarity-free-resubmits:${team}`;
 }
 
 function hasPersistentStore() {
@@ -451,6 +457,8 @@ function cleanEvidenceEntry(entry = {}) {
   const team = normalizeTeam(entry.team);
   const code = String(entry.code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
   if (!team || !code) return null;
+  const added = cleanCredits(entry.added || 0);
+  const delta = Number.isFinite(Number(entry.delta)) ? Math.round(Number(entry.delta)) : added;
 
   return {
     id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
@@ -461,7 +469,8 @@ function cleanEvidenceEntry(entry = {}) {
     room: String(entry.room || "").trim().slice(0, 30),
     evidence: String(entry.evidence || "").trim().slice(0, 80),
     person: String(entry.person || "").trim().slice(0, 30),
-    added: cleanCredits(entry.added || 0),
+    added,
+    delta,
     remaining: cleanCredits(entry.remaining || 0),
     namespace: String(entry.namespace || storeNamespace()).trim()
   };
@@ -774,6 +783,58 @@ async function bumpSimilaritySubmitCount(team) {
   return cleanCredits(await redisCommand(["INCR", similaritySubmitKeyFor(normalized)]));
 }
 
+async function getSimilarityFreeResubmits(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    return cleanCredits(memorySimilarityFreeStore.get(similarityFreeResubmitKeyFor(normalized)) || 0);
+  }
+
+  return cleanCredits(await redisCommand(["GET", similarityFreeResubmitKeyFor(normalized)]));
+}
+
+async function grantSimilarityFreeResubmit(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return 0;
+
+  if (!hasPersistentStore()) {
+    const key = similarityFreeResubmitKeyFor(normalized);
+    const next = cleanCredits(memorySimilarityFreeStore.get(key) || 0) + 1;
+    memorySimilarityFreeStore.set(key, next);
+    return next;
+  }
+
+  return cleanCredits(await redisCommand(["INCR", similarityFreeResubmitKeyFor(normalized)]));
+}
+
+async function consumeSimilarityFreeResubmit(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return { used: false, remaining: 0 };
+
+  if (!hasPersistentStore()) {
+    const key = similarityFreeResubmitKeyFor(normalized);
+    const current = cleanCredits(memorySimilarityFreeStore.get(key) || 0);
+    if (current <= 0) return { used: false, remaining: 0 };
+    const remaining = current - 1;
+    memorySimilarityFreeStore.set(key, remaining);
+    return { used: true, remaining };
+  }
+
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "if current <= 0 then return -1 end",
+    "current = current - 1",
+    "redis.call('SET', KEYS[1], current)",
+    "return current"
+  ].join("; ");
+  const remaining = Number(await redisCommand(["EVAL", script, "1", similarityFreeResubmitKeyFor(normalized)]));
+  if (!Number.isFinite(remaining) || remaining < 0) {
+    return { used: false, remaining: 0 };
+  }
+  return { used: true, remaining };
+}
+
 async function recordSimilaritySentence(entry) {
   const cleanEntry = cleanSimilaritySentenceEntry(entry);
   if (!cleanEntry) return null;
@@ -822,12 +883,14 @@ async function clearSimilaritySentences() {
       }
     }
     teams.forEach((team) => memorySimilaritySubmitStore.delete(similaritySubmitKeyFor(team)));
+    teams.forEach((team) => memorySimilarityFreeStore.delete(similarityFreeResubmitKeyFor(team)));
     return removed;
   }
 
   const removed = await getSimilaritySentences(maxReturnedEvidenceLogs);
   await redisCommand(["DEL", similaritySentenceKey()]);
   await redisCommand(["DEL", ...teams.map(similaritySubmitKeyFor)]);
+  await redisCommand(["DEL", ...teams.map(similarityFreeResubmitKeyFor)]);
   return removed;
 }
 
@@ -1107,6 +1170,41 @@ async function consumeCredits(team, amount) {
   return { ok: true, team: normalized, remaining };
 }
 
+async function reduceCredits(team, amount) {
+  const normalized = normalizeTeam(team);
+  const spend = cleanCredits(amount);
+  if (!normalized) {
+    return { ok: false, team: "", removed: 0, remaining: 0, reason: "INVALID_TEAM" };
+  }
+  if (spend <= 0) {
+    return { ok: true, team: normalized, removed: 0, remaining: cleanCredits(await getCredits(normalized)) };
+  }
+
+  if (!hasPersistentStore()) {
+    const key = keyFor(normalized);
+    const current = cleanCredits(memoryStore.get(key) || 0);
+    const removed = Math.min(current, spend);
+    const remaining = current - removed;
+    memoryStore.set(key, remaining);
+    return { ok: true, team: normalized, removed, remaining };
+  }
+
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "if current < 0 then current = 0 end",
+    "local spend = tonumber(ARGV[1]) or 0",
+    "local removed = current",
+    "if spend < current then removed = spend end",
+    "local remaining = current - removed",
+    "redis.call('SET', KEYS[1], remaining)",
+    "return {removed, remaining}"
+  ].join("; ");
+  const result = await redisCommand(["EVAL", script, "1", keyFor(normalized), String(spend)]);
+  const removed = Math.max(0, Number(Array.isArray(result) ? result[0] : 0) || 0);
+  const remaining = Math.max(0, Number(Array.isArray(result) ? result[1] : 0) || 0);
+  return { ok: true, team: normalized, removed, remaining };
+}
+
 module.exports = {
   addCredits,
   addCustomEthicsQuestion,
@@ -1120,6 +1218,7 @@ module.exports = {
   clearEthicsQuizRedemptions,
   consumeCredit,
   consumeCredits,
+  consumeSimilarityFreeResubmit,
   clearQuestionLogs,
   currentClassId,
   getAllCredits,
@@ -1136,9 +1235,11 @@ module.exports = {
   getQuestionCount,
   getQuestionLogs,
   getSimilaritySentences,
+  getSimilarityFreeResubmits,
   getSimilaritySubmitCount,
   getPresence,
   grantCredits,
+  grantSimilarityFreeResubmit,
   hasPersistentStore,
   logQuestion,
   normalizeClassId,
@@ -1150,6 +1251,7 @@ module.exports = {
   requestClassId,
   redeemEthicsQuizQuestion,
   redeemEvidenceCode,
+  reduceCredits,
   resetCredits,
   setEvidenceGrant,
   setCustomEthicsQuestions,

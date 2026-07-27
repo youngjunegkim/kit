@@ -11,10 +11,12 @@ const {
   getGrantedCredits,
   getQuestionLogs,
   grantCredits,
+  grantSimilarityFreeResubmit,
   hasPersistentStore,
   normalizeTeam,
   recordEvidenceRedemption,
   redeemEvidenceCode,
+  reduceCredits,
   requestClassId,
   setCredits,
   setEvidenceGrant,
@@ -36,6 +38,177 @@ const evidenceCodes = {
 };
 const evidenceRewardCredits = 1;
 const evidenceRevisitBonusCredits = 2;
+
+const goldenKeyEffects = {
+  reliability: { concept: "신뢰성" },
+  inclusion: { concept: "포용성" },
+  accountability: { concept: "책임성" },
+  hallucination: { concept: "환각" },
+  deepfake: { concept: "딥페이크" },
+  bias: { concept: "편향" }
+};
+
+const goldenKeyCards = {
+  906458: "reliability",
+  149489: "reliability",
+  913561: "inclusion",
+  382866: "inclusion",
+  392990: "accountability",
+  144051: "accountability",
+  505132: "hallucination",
+  281797: "hallucination",
+  244391: "deepfake",
+  564376: "deepfake",
+  337446: "bias",
+  974399: "bias"
+};
+
+Object.keys(goldenKeyCards).forEach((code) => {
+  if (evidenceCodes[code]) {
+    throw new Error(`Golden key code conflicts with evidence code: ${code}`);
+  }
+});
+
+function goldenCardByCode(code) {
+  const clean = cleanCode(code);
+  const effect = goldenKeyCards[clean];
+  return effect ? { code: clean, effect, concept: goldenKeyEffects[effect].concept } : null;
+}
+
+async function participatingTeams() {
+  const granted = await getAllGrantedCredits();
+  return Object.entries(granted)
+    .filter(([, value]) => Number(value) > 0)
+    .map(([team]) => team);
+}
+
+function goldenMessage(effect, { otherCount, freeResubmits }) {
+  if (effect === "reliability") {
+    return { tone: "ok", text: "신뢰성 카드! 우리 팀 코인 2개가 추가되었습니다." };
+  }
+  if (effect === "inclusion") {
+    return otherCount > 0
+      ? { tone: "ok", text: "포용성 카드! 우리 팀 코인 2개, 다른 참여 팀 코인 1개가 추가되었습니다." }
+      : { tone: "ok", text: "포용성 카드! 우리 팀 코인 2개가 추가되었습니다." };
+  }
+  if (effect === "accountability") {
+    return { tone: "ok", text: `책임성 카드! 사건노트 재전송 무료권 1개가 추가되었습니다. 현재 무료권 ${Math.max(0, Number(freeResubmits) || 0)}개입니다.` };
+  }
+  if (effect === "hallucination") {
+    return { tone: "bad", text: "환각 카드였습니다. 카드에는 보너스처럼 보였지만 실제로는 우리 팀 코인 2개가 줄어듭니다." };
+  }
+  if (effect === "deepfake") {
+    return { tone: "bad", text: "딥페이크 카드! 참여 중인 모든 팀의 코인이 1개씩 줄어듭니다." };
+  }
+  if (effect === "bias") {
+    return { tone: "bad", text: "편향 카드! 우리 팀 코인 2개가 줄어듭니다." };
+  }
+  return { tone: "ok", text: "황금열쇠 효과가 적용되었습니다." };
+}
+
+async function applyGoldenDelta(team, card, actor, wanted) {
+  let credits;
+  let delta;
+  if (wanted > 0) {
+    const result = await grantCredits(team, wanted);
+    credits = result.credits;
+    delta = wanted;
+  } else if (wanted < 0) {
+    const result = await reduceCredits(team, -wanted);
+    credits = result.remaining;
+    delta = -result.removed;
+  } else {
+    credits = Math.max(0, Number(await getCredits(team)) || 0);
+    delta = 0;
+  }
+
+  await recordEvidenceRedemption({
+    team,
+    user: actor,
+    code: card.code,
+    room: "황금열쇠",
+    evidence: `${card.concept} 카드`,
+    person: "",
+    added: delta > 0 ? delta : 0,
+    delta,
+    remaining: credits
+  });
+  return { team, delta, credits };
+}
+
+async function applyGoldenKey(team, card, actor) {
+  const applied = [];
+  let selfDelta = 0;
+  let otherDelta = 0;
+  let otherCount = 0;
+  let freeResubmits = null;
+
+  if (card.effect === "reliability") {
+    const self = await applyGoldenDelta(team, card, actor, 2);
+    applied.push(self);
+    selfDelta = self.delta;
+  } else if (card.effect === "inclusion") {
+    const self = await applyGoldenDelta(team, card, actor, 2);
+    applied.push(self);
+    selfDelta = self.delta;
+    const others = (await participatingTeams()).filter((other) => other !== team);
+    for (const other of others) {
+      applied.push(await applyGoldenDelta(other, card, actor, 1));
+    }
+    otherDelta = 1;
+    otherCount = others.length;
+  } else if (card.effect === "accountability") {
+    freeResubmits = await grantSimilarityFreeResubmit(team);
+    await recordEvidenceRedemption({
+      team,
+      user: actor,
+      code: card.code,
+      room: "황금열쇠",
+      evidence: "책임성 카드 · 사건노트 재전송 무료권",
+      person: "",
+      added: 0,
+      delta: 0,
+      remaining: Math.max(0, Number(await getCredits(team)) || 0)
+    });
+  } else if (card.effect === "hallucination") {
+    const self = await applyGoldenDelta(team, card, actor, -2);
+    applied.push(self);
+    selfDelta = self.delta;
+  } else if (card.effect === "deepfake") {
+    const targets = new Set(await participatingTeams());
+    targets.add(team);
+    for (const target of targets) {
+      const entry = await applyGoldenDelta(target, card, actor, -1);
+      applied.push(entry);
+      if (target === team) selfDelta = entry.delta;
+    }
+    otherDelta = -1;
+    otherCount = targets.size - 1;
+  } else if (card.effect === "bias") {
+    const self = await applyGoldenDelta(team, card, actor, -2);
+    applied.push(self);
+    selfDelta = self.delta;
+  }
+
+  const selfEntry = applied.find((entry) => entry.team === team);
+  const selfCredits = selfEntry ? selfEntry.credits : Math.max(0, Number(await getCredits(team)) || 0);
+  const message = goldenMessage(card.effect, { otherCount, freeResubmits });
+
+  return {
+    concept: card.concept,
+    effect: card.effect,
+    code: card.code,
+    team,
+    selfDelta,
+    otherDelta,
+    otherCount,
+    freeResubmits,
+    credits: selfCredits,
+    message: message.text,
+    tone: message.tone,
+    logs: await getQuestionLogs(team)
+  };
+}
 
 const roomCatalog = Object.entries(evidenceCodes).reduce((catalog, [code, entry]) => {
   const room = catalog[entry.roomId] || { roomId: entry.roomId, name: entry.room, options: [] };
@@ -163,6 +336,7 @@ function publicEvidenceLog(entry = {}) {
     evidence: String(catalog?.evidence || entry.evidence || "").trim().slice(0, 80),
     person: String(catalog?.person || entry.person || "").trim().slice(0, 40),
     added: Math.max(0, Number(entry.added) || 0),
+    delta: Number.isFinite(Number(entry.delta)) ? Math.round(Number(entry.delta)) : Math.max(0, Number(entry.added) || 0),
     at: entry.at || ""
   };
 }
@@ -497,6 +671,29 @@ async function handleEvidenceCode(request, response) {
     }
     if (!team) {
       sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+      return;
+    }
+    const goldenCard = goldenCardByCode(code);
+    if (goldenCard) {
+      const actor = decodedHeaderValue(request, "x-kit-user") || body.user || team;
+      const isNew = await redeemEvidenceCode(team, code);
+      if (!isNew) {
+        sendJson(response, 409, {
+          error: "이미 사용한 황금열쇠 코드입니다.",
+          code: "ALREADY_REDEEMED_GOLDEN",
+          kind: "golden",
+          concept: goldenCard.concept
+        });
+        return;
+      }
+
+      const golden = await applyGoldenKey(team, goldenCard, actor);
+      sendJson(response, 200, {
+        ok: true,
+        kind: "golden",
+        ...golden,
+        persistent: hasPersistentStore()
+      });
       return;
     }
     if (!evidence) {
