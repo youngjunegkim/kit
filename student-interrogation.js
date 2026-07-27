@@ -567,14 +567,22 @@
   function renderEvidenceBoard() {
     if (!evidenceBoard) return;
     evidenceBoard.textContent = "";
-    if (evidenceBoardCount) evidenceBoardCount.textContent = `${state.evidenceCards.length}개`;
+    const maxEvidenceSlots = 10;
+    const evidenceCount = Math.min(maxEvidenceSlots, state.evidenceCards.length);
+    if (evidenceBoardCount) evidenceBoardCount.textContent = `${evidenceCount} / ${maxEvidenceSlots}`;
+
+    function appendEmptySlots(count) {
+      for (let index = 0; index < count; index += 1) {
+        const slot = document.createElement("span");
+        slot.className = "evidence-board-slot";
+        slot.setAttribute("aria-hidden", "true");
+        evidenceBoard.append(slot);
+      }
+    }
 
     if (!state.evidenceCards.length) {
       state.selectedEvidenceCode = "";
-      const empty = document.createElement("p");
-      empty.className = "evidence-board-empty";
-      empty.textContent = "아직 획득한 증거카드가 없습니다.";
-      evidenceBoard.append(empty);
+      appendEmptySlots(maxEvidenceSlots);
       renderEvidenceRoomDetail(null);
       return;
     }
@@ -611,6 +619,7 @@
       item.append(thumb, body);
       evidenceBoard.append(item);
     });
+    appendEmptySlots(Math.max(0, maxEvidenceSlots - evidenceCount));
 
     renderEvidenceRoomDetail();
   }
@@ -1232,7 +1241,7 @@
     }
     if (evidenceClaimOpen) {
       evidenceClaimOpen.disabled = disabled;
-      evidenceClaimOpen.textContent = state.claiming ? "확인 중" : "확인";
+      evidenceClaimOpen.textContent = state.claiming ? "받는 중" : "받기";
     }
     updateSimilaritySubmitButton();
   }
