@@ -115,6 +115,7 @@
   const ethicsNumberInput = document.querySelector("[data-student-ethics-number]");
   const ethicsSolvedSummary = document.querySelector("[data-student-ethics-solved]");
   const ethicsCard = document.querySelector("[data-student-ethics-card]");
+  const ethicsModal = document.querySelector("[data-student-ethics-modal]");
   const ethicsResetButton = document.querySelector("[data-student-ethics-reset]");
   const ethicsAccessPassword = String.fromCharCode(107, 105, 116);
   const ethicsRewardCredits = 1;
@@ -257,8 +258,18 @@
     if (ethicsPasswordInput) ethicsPasswordInput.value = "";
   }
 
+  // 윤리퀴즈 팝업 열기/닫기. 렌더는 그대로 ethicsCard에 그려지고, 이 두 함수가 모달 표시만 담당한다.
+  function openEthicsModal() {
+    if (ethicsModal) ethicsModal.hidden = false;
+  }
+
+  function closeEthicsModal() {
+    if (ethicsModal) ethicsModal.hidden = true;
+  }
+
   function closeStudentEthicsQuestion(nextNumber = "") {
     expireEthicsAccess();
+    closeEthicsModal();
     if (ethicsCard) {
       ethicsCard.hidden = true;
       ethicsCard.textContent = "";
@@ -1675,25 +1686,33 @@
       }
     });
 
+    // 타일 클릭: 잠겨 있으면 비밀번호칸(메뉴)에 포커스만 준다. 풀려 있으면 모달을 연다.
     ethicsOpenButton?.addEventListener("click", () => {
       if (!state.ethicsUnlocked) {
-        renderEthicsAccessGate();
-        ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
         ethicsPasswordInput?.focus({ preventScroll: true });
         return;
       }
       renderStudentEthicsQuestion(selectedEthicsNumber());
-      ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openEthicsModal();
     });
 
+    // 시작 버튼: 비밀번호가 맞으면 모달을 연다. 틀리면 requireEthicsAccess가 메뉴 비밀번호칸을
+    // 비우고 포커스하므로(모달은 열지 않음) 바로 다시 입력할 수 있다.
     ethicsForm?.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (!requireEthicsAccess()) {
-        ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
+      if (!requireEthicsAccess()) return;
       renderStudentEthicsQuestion(selectedEthicsNumber());
-      ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openEthicsModal();
+    });
+
+    // 팝업 닫기: ✕ 버튼과 ESC. (닫으면 접근이 만료돼 다음엔 비밀번호를 다시 입력한다 — 기존 동작)
+    document.querySelector("[data-student-ethics-close]")?.addEventListener("click", () => {
+      closeStudentEthicsQuestion();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && ethicsModal && !ethicsModal.hidden) {
+        closeStudentEthicsQuestion();
+      }
     });
 
     ethicsResetButton?.addEventListener("click", resetStudentEthicsQuiz);
