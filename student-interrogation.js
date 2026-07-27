@@ -510,6 +510,8 @@
   function renderEvidenceRoomDetail(card = selectedEvidenceCard()) {
     if (!evidenceRoomDetail) return;
     evidenceRoomDetail.textContent = "";
+    // 선택된 카드가 없으면 안내를 영역 가운데에 두고(is-empty), 있으면 사진을 위에서부터 채운다.
+    evidenceRoomDetail.classList.toggle("is-empty", !card);
 
     if (!card) {
       const empty = document.createElement("p");
@@ -1973,6 +1975,29 @@
   teamLabels.forEach((node) => {
     node.textContent = teamIdFor(state.team) || "학생";
   });
+  // 증거 보관함(오른쪽) 높이를 왼쪽 심문 영역에 정확히 맞춘다. 교실 사진이 커도 보관함은
+  // 늘어나지 않고 안쪽(room-detail)에서만 스크롤된다. 왼쪽이 길어지거나 짧아지면 따라간다.
+  // (폴링이 아니라 크기 변화에만 반응하는 ResizeObserver.)
+  (function syncVaultHeightToContent() {
+    const contentEl = document.querySelector(".student-content");
+    const vaultEl = document.querySelector(".student-main > .evidence-vault-card");
+    if (!contentEl || !vaultEl) return;
+    const apply = () => {
+      // 2단(오른쪽에 340px 칸)일 때만 맞춘다. 좁은 화면에서 세로로 쌓이면 해제.
+      const stacked = getComputedStyle(vaultEl).position === "static";
+      vaultEl.style.maxHeight = stacked ? "" : `${Math.round(contentEl.getBoundingClientRect().height)}px`;
+    };
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver(apply).observe(contentEl);
+    }
+    window.addEventListener("resize", apply);
+    // 초기 레이아웃(이미지 로드 등)이 안정된 뒤 다시 맞춘다.
+    apply();
+    requestAnimationFrame(apply);
+    window.setTimeout(apply, 400);
+    window.setTimeout(apply, 1200);
+  })();
+
   setCreditText(state.team ? "받기 필요" : "학생 없음");
   setLogCount(0);
   loadEvidenceCards();
