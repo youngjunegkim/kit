@@ -38,7 +38,7 @@
 
   function teamLabelFor(team) {
     const id = teamIdFor(team);
-    return id ? `${id}번` : "학생";
+    return id ? `${id}팀` : "학생";
   }
 
   function applyTeamDisplayLabels() {
@@ -52,7 +52,7 @@
       if (badge) badge.textContent = id;
 
       const name = row?.querySelector(".team-name");
-      if (name) name.textContent = id;
+      if (name) name.textContent = label;
 
       const meta = row?.querySelector(".team-meta");
       if (meta) meta.setAttribute("aria-label", `${label} 코인 현황`);

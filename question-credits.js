@@ -24,6 +24,11 @@
     return teamDisplayIds[value] || String(value || "").trim();
   }
 
+  function teamLabelFor(value) {
+    const id = teamIdFor(value);
+    return id ? `${id}팀` : "학생";
+  }
+
   function setCreditText(text) {
     creditCounts.forEach((node) => {
       node.textContent = text;
@@ -85,7 +90,7 @@
     }
 
     teamLabels.forEach((node) => {
-      node.textContent = teamIdFor(team);
+      node.textContent = teamLabelFor(team);
     });
 
     try {
@@ -110,7 +115,7 @@
   }
 
   teamLabels.forEach((node) => {
-    node.textContent = teamIdFor(team) || "학생";
+    node.textContent = teamLabelFor(team);
   });
   setCreditText(team ? "받기 필요" : "학생 없음");
   setLogCount(0);

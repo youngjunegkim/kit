@@ -116,7 +116,7 @@
 
   function teamLabelFor(team) {
     const id = teamIdFor(team);
-    return id ? `${id}번` : "학생";
+    return id ? `${id}팀` : "학생";
   }
 
   function ensureTokenCounter() {
@@ -454,7 +454,7 @@
       : `${Math.max(0, Number(credits) || 0)}개`;
     setText(nodes.evidenceTotalLabel, label);
     setText(nodes.evidenceTotalCount, value);
-    if (team && (state.role === "teacher" || team === state.team)) setText(nodes.teamLabel, teamIdFor(team));
+    if (team && (state.role === "teacher" || team === state.team)) setText(nodes.teamLabel, teamLabelFor(team));
     if (state.role === "teacher") {
       if (credits !== null && credits !== undefined && !Number.isNaN(Number(credits))) {
         state.credits = Math.max(0, Number(credits) || 0);
@@ -770,7 +770,7 @@
 
   function setup() {
     state.evidenceTeam = state.team || sessionStorage.getItem("kit-evidence-target-team") || teams[0];
-    setText(nodes.teamLabel, state.team ? teamIdFor(state.team) : state.role === "teacher" ? "선생님" : "학생");
+    setText(nodes.teamLabel, state.team ? teamLabelFor(state.team) : state.role === "teacher" ? "선생님" : "학생");
     setText(nodes.roomLabel, state.roomName);
     state.currentSuspect = ensureSuspect(nodes.suspectSelect?.value || "kangWoojin");
     removeTeacherEvidenceCodeTools();

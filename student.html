@@ -470,13 +470,34 @@
     }
 
     .student-ethics-card {
+      position: fixed;
+      inset: 0;
+      z-index: 92;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      min-height: 100dvh;
+      background:
+        radial-gradient(circle at 25% 18%, rgba(216, 41, 35, 0.22), transparent 34%),
+        rgba(10, 9, 12, 0.88);
+      padding: 28px;
+    }
+
+    body.student-ethics-open {
+      overflow: hidden;
+    }
+
+    .student-ethics-modal-panel {
+      width: min(1180px, 100%);
+      max-height: calc(100dvh - 56px);
       display: grid;
       gap: 14px;
-      border-radius: 8px;
+      overflow: auto;
+      border-radius: 14px;
       background: rgba(255, 250, 240, 0.98);
       border: 1px solid rgba(225, 174, 45, 0.58);
       box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
-      padding: 16px;
+      padding: 18px;
     }
 
     .student-ethics-card[hidden] {
@@ -517,6 +538,26 @@
       font-weight: 950;
     }
 
+    .student-ethics-close {
+      flex: 0 0 auto;
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      background: #24180f;
+      color: #fffaf0;
+      font-size: 1rem;
+      font-weight: 950;
+      line-height: 1;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .student-ethics-close:hover,
+    .student-ethics-close:focus-visible {
+      background: #9e1916;
+      outline: none;
+    }
+
     .student-ethics-source {
       display: grid;
       justify-items: center;
@@ -545,7 +586,7 @@
       width: 100%;
       max-width: 100%;
       height: auto;
-      max-height: none;
+      max-height: min(62vh, 720px);
       object-fit: contain;
       object-position: center;
       border: 1px solid #e3ddcf;
@@ -717,12 +758,25 @@
     }
 
     @media (max-width: 980px) {
+      .student-ethics-card {
+        padding: 14px;
+      }
+
+      .student-ethics-modal-panel {
+        max-height: calc(100dvh - 28px);
+        padding: 14px;
+      }
+
       .student-ethics-question-layout {
         grid-template-columns: 1fr;
       }
 
       .student-ethics-question-layout .student-ethics-source {
         position: static;
+      }
+
+      .student-ethics-source img {
+        max-height: 48vh;
       }
     }
 
@@ -1812,17 +1866,38 @@
     }
 
     .evidence-claim-area {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
       display: grid;
-      gap: 10px;
-      margin: 8px 12px 0;
-      padding: 12px;
-      border: 1px solid #f0d9a8;
-      border-radius: 8px;
-      background: #fffdf6;
+      place-items: center;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 28px;
+      border: 0;
+      border-radius: 0;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(185, 134, 61, 0.22), transparent 34%),
+        rgba(10, 12, 18, 0.86);
+      overflow: auto;
     }
 
     .evidence-claim-area[hidden] {
       display: none;
+    }
+
+    .evidence-claim-panel {
+      width: min(1120px, 100%);
+      max-height: calc(100dvh - 56px);
+      display: grid;
+      gap: 16px;
+      overflow: auto;
+      border: 1px solid rgba(237, 205, 141, 0.56);
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(255, 251, 239, 0.98), rgba(246, 232, 202, 0.97));
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.46);
+      padding: 18px;
     }
 
     .evidence-claim-head {
@@ -1834,8 +1909,9 @@
 
     .evidence-claim-head h3 {
       margin: 0;
-      font-size: 0.98rem;
-      color: #22303c;
+      font-size: 1.24rem;
+      color: #24180f;
+      font-weight: 950;
     }
 
     .evidence-claim-close {
@@ -1850,9 +1926,10 @@
     .evidence-claim-hint,
     .evidence-claim-empty {
       margin: 0;
-      font-size: 0.82rem;
+      font-size: 0.92rem;
       font-weight: 800;
       color: #6b7280;
+      word-break: keep-all;
     }
 
     .evidence-claim-photo {
@@ -1891,6 +1968,168 @@
       color: #9aa5b1;
       background: #f4f6f8;
       border-color: #e2e6ea;
+    }
+
+    .evidence-claim-close {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      background: #8f1717;
+      color: #fff7e4;
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+
+    .evidence-claim-options.evidence-claim-deck {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      perspective: 1200px;
+    }
+
+    .evidence-claim-option.evidence-claim-flip-card {
+      position: relative;
+      min-height: min(62vh, 620px);
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      perspective: 1000px;
+    }
+
+    .evidence-claim-option.evidence-claim-flip-card:disabled {
+      border: 0;
+      background: transparent;
+    }
+
+    .evidence-claim-flip-card__inner {
+      position: absolute;
+      inset: 0;
+      display: block;
+      transform-style: preserve-3d;
+      transition: transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .evidence-claim-flip-card.is-flipped .evidence-claim-flip-card__inner {
+      transform: rotateY(180deg);
+    }
+
+    .evidence-claim-flip-card__face {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 14px;
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 2px solid #c69b46;
+      backface-visibility: hidden;
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+    }
+
+    .evidence-claim-flip-card__back {
+      padding: 18px 14px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+        linear-gradient(160deg, #2a1713, #5c1718 54%, #1a1110);
+      color: #ffe9b6;
+      text-align: center;
+    }
+
+    .evidence-claim-flip-card__back::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(255, 223, 150, 0.52);
+      border-radius: 9px;
+      pointer-events: none;
+    }
+
+    .evidence-claim-flip-card__room {
+      position: relative;
+      z-index: 1;
+      color: #f9d37a;
+      font-size: 1rem;
+      font-weight: 950;
+    }
+
+    .evidence-claim-flip-card__back strong {
+      position: relative;
+      z-index: 1;
+      color: #fff8de;
+      font-size: clamp(1.6rem, 3.2vw, 2.5rem);
+      line-height: 1.2;
+      font-weight: 950;
+    }
+
+    .evidence-claim-flip-card__back em {
+      position: relative;
+      z-index: 1;
+      color: #d8c092;
+      font-size: 0.78rem;
+      font-style: normal;
+      font-weight: 850;
+    }
+
+    .evidence-claim-flip-card__front {
+      grid-template-rows: minmax(0, 1fr) auto auto auto;
+      align-content: stretch;
+      justify-items: stretch;
+      padding: 14px;
+      transform: rotateY(180deg);
+      background: #fff8e9;
+      color: #222;
+      text-align: left;
+    }
+
+    .evidence-claim-flip-card__front img {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      max-height: min(58vh, 720px);
+      object-fit: contain;
+      border-radius: 8px;
+      background: #15110e;
+    }
+
+    .evidence-claim-flip-card__front span {
+      color: #8f1717;
+      font-size: 0.76rem;
+      font-weight: 950;
+    }
+
+    .evidence-claim-flip-card__front strong {
+      color: #24180f;
+      font-size: 0.96rem;
+      line-height: 1.22;
+      font-weight: 950;
+    }
+
+    .evidence-claim-flip-card__front em {
+      color: #665a48;
+      font-size: 0.78rem;
+      font-style: normal;
+      font-weight: 850;
+    }
+
+    .evidence-claim-flip-card.is-muted {
+      display: none;
+    }
+
+    .evidence-claim-flip-card.is-loading .evidence-claim-flip-card__back {
+      box-shadow: 0 0 0 4px rgba(198, 155, 70, 0.16), 0 14px 28px rgba(0, 0, 0, 0.18);
+    }
+
+    .evidence-claim-flip-card.is-picked {
+      grid-column: 1 / -1;
+      width: min(560px, 100%);
+      min-height: min(82vh, 900px);
+      justify-self: center;
+    }
+
+    body.evidence-claim-open {
+      overflow: hidden;
     }
 
     .evidence-vault-layout {
@@ -2196,6 +2435,27 @@
         padding: 12px;
       }
 
+      .evidence-claim-options.evidence-claim-deck {
+        grid-template-columns: 1fr;
+      }
+
+      .evidence-claim-area {
+        padding: 14px;
+      }
+
+      .evidence-claim-panel {
+        max-height: calc(100dvh - 28px);
+        padding: 14px;
+      }
+
+      .evidence-claim-option.evidence-claim-flip-card {
+        min-height: min(54vh, 520px);
+      }
+
+      .evidence-claim-flip-card.is-picked {
+        min-height: min(78vh, 820px);
+      }
+
       .topbar {
         align-items: flex-start;
         flex-direction: column;
@@ -2409,7 +2669,7 @@
           <div class="student-log-head">
             <h2>획득한 증거카드</h2>
             <div class="evidence-vault-head-actions">
-              <button class="receive-credit-btn" type="button" data-evidence-claim-open>받기</button>
+              <button class="receive-credit-btn" type="button" data-evidence-claim-open>확인</button>
               <strong data-evidence-board-count>0개</strong>
             </div>
           </div>

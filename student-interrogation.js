@@ -184,7 +184,7 @@
 
   function teamLabelFor(team) {
     const id = teamIdFor(team);
-    return id ? `${id}번` : "학생";
+    return id ? `${id}팀` : "학생";
   }
 
   function setCreditText(text) {
@@ -265,6 +265,7 @@
 
   function closeStudentEthicsQuestion(nextNumber = "") {
     expireEthicsAccess();
+    document.body.classList.remove("student-ethics-open");
     if (ethicsCard) {
       ethicsCard.hidden = true;
       ethicsCard.textContent = "";
@@ -632,14 +633,58 @@
       evidenceClaimArea.hidden = true;
       evidenceClaimArea.textContent = "";
     }
+    document.body.classList.remove("evidence-claim-open");
     state.claimGrant = null;
     state.claimOptions = [];
+  }
+
+  function pickedClaimButton(roomId, index) {
+    if (!evidenceClaimArea) return null;
+    return [...evidenceClaimArea.querySelectorAll("[data-claim-index]")].find((button) => {
+      return button.dataset.claimRoom === String(roomId || "") &&
+        Number(button.dataset.claimIndex) === Number(index);
+    }) || null;
+  }
+
+  function revealPickedClaimCard(roomId, index, card) {
+    const selected = pickedClaimButton(roomId, index);
+    if (!selected || !card) return;
+
+    const front = selected.querySelector("[data-claim-card-front]");
+    if (front) {
+      front.textContent = "";
+      const image = document.createElement("img");
+      image.src = card.image;
+      image.alt = `${card.room} 증거 카드 ${card.index}`;
+      image.decoding = "async";
+      image.style.objectPosition = card.position || "center";
+
+      const meta = document.createElement("span");
+      meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
+      const title = document.createElement("strong");
+      title.textContent = card.evidence;
+      const person = document.createElement("em");
+      person.textContent = card.person ? `관련 인물: ${card.person}` : "관련 인물: 확인 필요";
+
+      front.append(image, meta, title, person);
+    }
+
+    selected.classList.add("is-flipped", "is-picked");
+    selected.disabled = true;
+    [...evidenceClaimArea.querySelectorAll(".evidence-claim-option")].forEach((button) => {
+      if (button !== selected) button.classList.add("is-muted");
+      button.disabled = true;
+    });
   }
 
   function renderClaimArea(grant, options) {
     if (!evidenceClaimArea || !grant) return;
     evidenceClaimArea.textContent = "";
     evidenceClaimArea.hidden = false;
+    document.body.classList.add("evidence-claim-open");
+
+    const panel = document.createElement("div");
+    panel.className = "evidence-claim-panel";
 
     const head = document.createElement("div");
     head.className = "evidence-claim-head";
@@ -649,9 +694,10 @@
     close.type = "button";
     close.className = "evidence-claim-close";
     close.dataset.evidenceClaimClose = "1";
-    close.textContent = "닫기";
+    close.setAttribute("aria-label", "닫기");
+    close.textContent = "X";
     head.append(title, close);
-    evidenceClaimArea.append(head);
+    panel.append(head);
 
     const list = Array.isArray(options) ? options : [];
     const available = list.filter((option) => !isClaimOptionObtained(grant.roomId, option.index));
@@ -667,38 +713,55 @@
       bonusButton.dataset.revisitBonus = "1";
       bonusButton.dataset.claimRoom = grant.roomId;
       bonusButton.textContent = bonusAmount ? `코인 ${bonusAmount}개 받기` : "코인 받기";
-      evidenceClaimArea.append(done, bonusButton);
+      panel.append(done, bonusButton);
+      evidenceClaimArea.append(panel);
       return;
     }
 
-    const photo = document.createElement("img");
-    photo.className = "evidence-claim-photo";
-    photo.src = `assets/evidence-rooms/${grant.roomId}-masked.png`;
-    photo.alt = `${grant.roomName || "교실"} 사진`;
-    photo.decoding = "async";
-    evidenceClaimArea.append(photo);
-
     const hint = document.createElement("p");
     hint.className = "evidence-claim-hint";
-    hint.textContent = "증거 하나만 고를 수 있습니다. 선택하면 이번 승인은 닫힙니다.";
-    evidenceClaimArea.append(hint);
+    hint.textContent = "증거카드 2장 중 하나만 선택할 수 있습니다. 선택한 카드만 크게 공개됩니다.";
+    panel.append(hint);
 
     const optionsWrap = document.createElement("div");
-    optionsWrap.className = "evidence-claim-options";
+    optionsWrap.className = "evidence-claim-options evidence-claim-deck";
     list.forEach((option) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "evidence-claim-option";
+      button.className = "evidence-claim-option evidence-claim-flip-card";
       const obtained = isClaimOptionObtained(grant.roomId, option.index);
       button.disabled = obtained;
-      button.textContent = obtained ? `증거 카드 ${option.index} · 획득함` : `증거 카드 ${option.index}`;
+      button.setAttribute("aria-label", `${grant.roomName || "교실"} ${option.index}번 증거카드 선택`);
       if (!obtained) {
         button.dataset.claimIndex = String(option.index);
         button.dataset.claimRoom = grant.roomId;
       }
+
+      const inner = document.createElement("span");
+      inner.className = "evidence-claim-flip-card__inner";
+
+      const back = document.createElement("span");
+      back.className = "evidence-claim-flip-card__face evidence-claim-flip-card__back";
+      const room = document.createElement("span");
+      room.className = "evidence-claim-flip-card__room";
+      room.textContent = grant.roomName || "교실";
+      const label = document.createElement("strong");
+      label.textContent = `${option.index}번 증거카드`;
+      const cue = document.createElement("em");
+      cue.textContent = obtained ? "이미 확인한 카드" : "선택해서 확인";
+      back.append(room, label, cue);
+
+      const front = document.createElement("span");
+      front.className = "evidence-claim-flip-card__face evidence-claim-flip-card__front";
+      front.dataset.claimCardFront = "1";
+      front.textContent = "확인 중...";
+
+      inner.append(back, front);
+      button.append(inner);
       optionsWrap.append(button);
     });
-    evidenceClaimArea.append(optionsWrap);
+    panel.append(optionsWrap);
+    evidenceClaimArea.append(panel);
   }
 
   async function openEvidenceClaim() {
@@ -709,9 +772,11 @@
     }
     state.claiming = true;
     if (evidenceClaimOpen) evidenceClaimOpen.disabled = true;
-    setClaimStatus("승인을 확인하는 중...");
+    setClaimStatus("증거카드 정보를 확인하는 중...");
 
     try {
+      await syncEvidenceCardsWithServer();
+      setClaimStatus("승인을 확인하는 중...");
       const response = await fetch("/api/evidence-code", {
         method: "POST",
         headers: {
@@ -748,6 +813,7 @@
     } finally {
       state.claiming = false;
       if (evidenceClaimOpen) evidenceClaimOpen.disabled = false;
+      updateControls();
     }
   }
 
@@ -758,8 +824,10 @@
       return;
     }
     state.claiming = true;
+    let completed = false;
     const optionButtons = evidenceClaimArea ? [...evidenceClaimArea.querySelectorAll(".evidence-claim-option")] : [];
     optionButtons.forEach((button) => { button.disabled = true; });
+    pickedClaimButton(roomId, index)?.classList.add("is-loading");
     setClaimStatus("증거를 받는 중...");
 
     try {
@@ -802,13 +870,20 @@
       sessionClaimedKeys.add(`${roomId}:${index}`);
       applyCredits(data.credits);
       const card = storeEvidenceCard(data.code, data.evidence);
-      closeEvidenceClaim();
-      setClaimStatus(`코인 ${Number(data.added || evidenceRewardCredits)}개를 받았습니다 · ${card.room} 증거 카드 ${card.index}`, "ok");
+      revealPickedClaimCard(roomId, index, card);
+      completed = true;
+      setClaimStatus(`코인 ${Number(data.added || evidenceRewardCredits)}개를 받았습니다 · ${card.room} 증거 카드 ${card.index}. X를 누르면 원래 화면으로 돌아갑니다.`, "ok");
     } catch (error) {
       setClaimStatus(error.message || "증거를 받지 못했습니다.", "bad");
     } finally {
       state.claiming = false;
-      optionButtons.forEach((button) => { button.disabled = false; });
+      pickedClaimButton(roomId, index)?.classList.remove("is-loading");
+      if (!completed) {
+        optionButtons.forEach((button) => {
+          button.disabled = !button.dataset.claimIndex;
+        });
+      }
+      updateControls();
     }
   }
 
@@ -1140,7 +1215,7 @@
     }
     if (evidenceClaimOpen) {
       evidenceClaimOpen.disabled = disabled;
-      evidenceClaimOpen.textContent = state.claiming ? "확인 중" : "받기";
+      evidenceClaimOpen.textContent = state.claiming ? "확인 중" : "확인";
     }
     updateSimilaritySubmitButton();
   }
@@ -1324,6 +1399,14 @@
     return element;
   }
 
+  function createEthicsCloseButton() {
+    const button = createEthicsElement("button", "student-ethics-close", "X");
+    button.type = "button";
+    button.setAttribute("aria-label", "윤리퀴즈 닫기");
+    button.addEventListener("click", () => closeStudentEthicsQuestion());
+    return button;
+  }
+
   function renderEthicsSolvedSummary() {
     if (!ethicsSolvedSummary) return;
     const attempted = ethicsAttemptedNumbers();
@@ -1340,19 +1423,22 @@
 
   function renderEthicsAccessGate(message = "윤리퀴즈 비밀번호를 입력한 뒤 시작하세요.") {
     if (!ethicsCard) return;
+    document.body.classList.add("student-ethics-open");
     ethicsCard.textContent = "";
     ethicsCard.hidden = false;
 
+    const panel = createEthicsElement("div", "student-ethics-modal-panel");
     const head = createEthicsElement("div", "student-ethics-head");
     const titleWrap = document.createElement("div");
     titleWrap.append(
       createEthicsElement("p", "student-ethics-kicker", "윤리퀴즈"),
       createEthicsElement("h2", "", "비밀번호 확인")
     );
-    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", "잠김"));
+    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", "잠김"), createEthicsCloseButton());
 
     const status = createEthicsElement("p", "student-ethics-status is-bad", message);
-    ethicsCard.append(head, status);
+    panel.append(head, status);
+    ethicsCard.append(panel);
   }
 
   function requireEthicsAccess() {
@@ -1392,14 +1478,25 @@
     ethicsCard.textContent = "";
 
     if (!ethicsQuestions.length || !question) {
+      document.body.classList.add("student-ethics-open");
       ethicsCard.hidden = false;
       const status = createEthicsElement("p", "student-ethics-status is-bad", `문제 번호는 1~${maxEthicsQuestionNumber()} 사이로 입력하세요.`);
-      ethicsCard.append(status);
+      const panel = createEthicsElement("div", "student-ethics-modal-panel");
+      const head = createEthicsElement("div", "student-ethics-head");
+      const titleWrap = document.createElement("div");
+      titleWrap.append(
+        createEthicsElement("p", "student-ethics-kicker", "윤리퀴즈"),
+        createEthicsElement("h2", "", "문제 번호 확인")
+      );
+      head.append(titleWrap, createEthicsCloseButton());
+      panel.append(head, status);
+      ethicsCard.append(panel);
       return;
     }
 
     state.ethicsCurrent = Number(question.number);
     if (ethicsNumberInput) ethicsNumberInput.value = String(question.number);
+    document.body.classList.add("student-ethics-open");
     ethicsCard.hidden = false;
 
     const answer = ethicsAnswerFor(question);
@@ -1414,7 +1511,7 @@
       createEthicsElement("p", "student-ethics-kicker", `${question.number}번 문제`),
       createEthicsElement("h2", "", question.topic)
     );
-    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", alreadySolved ? "풀이 완료" : "미풀이"));
+    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", alreadySolved ? "풀이 완료" : "미풀이"), createEthicsCloseButton());
 
     const source = createEthicsElement("figure", "student-ethics-source");
     if (question.sourceImage) {
@@ -1498,10 +1595,10 @@
     submit.addEventListener("click", () => submitStudentEthicsAnswer(question));
     actions.append(submit, status);
     if (locked) {
-      const next = createEthicsElement("button", "student-ethics-next", nextNumber && nextNumber !== Number(question.number) ? "다음 문제" : "닫기");
+      const next = createEthicsElement("button", "student-ethics-next", "닫기");
       next.type = "button";
       next.addEventListener("click", () => {
-        closeStudentEthicsQuestion(nextNumber && nextNumber !== Number(question.number) ? nextNumber : "");
+        closeStudentEthicsQuestion();
       });
       actions.append(next);
     }
@@ -1509,7 +1606,9 @@
 
     const layout = createEthicsElement("div", "student-ethics-question-layout");
     layout.append(source, copy);
-    ethicsCard.append(head, layout);
+    const panel = createEthicsElement("div", "student-ethics-modal-panel");
+    panel.append(head, layout);
+    ethicsCard.append(panel);
     if (locked && !state.ethicsSubmitting) expireEthicsAccess();
     renderEthicsSolvedSummary();
   }
@@ -1687,22 +1786,18 @@
     ethicsOpenButton?.addEventListener("click", () => {
       if (!state.ethicsUnlocked) {
         renderEthicsAccessGate();
-        ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
         ethicsPasswordInput?.focus({ preventScroll: true });
         return;
       }
       renderStudentEthicsQuestion(selectedEthicsNumber());
-      ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 
     ethicsForm?.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!requireEthicsAccess()) {
-        ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
       renderStudentEthicsQuestion(selectedEthicsNumber());
-      ethicsCard?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 
     ethicsResetButton?.addEventListener("click", resetStudentEthicsQuiz);
@@ -1736,7 +1831,6 @@
       setLogCount(data.count || 0);
       state.logs = Array.isArray(data.logs) ? data.logs : [];
       renderStudentLogs();
-      await syncEvidenceCardsWithServer();
     } catch {
       setCreditText("받기 실패");
     } finally {
@@ -1961,13 +2055,12 @@
   }
 
   teamLabels.forEach((node) => {
-    node.textContent = teamIdFor(state.team) || "학생";
+    node.textContent = teamLabelFor(state.team);
   });
   setCreditText(state.team ? "받기 필요" : "학생 없음");
   setLogCount(0);
   loadEvidenceCards();
   renderEvidenceBoard();
-  syncEvidenceCardsWithServer();
   setupCaseNote();
   setupSimilaritySentenceForm();
   setupStudentEthicsQuiz();
@@ -2023,5 +2116,4 @@
   });
 
   refreshApiStatus();
-  window.setInterval(syncEvidenceCardsWithServer, 10000);
 })();
