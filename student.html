@@ -849,6 +849,8 @@
     }
 
     .topbar {
+      display: grid;
+      gap: 12px;
       margin-bottom: 14px;
     }
 
@@ -895,6 +897,43 @@
       padding: 2px 7px;
       color: #fff;
       font-size: 0.72rem;
+    }
+
+    .student-status-bar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid rgba(225, 174, 45, 0.58);
+      border-radius: 8px;
+      background: rgba(19, 12, 7, 0.9);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.26);
+      color: #fff;
+    }
+
+    .student-status-title {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #e1ae2d;
+      font-size: 0.82rem;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .student-status-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(130px, 1fr));
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .student-status-metrics .credit-pill {
+      justify-content: space-between;
+      min-width: 0;
+      width: 100%;
     }
 
     .student-main {
@@ -2128,6 +2167,17 @@
       justify-self: center;
     }
 
+    .evidence-claim-option.evidence-claim-flip-card.is-picked:disabled {
+      opacity: 1;
+      color: inherit;
+    }
+
+    .evidence-claim-flip-card.is-picked .evidence-claim-flip-card__front,
+    .evidence-claim-flip-card.is-picked .evidence-claim-flip-card__front img {
+      opacity: 1;
+      filter: none;
+    }
+
     body.evidence-claim-open {
       overflow: hidden;
     }
@@ -2371,6 +2421,14 @@
     }
 
     @media (max-width: 1180px) {
+      .student-status-bar {
+        grid-template-columns: 1fr;
+      }
+
+      .student-status-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
       .student-workspace {
         grid-template-columns: 1fr;
       }
@@ -2461,6 +2519,10 @@
         flex-direction: column;
       }
 
+      .student-status-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .student-tools {
         grid-template-columns: 1fr;
       }
@@ -2536,19 +2598,21 @@
         max-height: calc(100vh - 24px);
       }
     }
+
+    @media (max-width: 560px) {
+      .student-status-metrics {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
   <link rel="stylesheet" href="kit-ui-polish.css?v=20260725-ui1">
 </head>
 <body data-auth="student">
   <main class="page">
     <header class="topbar">
-      <h1>AI 페르소나 심문실</h1>
-    </header>
-
-    <div class="student-workspace">
-      <aside class="student-menu" aria-label="코인 메뉴">
-        <strong class="student-menu-title">MENU <span class="student-class-badge" data-class-label>1반</span></strong>
-        <div class="student-tools">
+      <section class="student-status-bar" aria-label="학생 상태">
+        <strong class="student-status-title">MENU <span class="student-class-badge" data-class-label>1반</span></strong>
+        <div class="student-status-metrics">
           <div class="credit-pill" aria-label="남은 코인">
             <span data-team-label>학생</span>
             <strong data-credit-count>확인 중</strong>
@@ -2565,6 +2629,14 @@
             <span>접속</span>
             <strong data-presence-count>0명</strong>
           </div>
+        </div>
+      </section>
+      <h1>AI 페르소나 심문실</h1>
+    </header>
+
+    <div class="student-workspace">
+      <aside class="student-menu" aria-label="코인 메뉴">
+        <div class="student-tools">
           <form class="evidence-code-form" data-evidence-form>
             <label class="visually-hidden" for="studentEvidenceCode">증거 코드 입력</label>
             <input class="evidence-code-input" id="studentEvidenceCode" data-evidence-code type="text" autocomplete="off" maxlength="12" placeholder="증거 코드">
