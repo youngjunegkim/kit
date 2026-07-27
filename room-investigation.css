@@ -237,6 +237,11 @@ body.room-page[data-auth="teacher"] .scene-frame {
   aspect-ratio: auto;
 }
 
+body.room-page[data-auth="teacher"] .room-image {
+  width: 94%;
+  height: 94%;
+}
+
 body.room-page[data-auth="teacher"] .interrogation-panel {
   display: none;
 }
