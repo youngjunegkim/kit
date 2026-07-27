@@ -884,6 +884,48 @@
       justify-content: center;
     }
 
+    /* 윤리퀴즈 접기(details). 접힘 상태에선 summary만 보이고 4블록은 숨겨진다(DOM엔 유지). */
+    .ethics-details {
+      display: grid;
+      gap: 9px;
+    }
+
+    .ethics-details > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      list-style: none;
+      padding: 9px 12px;
+      border: 1px solid rgba(225, 174, 45, 0.5);
+      border-radius: 8px;
+      background: rgba(225, 174, 45, 0.12);
+      color: #f4e4bd;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .ethics-details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .ethics-details > summary::after {
+      content: "\25BE";
+      color: #e1ae2d;
+      transition: transform 0.15s ease;
+    }
+
+    .ethics-details[open] > summary::after {
+      transform: rotate(180deg);
+    }
+
+    .ethics-details-body {
+      display: grid;
+      gap: 9px;
+      margin-top: 9px;
+    }
+
     .ethics-quiz-tile {
       min-height: 86px;
       display: grid;
@@ -2153,10 +2195,9 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
       }
 
-      .ethics-quiz-tile,
-      .ethics-picker-form,
-      .ethics-reset-btn,
-      .ethics-solved-summary {
+      /* 윤리퀴즈 4블록은 이제 .ethics-details 안에 있으므로, 4열 그리드에서 전체 폭을
+         차지해야 하는 대상은 details 컨테이너다. */
+      .ethics-details {
         grid-column: 1 / -1;
       }
 
@@ -2279,24 +2320,32 @@
               <div class="presence-list presence-list--menu" data-presence-list></div>
             </div>
           </div>
-          <button class="ethics-quiz-tile" type="button" data-student-ethics-open aria-controls="studentEthicsCard">
-            <span class="ethics-quiz-mark" aria-hidden="true">?</span>
-            <span class="ethics-quiz-label">윤리퀴즈</span>
-          </button>
-          <form class="ethics-picker-form" data-student-ethics-form>
-            <label class="ethics-picker-field" for="studentEthicsPassword">
-              윤리퀴즈 비밀번호
-              <input class="ethics-picker-input" id="studentEthicsPassword" data-student-ethics-password type="password" autocomplete="off" placeholder="비밀번호 입력">
-            </label>
-            <label class="ethics-picker-field" for="studentEthicsNumber">
-              문제 번호
-              <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="text" inputmode="numeric" placeholder="1" readonly>
-            </label>
-            <button class="ethics-picker-submit" type="submit">시작</button>
-          </form>
-          <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
-          <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
+          <!-- 질문권 받기: 수업 중 계속 눌러야 하는 버튼이라 접속 인원 바로 아래 상단에 둔다. -->
           <button class="receive-credit-btn" type="button" data-refresh-credits>질문권 받기</button>
+          <!-- 윤리퀴즈는 수업 중 한두 번만 쓰므로 기본 접힘(details). 안의 요소들은 접혀 있어도
+               DOM에 그대로 있어 JS 참조·동작에 영향이 없다. -->
+          <details class="ethics-details">
+            <summary class="ethics-details-summary">윤리퀴즈</summary>
+            <div class="ethics-details-body">
+              <button class="ethics-quiz-tile" type="button" data-student-ethics-open aria-controls="studentEthicsCard">
+                <span class="ethics-quiz-mark" aria-hidden="true">?</span>
+                <span class="ethics-quiz-label">윤리퀴즈</span>
+              </button>
+              <form class="ethics-picker-form" data-student-ethics-form>
+                <label class="ethics-picker-field" for="studentEthicsPassword">
+                  윤리퀴즈 비밀번호
+                  <input class="ethics-picker-input" id="studentEthicsPassword" data-student-ethics-password type="password" autocomplete="off" placeholder="비밀번호 입력">
+                </label>
+                <label class="ethics-picker-field" for="studentEthicsNumber">
+                  문제 번호
+                  <input class="ethics-picker-input" id="studentEthicsNumber" data-student-ethics-number type="text" inputmode="numeric" placeholder="1" readonly>
+                </label>
+                <button class="ethics-picker-submit" type="submit">시작</button>
+              </form>
+              <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
+              <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
+            </div>
+          </details>
           <button class="logout-btn" type="button" data-logout>로그아웃</button>
         </div>
       </aside>
