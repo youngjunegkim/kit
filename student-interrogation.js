@@ -438,8 +438,11 @@
 
   function applySyncedEvidenceCards(cards = []) {
     state.evidenceCards = Array.isArray(cards) ? cards.slice(0, 10) : [];
-    if (!state.evidenceCards.some((card) => card.code === state.selectedEvidenceCode)) {
-      state.selectedEvidenceCode = state.evidenceCards[0]?.code || "";
+    // 자동 선택하지 않는다. 좁은 오른쪽 칸에선 교실 사진(room-detail)이 펼쳐지면 세로가 넘치므로,
+    // 로드 시엔 슬롯만 보여 스크롤 없이 들어가게 하고, 학생이 카드를 눌렀을 때만 사진을 편다.
+    // (선택이 유효하면 유지, 무효가 되면 비운다.)
+    if (state.selectedEvidenceCode && !state.evidenceCards.some((card) => card.code === state.selectedEvidenceCode)) {
+      state.selectedEvidenceCode = "";
     }
     saveEvidenceCards();
     renderEvidenceBoard();
@@ -500,7 +503,7 @@
     if (!card) {
       const empty = document.createElement("p");
       empty.className = "evidence-room-empty";
-      empty.textContent = "증거카드를 누르면 교실 사진과 해당 교실에서 얻은 증거만 표시됩니다.";
+      empty.textContent = "카드를 누르면 교실 사진이 나와요.";
       evidenceRoomDetail.append(empty);
       return;
     }
@@ -556,26 +559,25 @@
     evidenceRoomDetail.append(hero, list);
   }
 
+  // 증거는 총 10개. 처음부터 빈 슬롯 10개를 그려 두고, 획득한 것만 실제 카드로 채운다.
+  // (초반에 오른쪽 칸이 비어 보이지 않게, 진행도도 한눈에 보이게 한다.)
+  const evidenceSlotTotal = 10;
+
   function renderEvidenceBoard() {
     if (!evidenceBoard) return;
     evidenceBoard.textContent = "";
-    if (evidenceBoardCount) evidenceBoardCount.textContent = `${state.evidenceCards.length}개`;
 
-    if (!state.evidenceCards.length) {
+    const acquired = state.evidenceCards.slice(0, evidenceSlotTotal);
+    if (evidenceBoardCount) evidenceBoardCount.textContent = `${acquired.length} / ${evidenceSlotTotal}`;
+
+    if (!acquired.length) {
       state.selectedEvidenceCode = "";
-      const empty = document.createElement("p");
-      empty.className = "evidence-board-empty";
-      empty.textContent = "아직 획득한 증거카드가 없습니다.";
-      evidenceBoard.append(empty);
-      renderEvidenceRoomDetail(null);
-      return;
-    }
-
-    if (state.selectedEvidenceCode && !selectedEvidenceCard()) {
+    } else if (state.selectedEvidenceCode && !selectedEvidenceCard()) {
       state.selectedEvidenceCode = "";
     }
 
-    state.evidenceCards.forEach((card) => {
+    // 1) 획득한 카드 → 실제 슬롯(클릭 가능)
+    acquired.forEach((card) => {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "evidence-board-card";
@@ -588,23 +590,23 @@
       thumb.alt = `${card.room} 증거 카드 ${card.index}`;
       thumb.style.objectPosition = card.position || "center";
 
-      const body = document.createElement("div");
-      body.className = "evidence-board-body";
+      const label = document.createElement("span");
+      label.className = "evidence-board-label";
+      label.textContent = `${card.room} ${card.index}`;
 
-      const meta = document.createElement("span");
-      meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
-
-      const title = document.createElement("strong");
-      title.textContent = card.evidence;
-      const person = document.createElement("em");
-      person.textContent = card.person ? `관련 인물: ${card.person}` : "관련 인물: 확인 필요";
-
-      body.append(meta, title, person);
-      item.append(thumb, body);
+      item.append(thumb, label);
       evidenceBoard.append(item);
     });
 
-    renderEvidenceRoomDetail();
+    // 2) 나머지는 빈 슬롯 — 힌트 없음, 클릭 불가(data-evidence-code-card 없음).
+    for (let i = acquired.length; i < evidenceSlotTotal; i += 1) {
+      const slot = document.createElement("div");
+      slot.className = "evidence-slot";
+      slot.setAttribute("aria-hidden", "true");
+      evidenceBoard.append(slot);
+    }
+
+    renderEvidenceRoomDetail(acquired.length ? selectedEvidenceCard() : null);
   }
 
   // 이번 세션에 방금 획득한 증거키(roomId:index). 폴링 동기화 전이라도 즉시 "획득함"으로 표시.

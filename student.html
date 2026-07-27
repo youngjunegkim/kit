@@ -1828,11 +1828,14 @@
 
     .evidence-claim-status {
       margin: 0;
-      padding: 6px 12px 0;
-      min-height: 1em;
+      padding: 0 12px;
+      min-height: 0;
       font-size: 0.82rem;
       font-weight: 800;
       color: #4a5568;
+    }
+    .evidence-claim-status:not(:empty) {
+      padding: 6px 12px 0;
     }
     .evidence-claim-status.is-ok { color: #1f7a44; }
     .evidence-claim-status.is-bad { color: #c0362c; }
@@ -1928,24 +1931,27 @@
       background: #fffaf0;
     }
 
+    /* 증거 10개를 2열 × 5행 슬롯으로 미리 배치. 획득분만 실제 카드로 채워진다. */
     .evidence-board {
       min-width: 0;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
       align-content: start;
     }
 
+    /* 채워진 카드: 썸네일 + 교실 이름 라벨. 누르면 아래 교실 상세가 뜬다. */
     .evidence-board-card {
       min-width: 0;
+      position: relative;
       display: grid;
-      grid-template-columns: 92px minmax(0, 1fr);
-      gap: 10px;
-      align-items: center;
-      border: 1px solid #e4d8bd;
+      grid-template-rows: minmax(0, 1fr) auto;
+      height: 64px;
+      border: 1px solid #d9c79a;
       border-radius: 8px;
       background: #fff;
-      padding: 8px;
+      padding: 0;
+      overflow: hidden;
       text-align: left;
       cursor: pointer;
     }
@@ -1954,50 +1960,37 @@
     .evidence-board-card:focus-visible,
     .evidence-board-card.is-active {
       border-color: #a31616;
-      box-shadow: 0 0 0 3px rgba(163, 22, 22, 0.12);
+      box-shadow: 0 0 0 3px rgba(163, 22, 22, 0.14);
       outline: none;
     }
 
     .evidence-board-thumb {
-      width: 92px;
-      aspect-ratio: 1 / 0.82;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
       object-fit: cover;
-      border-radius: 7px;
       background: #16110d;
+      display: block;
     }
 
-    .evidence-board-body {
-      min-width: 0;
-      display: grid;
-      gap: 5px;
+    .evidence-board-label {
+      padding: 2px 7px;
+      background: #2a1e13;
+      color: #f4e4bd;
+      font-size: 0.72rem;
+      font-weight: 900;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .evidence-board-body span {
-      color: #8f1717;
-      font-size: 0.76rem;
-      font-weight: 950;
-    }
-
-    .evidence-board-body strong {
-      color: #2a1e13;
-      font-size: 0.94rem;
-      line-height: 1.28;
-      font-weight: 950;
-      word-break: keep-all;
-    }
-
-    .evidence-board-body em {
-      color: #116c46;
-      font-size: 0.78rem;
-      line-height: 1.25;
-      font-style: normal;
-      font-weight: 950;
-    }
-
-    .evidence-board-empty {
-      margin: 0;
-      color: #786850;
-      font-weight: 850;
+    /* 빈 슬롯: 힌트 없이 그냥 빈 카드. 클릭해도 아무 일 없음(버튼이 아니라 div). */
+    .evidence-slot {
+      height: 64px;
+      border: 1px dashed rgba(120, 104, 80, 0.42);
+      border-radius: 8px;
+      background: rgba(120, 104, 80, 0.06);
     }
 
     .evidence-room-detail {
