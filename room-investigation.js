@@ -427,10 +427,8 @@
       meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
       const text = document.createElement("strong");
       text.textContent = card.evidence;
-      const person = document.createElement("em");
-      person.textContent = card.person ? `관련 인물: ${card.person}` : "관련 인물: 확인 필요";
 
-      info.append(meta, text, person);
+      info.append(meta, text);
       body.append(image, info);
       nodes.evidenceReveal.append(body);
     });
@@ -582,8 +580,7 @@
       if (!response.ok) {
         if (data.code === "ALREADY_REDEEMED" && data.evidence) {
           const card = storeEvidenceCard(code, data.evidence, targetTeam);
-          const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}${personText}`, "bad");
+          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}`, "bad");
           if (nodes.evidenceInput) nodes.evidenceInput.value = "";
           return;
         }
@@ -596,8 +593,7 @@
       }
 
       const card = storeEvidenceCard(code, data.evidence, targetTeam);
-      const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-      setEvidenceMessage(`${teamLabelFor(targetTeam)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setEvidenceMessage(`${teamLabelFor(targetTeam)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}`, "ok");
       if (nodes.evidenceInput) nodes.evidenceInput.value = "";
       setEvidenceTotal(targetTeam, data.credits);
       if (state.role === "student") {

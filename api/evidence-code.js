@@ -21,6 +21,7 @@ const {
   setCredits,
   setEvidenceGrant,
   setGrantedCredits,
+  teams,
   withClassScope
 } = require("./_credits");
 
@@ -423,6 +424,7 @@ async function handleEvidenceCode(request, response) {
       const shouldResetCredits = body.resetCredits !== false;
       if (shouldResetCredits) await subtractEvidenceCredits(logs);
       const removed = await clearEvidenceRedemptions();
+      await Promise.all(teams.map((team) => clearEvidenceGrant(team)));
 
       sendJson(response, 200, {
         ok: true,
@@ -432,6 +434,7 @@ async function handleEvidenceCode(request, response) {
         credits: await getAllCredits(),
         granted: await getAllGrantedCredits(),
         grants: await getAllEvidenceGrants(),
+        clearedGrants: teams.length,
         persistent: hasPersistentStore()
       });
       return;

@@ -140,7 +140,7 @@
   const similarityConfirmSend = document.querySelector("[data-similarity-confirm-send]");
   const similarityConfirmCancel = document.querySelector("[data-similarity-confirm-cancel]");
   const similarityTemplate = (v) =>
-    `범인은 ${v.culprit || ""}이고, 사건 장소는 ${v.place || ""}이다. 범인은 ${v.tool || ""}를 사용해 ${v.method || ""} 해서 시험 예상 문제가 유출되었다. 그 근거는 ${v.evidence || ""}이다. 범인에게 가장 부족했던 AI 윤리 역량은 ${v.competency || ""}이다.`;
+    `범인은 ${v.culprit || ""}이다. 범인은 ${v.tool || ""}를 사용해 ${v.method || ""} 해서 시험 예상 문제가 유출되었다. 그 근거는 ${v.evidence || ""}이다. 범인에게 가장 부족했던 AI 윤리 역량은 ${v.competency || ""}이며, 그 이유는 ${v.reason || ""}.`;
 
   function normalize(text) {
     return String(text || "").toLowerCase().replace(/\s+/g, "");
@@ -553,10 +553,8 @@
       meta.textContent = `${item.room} · 증거 카드 ${item.index}`;
       const name = document.createElement("strong");
       name.textContent = item.evidence;
-      const person = document.createElement("em");
-      person.textContent = item.person ? `관련 인물: ${item.person}` : "관련 인물: 확인 필요";
 
-      body.append(meta, name, person);
+      body.append(meta, name);
       row.append(thumb, body);
       list.append(row);
     });
@@ -612,10 +610,8 @@
 
       const title = document.createElement("strong");
       title.textContent = card.evidence;
-      const person = document.createElement("em");
-      person.textContent = card.person ? `관련 인물: ${card.person}` : "관련 인물: 확인 필요";
 
-      body.append(meta, title, person);
+      body.append(meta, title);
       item.append(thumb, body);
       evidenceBoard.append(item);
     });
@@ -673,10 +669,8 @@
       meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
       const title = document.createElement("strong");
       title.textContent = card.evidence;
-      const person = document.createElement("em");
-      person.textContent = card.person ? `관련 인물: ${card.person}` : "관련 인물: 확인 필요";
 
-      front.append(image, meta, title, person);
+      front.append(image, meta, title);
     }
 
     selected.classList.add("is-flipped", "is-picked");
@@ -1907,8 +1901,7 @@
       if (!response.ok) {
         if (data.code === "ALREADY_REDEEMED" && data.evidence) {
           const card = storeEvidenceCard(code, data.evidence);
-          const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}${personText}`, "bad");
+          setEvidenceMessage(`이미 사용한 코드입니다. ${card.room} 증거 카드 ${card.index}`, "bad");
           if (evidenceInput) evidenceInput.value = "";
           return;
         }
@@ -1938,8 +1931,7 @@
 
       applyCredits(data.credits);
       const card = storeEvidenceCard(code, data.evidence);
-      const personText = card.person ? ` · 관련 인물: ${card.person}` : "";
-      setEvidenceMessage(`${teamLabelFor(state.team)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}${personText}`, "ok");
+      setEvidenceMessage(`${teamLabelFor(state.team)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}`, "ok");
       if (evidenceInput) evidenceInput.value = "";
     } catch (error) {
       setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");

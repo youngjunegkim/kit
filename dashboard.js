@@ -329,7 +329,7 @@
   }
 
   async function clearEvidenceLogs() {
-    const confirmed = window.confirm("학생들이 입력한 증거코드 기록과 해당 증거코드로 받은 코인을 초기화할까요?");
+    const confirmed = window.confirm("이번 반의 학생용 증거카드, 증거코드 입력 기록, 승인 대기, 해당 증거코드로 받은 코인을 모두 초기화할까요? 다음 게임을 시작하기 전 사용하는 기능입니다.");
     if (!confirmed) return;
 
     const { response, data } = await requestCredits("/api/evidence-code", {
@@ -353,7 +353,7 @@
     } else {
       await fetchScores();
     }
-    setSyncStatus(`증거코드 입력 ${data.removed || 0}건과 해당 코인을 초기화했습니다.`, data.persistent ? "ok" : "bad");
+    setSyncStatus(`증거카드 ${data.removed || 0}건, 승인 대기 ${data.clearedGrants || 0}팀, 해당 코인을 초기화했습니다. 학생은 코인 받기/증거 받기를 누르면 화면이 비워집니다.`, data.persistent ? "ok" : "bad");
   }
 
   function startScoreSync() {
