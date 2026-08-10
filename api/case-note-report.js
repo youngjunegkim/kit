@@ -67,8 +67,13 @@ function roundScore(value) {
   return Math.round(score * 10) / 10;
 }
 
+function roundScoreUncapped(value) {
+  const score = Math.max(0, Number(value) || 0);
+  return Math.round(score * 10) / 10;
+}
+
 function formatScore(value) {
-  const score = roundScore(value);
+  const score = roundScoreUncapped(value);
   return Number.isInteger(score) ? String(score) : score.toFixed(1);
 }
 
@@ -76,12 +81,12 @@ function normalizeTeams(teams) {
   return Array.isArray(teams)
     ? teams.slice(0, 30).map((team, index) => ({
       name: String(team.name || `${index + 1}팀`).slice(0, 40),
-      score: roundScore(team.score),
+      score: roundScoreUncapped(team.score),
       contentScore: roundScore(team.contentScore ?? team.score),
       remainingCredits: Math.max(0, Math.round(Number(team.remainingCredits) || 0)),
       questionCreditBonus: {
         credits: Math.max(0, Math.round(Number(team.questionCreditBonus?.credits ?? team.remainingCredits) || 0)),
-        score: roundScore(team.questionCreditBonus?.score ?? team.remainingCredits)
+        score: roundScoreUncapped(team.questionCreditBonus?.score ?? team.remainingCredits)
       },
       rank: Number(team.rank) || index + 1,
       note: String(team.note || "").slice(0, 1400),
@@ -108,13 +113,13 @@ function fallbackReports(teams) {
       name: team.name,
       rank: team.rank,
       score: team.score,
-      report: `${team.name}은 ${formatScore(team.score)}%로 측정됐습니다. ${strong?.label || "핵심 요소"}는 비교적 잘 반영됐고, ${weak?.label || "빠진 요소"} 보완 여부가 순위에 큰 영향을 줬습니다.`
+      report: `${team.name}은 사건노트 유사도 ${formatScore(team.contentScore)}%에 코인 보너스를 더해 최종 순위 점수 ${formatScore(team.score)}점으로 측정됐습니다. ${strong?.label || "핵심 요소"}는 비교적 잘 반영됐고, ${weak?.label || "빠진 요소"} 보완 여부가 순위에 큰 영향을 줬습니다.`
     };
     const bonus = team.specificity?.score ? ` 길이와 구체성 보정 +${formatScore(team.specificity.score)}점도 반영했습니다.` : "";
     const questionBonus = team.questionCreditBonus?.credits
-      ? ` 남은 코인 ${team.questionCreditBonus.credits}개를 +${formatScore(team.questionCreditBonus.score)}점으로 더했습니다.`
+      ? ` 남은 코인 ${team.questionCreditBonus.credits}개를 +${formatScore(team.questionCreditBonus.score)} coin으로 더했습니다.`
       : " 남은 코인 보너스는 없습니다.";
-    entry.report = `${team.name}은 사건노트 ${formatScore(team.contentScore)}점에 코인 보너스를 반영해 최종 ${formatScore(team.score)}%로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위에 영향을 줬습니다.${bonus}${questionBonus}`;
+    entry.report = `${team.name}은 사건노트 유사도 ${formatScore(team.contentScore)}%에 코인 보너스를 반영해 최종 순위 점수 ${formatScore(team.score)}점으로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위에 영향을 줬습니다.${bonus}${questionBonus}`;
     return entry;
   });
 }
@@ -143,11 +148,12 @@ async function callOpenAi(teams, standardNote) {
         "반드시 한국어로, 팀별 2문장 이내로 간결하게 말한다.",
         "학생에게 직접 말하는 탐정 말투를 쓰되 과장하지 않는다.",
         "관련 인물 비난이나 정답 유출 이상의 새 사실을 만들지 않는다.",
-        "출력은 JSON만 사용한다. 형식: {\"reports\":[{\"name\":\"팀명\",\"rank\":1,\"score\":85,\"report\":\"문장\"}]}"
+        "출력은 JSON만 사용한다. 형식: {\"reports\":[{\"name\":\"팀명\",\"rank\":1,\"score\":85,\"report\":\"문장\"}]}",
+        "리포트에서 사건노트 유사도는 %로, 남은 코인은 +n coin으로, 둘을 더한 값은 최종 순위 점수 n점으로 구분한다. 최종 순위 점수를 %라고 부르지 않는다."
       ].join("\n"),
       input: JSON.stringify({
         standardNote,
-        rubricHint: "범인 강우진 지목, 교무실 관련성, 학습 도우미 AI 사용, 교무실에서 본 기말고사 문제지 태블릿 촬영, 미술실에서 AI에게 비슷한 유형의 기말 예상 문제로 바꾸게 한 범행 방식, 시험 예상 문제 유출 결과, 전 여자친구의 메시지·교무실 책상 위 기말고사 문제지·오후 5시 45분 태블릿 촬영 장면·오후 6시 15분 삭제된 AI 프롬프트 기록 근거, AI 윤리 역량 주체성 및 AI 사용 목적을 스스로 올바르게 판단하지 못했다는 이유를 기준으로 사건노트 점수를 계산했다. 최종 유사도에는 남은 코인 1개당 1점 보너스를 별도로 더했으며, 리포트에서 사건노트 점수와 코인 보너스를 구분해 설명한다.",
+        rubricHint: "범인 강우진 지목, 교무실 관련성, 학습 도우미 AI 사용, 교무실에서 본 기말고사 문제지 태블릿 촬영, 미술실에서 AI에게 비슷한 유형의 기말 예상 문제로 바꾸게 한 범행 방식, 시험 예상 문제 유출 결과, 전 여자친구의 메시지·교무실 책상 위 기말고사 문제지·오후 5시 45분 태블릿 촬영 장면·오후 6시 15분 삭제된 AI 프롬프트 기록 근거, AI 윤리 역량 주체성 및 AI 사용 목적을 스스로 올바르게 판단하지 못했다는 이유를 기준으로 사건노트 유사도 %를 계산했다. 최종 순위 점수에는 남은 코인 1개당 1점 보너스를 별도로 더했으며, 리포트에서 사건노트 유사도 %, +n coin, 최종 순위 점수를 구분해 설명한다.",
         teams
       })
     })
@@ -172,7 +178,7 @@ async function callOpenAi(teams, standardNote) {
     reports: reports.map((report, index) => ({
       name: String(report.name || teams[index]?.name || `${index + 1}팀`),
       rank: Number(report.rank) || teams[index]?.rank || index + 1,
-      score: roundScore(report.score ?? teams[index]?.score),
+      score: roundScoreUncapped(report.score ?? teams[index]?.score),
       report: String(report.report || "").slice(0, 360)
     })),
     source: "openai",

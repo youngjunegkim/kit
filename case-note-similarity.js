@@ -458,14 +458,18 @@
     elements.teamList.innerHTML = state.teams.map((team, index) => {
       const result = team.result || null;
       const hasResult = Boolean(team.note.trim() && result);
-      const score = hasResult ? result.score : 0;
+      const score = hasResult ? contentScoreOf(result) : 0;
+      const finalScore = hasResult ? finalScoreOf(result) : 0;
       const displayScore = animate && team.note.trim() ? 0 : score;
       const measuringClass = animate && team.note.trim() ? " is-measuring" : "";
       const scoreText = hasResult ? `${formatScore(displayScore)}%` : "미측정";
       const scoreBar = scoreBarValue(displayScore);
       const remainingCredits = cleanRemainingCredits(team.remainingCredits);
+      const bonusText = hasResult
+        ? `+${remainingCredits} coin · 최종 ${formatScore(finalScore)}점`
+        : `남은 코인 ${remainingCredits}개 · 측정 시 +${remainingCredits} coin`;
       return `
-        <article class="team-card${measuringClass}" data-team-card="${team.id}" data-score-target="${score}">
+        <article class="team-card${measuringClass}" data-team-card="${team.id}" data-score-target="${score}" data-final-score-target="${finalScore}">
           <div class="team-card__main">
             <div class="team-card__top">
               <input class="team-name-input" type="text" value="${escapeHtml(team.name)}" aria-label="${index + 1}번째 팀 이름" data-team-name>
@@ -480,7 +484,7 @@
             </div>
             <div class="score-bar" style="--score-width: ${scoreBar}%"><span data-score-bar></span></div>
             <div class="question-credit-bonus" data-question-credit-bonus>
-              남은 코인 ${remainingCredits}개 · 측정 시 +${remainingCredits}점
+              ${bonusText}
             </div>
             <div class="breakdown" data-breakdown>
               ${renderBreakdown(hasResult ? result : null)}
@@ -525,21 +529,38 @@
     if (!card || !team) return;
     const result = team.result || null;
     const hasResult = Boolean(team.note.trim() && result);
-    const score = hasResult ? result.score : 0;
+    const score = hasResult ? contentScoreOf(result) : 0;
+    const finalScore = hasResult ? finalScoreOf(result) : 0;
     card.dataset.scoreTarget = String(score);
+    card.dataset.finalScoreTarget = String(finalScore);
     card.classList.remove("is-measuring");
     card.querySelector("[data-score-text]").textContent = hasResult ? `${formatScore(score)}%` : "미측정";
     card.querySelector(".score-bar")?.style.setProperty("--score-width", `${scoreBarValue(score)}%`);
     const bonus = cleanRemainingCredits(team.remainingCredits);
     const bonusNode = card.querySelector("[data-question-credit-bonus]");
-    if (bonusNode) bonusNode.textContent = `남은 코인 ${bonus}개 · 측정 시 +${bonus}점`;
+    if (bonusNode) {
+      bonusNode.textContent = hasResult
+        ? `+${bonus} coin · 최종 ${formatScore(finalScore)}점`
+        : `남은 코인 ${bonus}개 · 측정 시 +${bonus} coin`;
+    }
     const breakdown = card.querySelector("[data-breakdown]");
     if (breakdown) breakdown.innerHTML = renderBreakdown(hasResult ? result : null);
   }
 
   function contentScoreOf(source) {
     const value = Number(source?.contentScore);
-    return Number.isFinite(value) ? value : 0;
+    if (Number.isFinite(value)) return value;
+    const finalScore = Number(source?.score);
+    const bonus = coinBonusOf(source);
+    return Number.isFinite(finalScore) ? Math.max(0, finalScore - bonus.score) : 0;
+  }
+
+  function finalScoreOf(source, fallback = 0) {
+    const value = Number(source?.score);
+    if (Number.isFinite(value)) return roundScoreUncapped(value);
+    const contentScore = contentScoreOf(source);
+    const bonus = coinBonusOf(source);
+    return roundScoreUncapped(contentScore + bonus.score || fallback);
   }
 
   function scoreBarValue(score) {
@@ -555,11 +576,20 @@
 
   function coinAddedText(source) {
     const bonus = coinBonusOf(source);
-    return `코인 ${bonus.credits}개 추가`;
+    return `+${formatScore(bonus.score)} coin`;
   }
 
   function scoreWithCoinText(score, source) {
-    return `${formatScore(score)}% (${coinAddedText(source)})`;
+    const target = source || score || {};
+    return `${formatScore(contentScoreOf(target))}% ${coinAddedText(target)}`;
+  }
+
+  function finalScoreText(source) {
+    return `최종 순위 점수 ${formatScore(finalScoreOf(source))}점`;
+  }
+
+  function fullScoreText(source) {
+    return `${scoreWithCoinText(source)} · ${finalScoreText(source)}`;
   }
 
   function teamLabel(name) {
@@ -573,8 +603,17 @@
     elements.revealScore.textContent = `${formatScore(score)}%`;
     if (!source) return;
     const note = document.createElement("small");
-    note.textContent = `(${coinAddedText(source)})`;
-    elements.revealScore.append(" ", note);
+    note.className = "reveal-stage__coin-bonus";
+    note.textContent = coinAddedText(source);
+    const final = document.createElement("small");
+    final.className = "reveal-stage__final-score";
+    final.textContent = finalScoreText(source);
+    elements.revealScore.append(" ", note, " ", final);
+  }
+
+  function setRevealBarHidden(hidden) {
+    const bar = elements.revealBar?.closest(".reveal-stage__bar");
+    if (bar) bar.hidden = Boolean(hidden);
   }
 
   function sortedTeams() {
@@ -603,7 +642,7 @@
       : 0;
 
     elements.teamTotal.textContent = `${state.teams.length}팀`;
-    elements.averageScore.textContent = notes.length ? `${formatScore(average)}%` : "미측정";
+    elements.averageScore.textContent = notes.length ? `${formatScore(average)}점` : "미측정";
 
     if (!scored.length) {
       elements.rankingList.innerHTML = `<li class="empty-ranking">팀을 추가한 뒤 사건노트를 입력하세요.</li>`;
@@ -619,7 +658,7 @@
             <div class="ranking-name">${escapeHtml(team.name || `${team.index + 1}팀`)}</div>
             <div class="ranking-note">${noteStatus}</div>
           </div>
-          <strong class="ranking-score">${team.hasResult ? `${formatScore(team.score)}%` : "-"}</strong>
+          <strong class="ranking-score">${team.hasResult ? `${formatScore(team.score)}점` : "-"}</strong>
         </li>
       `;
     }).join("");
@@ -684,9 +723,9 @@
     const weak = [...team.details].sort((a, b) => (a.score / Math.max(1, a.max)) - (b.score / Math.max(1, b.max)))[0];
     if (!team.note.trim()) return "사건노트가 비어 있어 아직 판정할 근거가 없습니다.";
     const questionBonus = team.questionCreditBonus?.credits
-      ? ` 남은 코인 ${team.questionCreditBonus.credits}개를 코인 보너스 +${formatScore(team.questionCreditBonus.score)}점으로 반영했습니다.`
+      ? ` 남은 코인 ${team.questionCreditBonus.credits}개를 ${coinAddedText(team)}으로 반영했습니다.`
       : " 남은 코인 보너스는 없습니다.";
-    return `${team.name}은 사건노트 ${formatScore(team.contentScore ?? team.score)}점에 코인 보너스를 반영해 최종 ${scoreWithCoinText(team.score, team)}로 측정되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${questionBonus}`;
+    return `${team.name}은 사건노트 유사도 ${formatScore(contentScoreOf(team))}%에 코인을 더해 ${finalScoreText(team)}으로 계산되었습니다. 기준 항목 중 '${strong?.label || "핵심 단서"}' 점수가 가장 높았고, '${weak?.label || "부족한 단서"}' 항목 보완 여부가 순위 차이를 만들었습니다.${questionBonus}`;
   }
 
   function fallbackReports(teams) {
@@ -715,7 +754,7 @@
 
   function reportSpeechText(report) {
     const rankText = report.rank ? `${report.rank}위. ` : "";
-    return `기티 평가 시작. ${rankText}${report.name}. 유사도 ${formatScore(report.score)}퍼센트, ${coinAddedText(report)}. ${report.report}`;
+    return `기티 평가 시작. ${rankText}${report.name}. 유사도 ${formatScore(contentScoreOf(report))}퍼센트, ${coinAddedText(report)}, 최종 순위 점수 ${formatScore(finalScoreOf(report))}점. ${report.report}`;
   }
 
   function revealSpeechText(report, index, total) {
@@ -728,7 +767,7 @@
           : "다음 팀 판정입니다.";
     const rankText = report.rank ? `${report.rank}위, ` : "";
     const comment = report.report || "기티가 판정 근거를 정리하지 못했습니다.";
-    return `${lead} ${rankText}${report.name}. 유사도는 ${formatScore(report.score)}퍼센트, ${coinAddedText(report)}입니다. 기티 평가. ${comment}`;
+    return `${lead} ${rankText}${report.name}. 유사도는 ${formatScore(contentScoreOf(report))}퍼센트, ${coinAddedText(report)}, 최종 순위 점수 ${formatScore(finalScoreOf(report))}점입니다. 기티 평가. ${comment}`;
   }
 
   function KoreanVoice() {
@@ -928,7 +967,7 @@
       <article class="report-card">
         <img class="report-card__avatar" src="assets/characters/detective-note-mascot.png" alt="" aria-hidden="true">
         <div class="report-card__bubble">
-          <strong>${escapeHtml(report.rank ? `${report.rank}위 · ` : "")}${escapeHtml(report.name)} · ${escapeHtml(scoreWithCoinText(report.score, report))}</strong>
+          <strong>${escapeHtml(report.rank ? `${report.rank}위 · ` : "")}${escapeHtml(report.name)} · ${escapeHtml(fullScoreText(report))}</strong>
           ${escapeHtml(report.report)}
         </div>
         <button class="report-voice-btn" type="button" data-read-report="${index}" aria-label="${escapeHtml(report.name)} 리포트 듣기">재생</button>
@@ -983,10 +1022,12 @@
   function openRevealLoading() {
     if (!elements.revealStage) return;
     elements.revealStage.hidden = false;
+    elements.revealStage.classList.remove("is-summary");
     document.body.classList.add("reveal-open");
     setRevealText(elements.revealEyebrow, "기티 분석 중");
     setRevealText(elements.revealTitle, "사건노트 유사도 측정");
     setRevealScore(0);
+    setRevealBarHidden(false);
     elements.revealBar?.style.setProperty("--reveal-score", "0%");
     setRevealText(elements.revealSummary, "각 팀의 사건노트를 기준 사건노트와 대조하고 있습니다.");
     setRevealText(elements.revealReport, "잠시만 기다려 주세요. 기티가 단서의 연결을 확인하고 있습니다.");
@@ -1034,6 +1075,8 @@
     if (!report) return;
 
     stopSpeech();
+    elements.revealStage?.classList.remove("is-summary");
+    setRevealBarHidden(false);
     state.revealIndex = index;
     state.revealAnimating = true;
     if (elements.revealNext) elements.revealNext.disabled = true;
@@ -1048,9 +1091,9 @@
     setRevealText(elements.revealProgress, `${index + 1} / ${total}`);
 
     await delay(420);
-    await animateRevealScore(report.score, report);
+    await animateRevealScore(contentScoreOf(report), report);
 
-    setRevealText(elements.revealSummary, `${teamLabel(report.name)} 유사도 ${scoreWithCoinText(report.score, report)}`);
+    setRevealText(elements.revealSummary, `${teamLabel(report.name)} 유사도 ${fullScoreText(report)}`);
     setRevealText(elements.revealReport, report.report || "기티가 판정 근거를 정리하지 못했습니다.");
 
     const speechText = revealSpeechText(report, index, total);
@@ -1069,15 +1112,84 @@
     state.revealReports = ordered;
     state.revealIndex = 0;
     elements.revealStage.hidden = false;
+    elements.revealStage.classList.remove("is-summary");
     document.body.classList.add("reveal-open");
     await showRevealReport(0);
     return true;
+  }
+
+  function finalResultsTableHtml(reports = state.revealReports) {
+    const sorted = [...(reports || [])]
+      .filter((report) => report && report.name)
+      .sort((a, b) => {
+        const rankDiff = (Number(a.rank) || 999) - (Number(b.rank) || 999);
+        if (rankDiff) return rankDiff;
+        const finalDiff = finalScoreOf(b) - finalScoreOf(a);
+        if (finalDiff) return finalDiff;
+        return contentScoreOf(b) - contentScoreOf(a);
+      });
+
+    if (!sorted.length) {
+      return `<p class="final-results-empty">표시할 최종 결과가 없습니다.</p>`;
+    }
+
+    return `
+      <div class="final-results">
+        <table>
+          <thead>
+            <tr>
+              <th>순위</th>
+              <th>팀</th>
+              <th>유사도</th>
+              <th>코인</th>
+              <th>최종 점수</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map((report) => {
+              const bonus = coinBonusOf(report);
+              return `
+                <tr>
+                  <td><b>${escapeHtml(report.rank ? `${report.rank}위` : "-")}</b></td>
+                  <td>${escapeHtml(teamLabel(report.name))}</td>
+                  <td>${formatScore(contentScoreOf(report))}%</td>
+                  <td>+${formatScore(bonus.score)} coin</td>
+                  <td><strong>${formatScore(finalScoreOf(report))}점</strong></td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+        <p>순위는 사건노트 유사도(%)에 남은 코인 수를 1개당 1점으로 더해 계산했습니다.</p>
+      </div>
+    `;
+  }
+
+  function showRevealSummary() {
+    if (!elements.revealStage) return;
+    stopSpeech();
+    state.revealIndex = state.revealReports.length;
+    state.revealAnimating = false;
+    elements.revealStage.classList.add("is-summary");
+    setRevealBarHidden(true);
+    setRevealText(elements.revealEyebrow, "기티 최종 결과");
+    setRevealText(elements.revealTitle, "최종 순위표");
+    if (elements.revealScore) elements.revealScore.textContent = "RESULT";
+    setRevealText(elements.revealSummary, "1등부터 마지막 순위까지, 유사도와 코인 보너스를 분리해 정리했습니다.");
+    if (elements.revealReport) elements.revealReport.innerHTML = finalResultsTableHtml();
+    setRevealText(elements.revealProgress, "최종 결과");
+    if (elements.revealNext) {
+      elements.revealNext.disabled = false;
+      elements.revealNext.textContent = "닫기";
+    }
   }
 
   function closeReveal(showReports = true) {
     if (state.revealAnimating) return;
     stopSpeech();
     if (elements.revealStage) elements.revealStage.hidden = true;
+    elements.revealStage?.classList.remove("is-summary");
+    setRevealBarHidden(false);
     document.body.classList.remove("reveal-open");
     state.revealReports = [];
     state.revealIndex = 0;
@@ -1090,8 +1202,12 @@
 
   async function revealNext() {
     if (state.revealAnimating) return;
-    if (state.revealIndex >= state.revealReports.length - 1) {
+    if (state.revealIndex >= state.revealReports.length) {
       closeReveal(true);
+      return;
+    }
+    if (state.revealIndex >= state.revealReports.length - 1) {
+      showRevealSummary();
       return;
     }
     await showRevealReport(state.revealIndex + 1);
@@ -1311,7 +1427,7 @@
     calculateAll();
     renderTeams();
     renderRanking();
-    const rows = [["순위", "팀", "최종 유사도", "사건노트 점수", "남은 코인", "코인 보너스", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
+    const rows = [["순위", "팀", "최종 점수", "사건노트 유사도", "남은 코인", "코인 보너스", "범인", "사건 장소", "범행 방식", "유출 결과", "근거 제시", "AI 윤리 역량", "사건노트"]];
     rankedTeams().forEach((team) => {
       const score = team.hasResult ? team.score : 0;
       const detailMap = team.hasResult
@@ -1320,10 +1436,10 @@
       rows.push([
         team.hasResult ? team.rank : "",
         team.name,
-        team.hasResult ? `${formatScore(score)}%` : "",
-        team.hasResult ? `${formatScore(team.result.contentScore ?? score)}점` : "",
+        team.hasResult ? `${formatScore(score)}점` : "",
+        team.hasResult ? `${formatScore(team.result.contentScore ?? score)}%` : "",
         team.hasResult ? `${cleanRemainingCredits(team.remainingCredits)}개` : "",
-        team.hasResult && team.result.questionCreditBonus?.score ? `+${formatScore(team.result.questionCreditBonus.score)}점` : "",
+        team.hasResult && team.result.questionCreditBonus?.score ? `+${formatScore(team.result.questionCreditBonus.score)} coin` : "",
         detailMap.culprit,
         detailMap.place,
         detailMap.method,

@@ -91,16 +91,6 @@ const goldenKeyCards = {
     ethicsMeaning: "AI의 환각에 속지 않고 정보를 검증하며 올바른 판단을 내리는 능력",
     popup: "[환각] AI가 교묘하게 만들어낸 거짓된 내용에 대처했습니다. AI의 환각에 속지 않고 비판적으로 판단한 보상으로 코인 2개를 얻습니다."
   },
-  149489: {
-    effect: "sourceCitation",
-    title: "저작권 출처 표시",
-    concept: "신뢰성",
-    sign: "+",
-    tone: "ok",
-    selfDelta: 0,
-    ethicsMeaning: "AI를 사용하는 목적과 의도 안에서 안전하게 사용하기",
-    popup: "[신뢰성] 출처를 확인하고 안전하게 사용했습니다. 상대 팀에서 원하는 증거 1개를 복사해 올 수 있습니다. 코인 가감은 없습니다."
-  },
   382866: {
     effect: "aiUpgradeSweep",
     title: "AI 업그레이드",

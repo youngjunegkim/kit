@@ -888,6 +888,18 @@ textarea {
   text-shadow: none;
 }
 
+.reveal-stage__score strong small.reveal-stage__coin-bonus {
+  border-radius: 999px;
+  background: rgba(255, 220, 167, 0.16);
+  padding: 8px 13px;
+  color: #ffe6b8;
+}
+
+.reveal-stage__score strong small.reveal-stage__final-score {
+  color: rgba(255, 248, 235, 0.86);
+  font-size: clamp(0.94rem, 1.8vw, 1.26rem);
+}
+
 .reveal-stage__bar {
   height: 22px;
   overflow: hidden;
@@ -969,12 +981,69 @@ textarea {
   font-weight: 950;
 }
 
-.reveal-stage__comment p {
+.reveal-stage__comment [data-reveal-report] {
   margin: 0;
   font-size: clamp(1rem, 1.7vw, 1.2rem);
   line-height: 1.58;
   font-weight: 850;
   word-break: keep-all;
+}
+
+.reveal-stage.is-summary .reveal-stage__score {
+  min-height: 128px;
+}
+
+.reveal-stage.is-summary .reveal-stage__score strong {
+  font-size: clamp(2.4rem, 7vw, 5.2rem);
+}
+
+.final-results {
+  display: grid;
+  gap: 12px;
+}
+
+.final-results table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #fffdf7;
+  font-size: clamp(0.9rem, 1.45vw, 1.05rem);
+}
+
+.final-results th,
+.final-results td {
+  border-bottom: 1px solid rgba(141, 107, 63, 0.2);
+  padding: 12px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.final-results th {
+  background: #8f1717;
+  color: #fff8eb;
+  font-weight: 950;
+}
+
+.final-results td {
+  color: #1d2a3d;
+  font-weight: 850;
+}
+
+.final-results tr:last-child td {
+  border-bottom: 0;
+}
+
+.final-results td:last-child strong {
+  color: #8f1717;
+}
+
+.final-results p,
+.final-results-empty {
+  margin: 0;
+  color: #5d4a35;
+  font-size: 0.94rem;
+  font-weight: 850;
 }
 
 .reveal-stage__actions {
