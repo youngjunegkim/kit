@@ -1,5 +1,6 @@
 const {
   clearQuestionLogs,
+  consumeGoldenNotices,
   getAllCredits,
   getAllGrantedCredits,
   getAllQuestionCounts,
@@ -116,6 +117,7 @@ async function handleCredits(request, response) {
           granted: await getGrantedCredits(team),
           count: await getQuestionCount(team),
           logs: await getQuestionLogs(team),
+          goldenNotices: await consumeGoldenNotices(team),
           persistent: hasPersistentStore()
         });
         return;

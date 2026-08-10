@@ -86,6 +86,9 @@
     ethicsCurrent: 1,
     ethicsUnlocked: false,
     ethicsSubmitting: false,
+    ethicsTimerId: null,
+    ethicsTimerQuestion: null,
+    ethicsTimerDeadline: 0,
     claiming: false,
     claimGrant: null,
     claimOptions: [],
@@ -125,6 +128,7 @@
   const ethicsResetButton = document.querySelector("[data-student-ethics-reset]");
   const ethicsAccessPassword = String.fromCharCode(107, 105, 116);
   const ethicsRewardCredits = 1;
+  const ethicsQuizTimeLimitMs = 30 * 1000;
   const evidenceRewardCredits = 1;
   const similarityForm = document.querySelector("[data-similarity-form]");
   const similarityOpenBtn = document.querySelector("[data-similarity-open]");
@@ -139,6 +143,16 @@
   const similarityConfirmNotice = document.querySelector("[data-similarity-confirm-notice]");
   const similarityConfirmSend = document.querySelector("[data-similarity-confirm-send]");
   const similarityConfirmCancel = document.querySelector("[data-similarity-confirm-cancel]");
+  const goldenModal = document.querySelector("[data-golden-modal]");
+  const goldenCloseBtn = document.querySelector("[data-golden-close]");
+  const goldenKicker = document.querySelector("[data-golden-kicker]");
+  const goldenTitle = document.querySelector("[data-golden-title]");
+  const goldenCode = document.querySelector("[data-golden-code]");
+  const goldenMeaning = document.querySelector("[data-golden-meaning]");
+  const goldenPopup = document.querySelector("[data-golden-popup]");
+  const goldenDelta = document.querySelector("[data-golden-delta]");
+  const goldenPopupQueue = [];
+  let goldenPopupOpen = false;
   const similarityTemplate = (v) =>
     `범인은 ${v.culprit || ""}이다. 범인은 ${v.tool || ""}를 사용해 ${v.method || ""} 해서 시험 예상 문제가 유출되었다. 그 근거는 ${v.evidence || ""}이다. 범인에게 가장 부족했던 AI 윤리 역량은 ${v.competency || ""}이며, 그 이유는 ${v.reason || ""}.`;
 
@@ -224,6 +238,86 @@
     evidenceMessage.classList.toggle("is-bad", type === "bad");
   }
 
+  function setNodeText(node, text) {
+    if (node) node.textContent = text || "";
+  }
+
+  function formatCoinDelta(delta) {
+    const value = Math.round(Number(delta) || 0);
+    if (value > 0) return `코인 +${value}개`;
+    if (value < 0) return `코인 ${value}개`;
+    return "코인 변동 없음";
+  }
+
+  function pulseCreditDisplay(delta) {
+    const value = Math.round(Number(delta) || 0);
+    if (!value) return;
+    creditCounts.forEach((node) => {
+      const target = node.closest(".credit-pill") || node;
+      target.classList.remove("is-credit-up", "is-credit-down");
+      void target.offsetWidth;
+      target.classList.add(value > 0 ? "is-credit-up" : "is-credit-down");
+      window.setTimeout(() => target.classList.remove("is-credit-up", "is-credit-down"), 950);
+    });
+  }
+
+  function renderGoldenPopup(payload = {}) {
+    if (!goldenModal) return;
+    const delta = Math.round(Number(payload.delta ?? payload.selfDelta) || 0);
+    const isBad = payload.tone === "bad" || delta < 0;
+    const sourceText = payload.sourceTeam && payload.sourceTeam !== state.team
+      ? `${teamLabelFor(payload.sourceTeam)} 황금열쇠 영향`
+      : "AI 윤리 황금열쇠";
+    const titleText = payload.title || "황금열쇠 카드";
+    const conceptText = payload.concept ? ` · ${payload.concept}` : "";
+    const codeText = payload.code ? `코드 ${payload.code}${conceptText}` : `황금열쇠${conceptText}`;
+    const currentText = payload.credits !== undefined ? ` · 현재 ${Math.max(0, Number(payload.credits) || 0)}개` : "";
+
+    setNodeText(goldenKicker, sourceText);
+    setNodeText(goldenTitle, titleText);
+    setNodeText(goldenCode, codeText);
+    setNodeText(goldenMeaning, payload.ethicsMeaning || "이 카드의 AI 윤리 개념을 확인하세요.");
+    setNodeText(goldenPopup, payload.popup || payload.message || "황금열쇠 효과가 적용되었습니다.");
+    setNodeText(goldenDelta, `${formatCoinDelta(delta)}${currentText}`);
+    goldenModal.classList.toggle("is-bad", isBad);
+    goldenModal.classList.toggle("is-good", !isBad);
+    goldenModal.hidden = false;
+    goldenPopupOpen = true;
+    document.body.classList.add("golden-modal-open");
+    goldenCloseBtn?.focus({ preventScroll: true });
+  }
+
+  function showNextGoldenPopup() {
+    if (goldenPopupOpen || !goldenPopupQueue.length) return;
+    renderGoldenPopup(goldenPopupQueue.shift());
+  }
+
+  function queueGoldenPopup(payload = {}) {
+    if (!payload || typeof payload !== "object") return;
+    goldenPopupQueue.push(payload);
+    showNextGoldenPopup();
+  }
+
+  function closeGoldenPopup() {
+    if (!goldenModal) return;
+    goldenModal.hidden = true;
+    goldenPopupOpen = false;
+    document.body.classList.remove("golden-modal-open");
+    window.setTimeout(showNextGoldenPopup, 80);
+  }
+
+  function consumeGoldenNoticesFromResponse(data = {}) {
+    const notices = Array.isArray(data.goldenNotices) ? data.goldenNotices : [];
+    notices.forEach((notice) => {
+      queueGoldenPopup({
+        ...notice,
+        message: notice.popup,
+        selfDelta: notice.delta
+      });
+      pulseCreditDisplay(notice.delta);
+    });
+  }
+
   function setSimilarityStatus(text, type = "") {
     if (!similarityStatus) return;
     similarityStatus.textContent = text;
@@ -247,6 +341,10 @@
     return `kit-ethics-quiz-unlocked:${state.classId}:${state.team || state.user || "guest"}`;
   }
 
+  function ethicsTimerStorageKey() {
+    return `kit-ethics-quiz-timer:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
   function loadEthicsUnlockState() {
     state.ethicsUnlocked = false;
     sessionStorage.removeItem(ethicsUnlockStorageKey());
@@ -264,7 +362,22 @@
     if (ethicsPasswordInput) ethicsPasswordInput.value = "";
   }
 
+  function stopEthicsTimerTicking() {
+    if (state.ethicsTimerId) {
+      window.clearInterval(state.ethicsTimerId);
+      state.ethicsTimerId = null;
+    }
+  }
+
+  function resetEthicsTimer() {
+    stopEthicsTimerTicking();
+    state.ethicsTimerQuestion = null;
+    state.ethicsTimerDeadline = 0;
+    sessionStorage.removeItem(ethicsTimerStorageKey());
+  }
+
   function closeStudentEthicsQuestion(nextNumber = "") {
+    stopEthicsTimerTicking();
     expireEthicsAccess();
     document.body.classList.remove("student-ethics-open");
     if (ethicsCard) {
@@ -1226,6 +1339,16 @@
     similarityConfirmCancel?.addEventListener("click", hideSimilarityConfirm);
   }
 
+  function setupGoldenPopup() {
+    goldenCloseBtn?.addEventListener("click", closeGoldenPopup);
+    goldenModal?.addEventListener("click", (event) => {
+      if (event.target === goldenModal) closeGoldenPopup();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && goldenModal && !goldenModal.hidden) closeGoldenPopup();
+    });
+  }
+
   function updateEvidenceControls() {
     const disabled = state.redeeming || state.claiming || !state.team;
     if (evidenceInput) evidenceInput.disabled = disabled;
@@ -1419,6 +1542,109 @@
     return element;
   }
 
+  function applyEthicsReveal(element, delay = 0) {
+    if (!element) return element;
+    const safeDelay = Math.max(0, Number(delay) || 0);
+    element.classList.add("student-ethics-reveal");
+    element.style.setProperty("--ethics-reveal-delay", `${safeDelay}ms`);
+    return element;
+  }
+
+  function ethicsTimerRemainingMs(question) {
+    if (state.ethicsTimerQuestion !== Number(question?.number || 0)) return 0;
+    return Math.max(0, Number(state.ethicsTimerDeadline || 0) - Date.now());
+  }
+
+  function saveEthicsTimerState() {
+    if (!state.ethicsTimerQuestion || !state.ethicsTimerDeadline) return;
+    sessionStorage.setItem(ethicsTimerStorageKey(), JSON.stringify({
+      question: state.ethicsTimerQuestion,
+      deadline: state.ethicsTimerDeadline
+    }));
+  }
+
+  function loadEthicsTimerState(number) {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(ethicsTimerStorageKey()) || "{}");
+      if (Number(saved.question) !== Number(number) || !Number(saved.deadline)) return false;
+      state.ethicsTimerQuestion = Number(saved.question);
+      state.ethicsTimerDeadline = Number(saved.deadline);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function updateEthicsTimerElement(element, question) {
+    if (!element) return;
+    const remaining = ethicsTimerRemainingMs(question);
+    const seconds = Math.max(0, Math.ceil(remaining / 1000));
+    element.textContent = `남은 시간 ${seconds}초`;
+    element.classList.toggle("is-warn", seconds > 0 && seconds <= 10);
+    element.classList.toggle("is-ended", seconds <= 0);
+  }
+
+  function createEthicsTimerElement(question) {
+    const element = createEthicsElement("span", "student-ethics-timer", "");
+    element.dataset.studentEthicsTimer = "";
+    updateEthicsTimerElement(element, question);
+    return element;
+  }
+
+  function markEthicsTimedOut(question) {
+    const answer = ethicsAnswerFor(question);
+    if (answer.locked || answer.rewarded || answer.revealed) {
+      resetEthicsTimer();
+      return;
+    }
+
+    const visible = ethicsCard && !ethicsCard.hidden && Number(state.ethicsCurrent) === Number(question.number);
+    state.ethicsSubmitting = true;
+    setEthicsAnswer(question, {
+      revealed: true,
+      rewarded: false,
+      locked: true,
+      timedOut: true
+    });
+    resetEthicsTimer();
+    if (visible) renderStudentEthicsQuestion(question.number);
+    state.ethicsSubmitting = false;
+    expireEthicsAccess();
+    updateEthicsNumberInputRange();
+    renderEthicsSolvedSummary();
+  }
+
+  function startEthicsTimer(question) {
+    const number = Number(question?.number || 0);
+    if (!number) return 0;
+
+    const now = Date.now();
+    if (state.ethicsTimerQuestion !== number || !state.ethicsTimerDeadline) {
+      stopEthicsTimerTicking();
+      if (!loadEthicsTimerState(number)) {
+        state.ethicsTimerQuestion = number;
+        state.ethicsTimerDeadline = now + ethicsQuizTimeLimitMs;
+        saveEthicsTimerState();
+      }
+    }
+
+    if (state.ethicsTimerDeadline <= now) {
+      markEthicsTimedOut(question);
+      return 0;
+    }
+
+    stopEthicsTimerTicking();
+    state.ethicsTimerId = window.setInterval(() => {
+      const timer = ethicsCard?.querySelector("[data-student-ethics-timer]");
+      updateEthicsTimerElement(timer, question);
+      if (ethicsTimerRemainingMs(question) <= 0) {
+        markEthicsTimedOut(question);
+      }
+    }, 250);
+
+    return ethicsTimerRemainingMs(question);
+  }
+
   function createEthicsCloseButton() {
     const button = createEthicsElement("button", "student-ethics-close", "X");
     button.type = "button";
@@ -1435,9 +1661,9 @@
       : "푼 문제: 없음";
   }
 
-  function renderEthicsParagraphs(container, paragraphs = []) {
-    paragraphs.forEach((text) => {
-      container.append(createEthicsElement("p", "", text));
+  function renderEthicsParagraphs(container, paragraphs = [], startDelay = 0) {
+    paragraphs.forEach((text, index) => {
+      container.append(applyEthicsReveal(createEthicsElement("p", "", text), startDelay + index * 45));
     });
   }
 
@@ -1524,14 +1750,23 @@
     const correct = answer.value === question.answer;
     const locked = Boolean(answer.locked || answer.rewarded || (revealed && !correct));
     const alreadySolved = ethicsAttemptedNumbers().includes(Number(question.number));
+    const timedOut = Boolean(answer.timedOut);
+
+    if (!locked && startEthicsTimer(question) <= 0) return;
+    if (locked) resetEthicsTimer();
 
     const head = createEthicsElement("div", "student-ethics-head");
     const titleWrap = document.createElement("div");
+    const titleKicker = createEthicsElement("p", "student-ethics-kicker", `${question.number}번 문제`);
+    const title = applyEthicsReveal(createEthicsElement("h2", "", question.topic), 0);
     titleWrap.append(
-      createEthicsElement("p", "student-ethics-kicker", `${question.number}번 문제`),
-      createEthicsElement("h2", "", question.topic)
+      titleKicker,
+      title
     );
-    head.append(titleWrap, createEthicsElement("span", "student-ethics-meta", alreadySolved ? "풀이 완료" : "미풀이"), createEthicsCloseButton());
+    const headTools = createEthicsElement("div", "student-ethics-head-tools");
+    if (!locked) headTools.append(createEthicsTimerElement(question));
+    headTools.append(createEthicsElement("span", "student-ethics-meta", alreadySolved ? "풀이 완료" : "미풀이"), createEthicsCloseButton());
+    head.append(titleWrap, headTools);
 
     const source = createEthicsElement("figure", "student-ethics-source");
     if (question.sourceImage) {
@@ -1549,19 +1784,19 @@
     if (question.background?.length) {
       const section = createEthicsElement("section", "student-ethics-section");
       section.append(createEthicsElement("h3", "", "배경설명"));
-      renderEthicsParagraphs(section, question.background);
+      renderEthicsParagraphs(section, question.background, 70);
       copy.append(section);
     }
 
     const prompt = createEthicsElement("section", "student-ethics-section student-ethics-prompt");
     prompt.append(createEthicsElement("h3", "", question.options?.length === 2 ? "퀴즈 O/X" : "퀴즈"));
-    prompt.append(createEthicsElement("p", "", question.prompt));
+    prompt.append(applyEthicsReveal(createEthicsElement("p", "", question.prompt), 130));
     copy.append(prompt);
 
     const options = createEthicsElement("section", "student-ethics-section");
     options.append(createEthicsElement("h3", "", "보기"));
     const optionList = createEthicsElement("div", "student-ethics-options");
-    question.options.forEach((option) => {
+    question.options.forEach((option, index) => {
       const label = createEthicsElement("label", "student-ethics-option");
       const input = document.createElement("input");
       input.type = "radio";
@@ -1578,7 +1813,8 @@
       label.classList.toggle("is-correct", revealed && option.id === question.answer);
       label.classList.toggle("is-wrong", revealed && answer.value === option.id && option.id !== question.answer);
       label.classList.toggle("is-locked", locked);
-      label.append(input, createEthicsElement("span", "", `${option.marker} ${option.text}`));
+      const optionText = applyEthicsReveal(createEthicsElement("span", "", `${option.marker} ${option.text}`), 180 + index * 38);
+      label.append(input, optionText);
       optionList.append(label);
     });
     options.append(optionList);
@@ -1588,8 +1824,8 @@
     explanation.classList.toggle("is-visible", revealed);
     explanation.append(createEthicsElement("h3", "", "해설"));
     const correctOption = question.options.find((option) => option.id === question.answer);
-    explanation.append(createEthicsElement("p", "", `정답: ${correctOption ? `${correctOption.marker} ${correctOption.text}` : question.answer}`));
-    renderEthicsParagraphs(explanation, question.explanation);
+    explanation.append(applyEthicsReveal(createEthicsElement("p", "", `정답: ${correctOption ? `${correctOption.marker} ${correctOption.text}` : question.answer}`), 80));
+    renderEthicsParagraphs(explanation, question.explanation, 130);
     copy.append(explanation);
 
     const actions = createEthicsElement("div", "student-ethics-actions");
@@ -1608,6 +1844,9 @@
         status.textContent = "정답입니다.";
       }
       status.classList.add("is-ok");
+    } else if (timedOut) {
+      status.textContent = "시간이 종료되었습니다. 이 문제는 다시 풀 수 없습니다.";
+      status.classList.add("is-bad");
     } else if (revealed) {
       status.textContent = nextNumber ? "오답입니다. 이 문제는 다시 풀 수 없습니다." : "오답입니다. 모든 윤리퀴즈를 완료했습니다.";
       status.classList.add("is-bad");
@@ -1637,6 +1876,7 @@
     const answer = ethicsAnswerFor(question);
     const status = ethicsCard?.querySelector("[data-student-ethics-status]");
     if (answer.locked || answer.rewarded) {
+      resetEthicsTimer();
       if (status) {
         status.textContent = answer.value === question.answer
           ? "이미 푼 문제입니다."
@@ -1654,6 +1894,7 @@
     }
 
     if (answer.value !== question.answer) {
+      resetEthicsTimer();
       state.ethicsSubmitting = true;
       setEthicsAnswer(question, { revealed: true, rewarded: false, locked: true });
       renderStudentEthicsQuestion(question.number);
@@ -1664,11 +1905,13 @@
     }
 
     if (ethicsAnswerFor(question).rewarded) {
+      resetEthicsTimer();
       setEthicsAnswer(question, { revealed: true });
       renderStudentEthicsQuestion(question.number);
       return;
     }
 
+    resetEthicsTimer();
     state.ethicsSubmitting = true;
     setEthicsAnswer(question, { revealed: true, rewarded: true, serverRewarded: false });
     applyCredits(state.serverCredits);
@@ -1757,6 +2000,7 @@
 
     state.ethicsAnswers = {};
     state.ethicsServerSolved = [];
+    resetEthicsTimer();
     localStorage.removeItem(ethicsStorageKey());
     applyCredits(state.serverCredits);
     renderEthicsSolvedSummary();
@@ -1851,6 +2095,7 @@
       setLogCount(data.count || 0);
       state.logs = Array.isArray(data.logs) ? data.logs : [];
       renderStudentLogs();
+      consumeGoldenNoticesFromResponse(data);
     } catch {
       setCreditText("받기 실패");
     } finally {
@@ -1920,10 +2165,16 @@
 
       if (data.kind === "golden") {
         if (data.credits !== undefined) applyCredits(data.credits);
+        pulseCreditDisplay(data.selfDelta);
         if (data.freeResubmits !== undefined && data.freeResubmits !== null) {
           state.similarityFreeResubmits = Math.max(0, Number(data.freeResubmits) || 0);
           updateSimilaritySubmitButton();
         }
+        queueGoldenPopup({
+          ...data,
+          delta: data.selfDelta,
+          popup: data.popup || data.message
+        });
         setEvidenceMessage(data.message || "황금열쇠 효과가 적용되었습니다.", data.tone === "bad" ? "bad" : "ok");
         if (evidenceInput) evidenceInput.value = "";
         return;
@@ -2114,6 +2365,7 @@
   updateControls();
 
   setupCardLightbox();
+  setupGoldenPopup();
 
   evidenceBoard?.addEventListener("click", (event) => {
     const item = event.target.closest("[data-evidence-code-card]");

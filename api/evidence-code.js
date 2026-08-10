@@ -11,9 +11,9 @@ const {
   getGrantedCredits,
   getQuestionLogs,
   grantCredits,
-  grantSimilarityFreeResubmit,
   hasPersistentStore,
   normalizeTeam,
+  recordGoldenNotice,
   recordEvidenceRedemption,
   redeemEvidenceCode,
   reduceCredits,
@@ -40,28 +40,135 @@ const evidenceCodes = {
 const evidenceRewardCredits = 1;
 const evidenceRevisitBonusCredits = 2;
 
-const goldenKeyEffects = {
-  reliability: { concept: "신뢰성" },
-  inclusion: { concept: "포용성" },
-  accountability: { concept: "책임성" },
-  hallucination: { concept: "환각" },
-  deepfake: { concept: "딥페이크" },
-  bias: { concept: "편향" }
-};
-
 const goldenKeyCards = {
-  906458: "reliability",
-  149489: "reliability",
-  913561: "inclusion",
-  382866: "inclusion",
-  392990: "accountability",
-  144051: "accountability",
-  505132: "hallucination",
-  281797: "hallucination",
-  244391: "deepfake",
-  564376: "deepfake",
-  337446: "bias",
-  974399: "bias"
+  974399: {
+    effect: "biasHack",
+    title: "코인 해킹",
+    concept: "편향",
+    sign: "-",
+    tone: "bad",
+    selfDelta: -2,
+    ethicsMeaning: "훈련 데이터나 알고리즘의 한계로 인해 특정 집단이나 관점에 치우친 불공정한 결과를 내는 현상",
+    popup: "[편향] 편향된 데이터처럼 특정 팀에게 코인이 치우치는 현상 발생! 해당 팀의 코인 2개가 사라집니다. 단, 현재 가진 코인 이하로만 차감됩니다."
+  },
+  337446: {
+    effect: "biasedJudgment",
+    title: "편향된 판단",
+    concept: "편향",
+    sign: "-",
+    tone: "bad",
+    selfDelta: -2,
+    ethicsMeaning: "훈련 데이터나 알고리즘의 한계로 인해 특정 집단이나 관점에 치우친 불공정한 결과를 내는 현상",
+    popup: "[편향] 편향된 AI가 특정 정보와 관점에 치우친 답변을 생성했습니다. 해당 팀은 코인 2개를 잃습니다. 단, 현재 가진 코인 이하로만 차감됩니다."
+  },
+  906458: {
+    effect: "humanChoice",
+    title: "인간의 선택",
+    concept: "신뢰성",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 2,
+    ethicsMeaning: "AI를 사용하는 목적과 의도 안에서 안전하게 사용하기",
+    popup: "[신뢰성] AI를 사용하는 목적과 의도 안에서 안전하게 사용했습니다. 해당 팀은 코인 2개를 획득합니다."
+  },
+  281797: {
+    effect: "hallucinationTrap",
+    title: "환각의 함정",
+    concept: "환각",
+    sign: "-",
+    tone: "bad",
+    selfDelta: -2,
+    ethicsMeaning: "AI가 교묘하게 정보나 사실이 아닌 거짓된 내용을 실제인 것처럼 그럴듯하게 생성해내는 현상",
+    popup: "[환각] AI는 사실이 아닌 정보를 그럴듯하게 만들어낼 수 있습니다. 신뢰를 잃어 코인 2개가 사라집니다."
+  },
+  505132: {
+    effect: "hallucinationFilter",
+    title: "가짜뉴스 튕겨내기",
+    concept: "환각 필터",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 2,
+    ethicsMeaning: "AI의 환각에 속지 않고 정보를 검증하며 올바른 판단을 내리는 능력",
+    popup: "[환각] AI가 교묘하게 만들어낸 거짓된 내용에 대처했습니다. AI의 환각에 속지 않고 비판적으로 판단한 보상으로 코인 2개를 얻습니다."
+  },
+  149489: {
+    effect: "sourceCitation",
+    title: "저작권 출처 표시",
+    concept: "신뢰성",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 0,
+    ethicsMeaning: "AI를 사용하는 목적과 의도 안에서 안전하게 사용하기",
+    popup: "[신뢰성] 출처를 확인하고 안전하게 사용했습니다. 상대 팀에서 원하는 증거 1개를 복사해 올 수 있습니다. 코인 가감은 없습니다."
+  },
+  382866: {
+    effect: "aiUpgradeSweep",
+    title: "AI 업그레이드",
+    concept: "포용성",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 0,
+    otherDelta: -1,
+    ethicsMeaning: "AI가 낸 차별이나 편견을 포함하지 않고 다양한 모습을 존중하고 있는지 살피기",
+    popup: "[포용성] 시스템 오류 발생! 우리 팀을 제외한 모든 참여 팀에서 코인 1개씩 뺏어옵니다.",
+    affectedPopup: "[포용성] 다른 팀의 AI 업그레이드 효과로 시스템 오류가 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
+  },
+  144051: {
+    effect: "privacyShield",
+    title: "투명인간 보호막",
+    concept: "책임성",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 0,
+    ethicsMeaning: "AI의 결과에 따라 문제가 발생한다면 충분히 책임질 수 있는 범위 안에서 사용하기",
+    popup: "[책임성] 개인정보 보호처럼 안전하게 다음 1턴 동안 상대의 모든 공격이나 지목 대상에서 제외됩니다. 코인 가감은 없습니다."
+  },
+  913561: {
+    effect: "openSource",
+    title: "오픈소스",
+    concept: "포용성",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 1,
+    otherDelta: 1,
+    ethicsMeaning: "AI가 낸 차별이나 편견을 포함하지 않고 다양한 모습을 존중하고 있는지 살피기",
+    popup: "[포용성] 차별이나 편견을 포함하지 않고 다양한 모습을 존중하며 같이 전진합니다. 해당 팀을 포함한 모든 참여 팀이 코인 1개씩 얻습니다.",
+    affectedPopup: "[포용성] 다른 팀의 오픈소스 효과로 모두 함께 전진합니다. 우리 팀 코인 1개가 추가되었습니다."
+  },
+  392990: {
+    effect: "killSwitch",
+    title: "AI 윤리 킬 스위치",
+    concept: "책임성 / 통제",
+    sign: "+",
+    tone: "ok",
+    selfDelta: 0,
+    ethicsMeaning: "AI의 결과에 따라 문제가 발생한다면 충분히 책임질 수 있는 범위 안에서 사용하기",
+    popup: "[책임성 / 통제] 너무 앞서가는 팀 1곳을 지목해 다음 턴 강제 휴식(일시정지)을 시킬 수 있습니다. 코인 가감은 없습니다."
+  },
+  244391: {
+    effect: "deepfakeEvent",
+    title: "딥페이크 카드 A",
+    concept: "딥페이크",
+    sign: "-",
+    tone: "bad",
+    selfDelta: -1,
+    otherDelta: -1,
+    ethicsMeaning: "인공지능을 활용해 특정 인물의 얼굴이나 음성을 합성하여 진짜처럼 만드는 기술 및 결과물",
+    popup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 해당 팀을 포함해 코인을 가진 모든 팀의 코인 1개가 사라집니다.",
+    affectedPopup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
+  },
+  564376: {
+    effect: "deepfakeEvent",
+    title: "딥페이크 카드 B",
+    concept: "딥페이크",
+    sign: "-",
+    tone: "bad",
+    selfDelta: -1,
+    otherDelta: -1,
+    ethicsMeaning: "인공지능을 활용해 특정 인물의 얼굴이나 음성을 합성하여 진짜처럼 만드는 기술 및 결과물",
+    popup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 해당 팀을 포함해 코인을 가진 모든 팀의 코인 1개가 사라집니다.",
+    affectedPopup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
+  }
 };
 
 Object.keys(goldenKeyCards).forEach((code) => {
@@ -72,8 +179,8 @@ Object.keys(goldenKeyCards).forEach((code) => {
 
 function goldenCardByCode(code) {
   const clean = cleanCode(code);
-  const effect = goldenKeyCards[clean];
-  return effect ? { code: clean, effect, concept: goldenKeyEffects[effect].concept } : null;
+  const card = goldenKeyCards[clean];
+  return card ? { code: clean, ...card } : null;
 }
 
 async function participatingTeams() {
@@ -83,28 +190,8 @@ async function participatingTeams() {
     .map(([team]) => team);
 }
 
-function goldenMessage(effect, { otherCount, freeResubmits }) {
-  if (effect === "reliability") {
-    return { tone: "ok", text: "신뢰성 카드! 우리 팀 코인 2개가 추가되었습니다." };
-  }
-  if (effect === "inclusion") {
-    return otherCount > 0
-      ? { tone: "ok", text: "포용성 카드! 우리 팀 코인 2개, 다른 참여 팀 코인 1개가 추가되었습니다." }
-      : { tone: "ok", text: "포용성 카드! 우리 팀 코인 2개가 추가되었습니다." };
-  }
-  if (effect === "accountability") {
-    return { tone: "ok", text: `책임성 카드! 사건노트 재전송 무료권 1개가 추가되었습니다. 현재 무료권 ${Math.max(0, Number(freeResubmits) || 0)}개입니다.` };
-  }
-  if (effect === "hallucination") {
-    return { tone: "bad", text: "환각 카드였습니다. 카드에는 보너스처럼 보였지만 실제로는 우리 팀 코인 2개가 줄어듭니다." };
-  }
-  if (effect === "deepfake") {
-    return { tone: "bad", text: "딥페이크 카드! 참여 중인 모든 팀의 코인이 1개씩 줄어듭니다." };
-  }
-  if (effect === "bias") {
-    return { tone: "bad", text: "편향 카드! 우리 팀 코인 2개가 줄어듭니다." };
-  }
-  return { tone: "ok", text: "황금열쇠 효과가 적용되었습니다." };
+function goldenMessage(card) {
+  return { tone: card.tone || "ok", text: card.popup || "황금열쇠 효과가 적용되었습니다." };
 }
 
 async function applyGoldenDelta(team, card, actor, wanted) {
@@ -128,13 +215,35 @@ async function applyGoldenDelta(team, card, actor, wanted) {
     user: actor,
     code: card.code,
     room: "황금열쇠",
-    evidence: `${card.concept} 카드`,
+    evidence: `${card.title} · ${card.concept}`,
     person: "",
     added: delta > 0 ? delta : 0,
     delta,
     remaining: credits
   });
   return { team, delta, credits };
+}
+
+async function teamsWithCredits() {
+  const credits = await getAllCredits();
+  return Object.entries(credits)
+    .filter(([, value]) => Number(value) > 0)
+    .map(([team]) => team);
+}
+
+async function notifyGoldenTargets(card, sourceTeam, applied) {
+  const targets = applied.filter((entry) => entry.team !== sourceTeam && entry.delta !== 0);
+  await Promise.all(targets.map((entry) => recordGoldenNotice(entry.team, {
+    sourceTeam,
+    code: card.code,
+    title: card.title,
+    concept: card.concept,
+    ethicsMeaning: card.ethicsMeaning,
+    popup: card.affectedPopup || card.popup,
+    delta: entry.delta,
+    credits: entry.credits,
+    tone: entry.delta < 0 ? "bad" : "ok"
+  })));
 }
 
 async function applyGoldenKey(team, card, actor) {
@@ -144,39 +253,28 @@ async function applyGoldenKey(team, card, actor) {
   let otherCount = 0;
   let freeResubmits = null;
 
-  if (card.effect === "reliability") {
-    const self = await applyGoldenDelta(team, card, actor, 2);
-    applied.push(self);
-    selfDelta = self.delta;
-  } else if (card.effect === "inclusion") {
-    const self = await applyGoldenDelta(team, card, actor, 2);
-    applied.push(self);
-    selfDelta = self.delta;
-    const others = (await participatingTeams()).filter((other) => other !== team);
-    for (const other of others) {
-      applied.push(await applyGoldenDelta(other, card, actor, 1));
+  if (card.effect === "openSource") {
+    const targets = new Set(await participatingTeams());
+    targets.add(team);
+    for (const target of targets) {
+      const entry = await applyGoldenDelta(target, card, actor, 1);
+      applied.push(entry);
+      if (target === team) selfDelta = entry.delta;
     }
     otherDelta = 1;
-    otherCount = others.length;
-  } else if (card.effect === "accountability") {
-    freeResubmits = await grantSimilarityFreeResubmit(team);
-    await recordEvidenceRedemption({
-      team,
-      user: actor,
-      code: card.code,
-      room: "황금열쇠",
-      evidence: "책임성 카드 · 사건노트 재전송 무료권",
-      person: "",
-      added: 0,
-      delta: 0,
-      remaining: Math.max(0, Number(await getCredits(team)) || 0)
-    });
-  } else if (card.effect === "hallucination") {
-    const self = await applyGoldenDelta(team, card, actor, -2);
-    applied.push(self);
-    selfDelta = self.delta;
-  } else if (card.effect === "deepfake") {
-    const targets = new Set(await participatingTeams());
+    otherCount = Math.max(0, targets.size - 1);
+    await notifyGoldenTargets(card, team, applied);
+  } else if (card.effect === "aiUpgradeSweep") {
+    const others = (await participatingTeams()).filter((other) => other !== team);
+    for (const other of others) {
+      applied.push(await applyGoldenDelta(other, card, actor, -1));
+    }
+    otherDelta = -1;
+    otherCount = applied.filter((entry) => entry.team !== team && entry.delta !== 0).length;
+    await notifyGoldenTargets(card, team, applied);
+    applied.push(await applyGoldenDelta(team, card, actor, 0));
+  } else if (card.effect === "deepfakeEvent") {
+    const targets = new Set(await teamsWithCredits());
     targets.add(team);
     for (const target of targets) {
       const entry = await applyGoldenDelta(target, card, actor, -1);
@@ -184,25 +282,31 @@ async function applyGoldenKey(team, card, actor) {
       if (target === team) selfDelta = entry.delta;
     }
     otherDelta = -1;
-    otherCount = targets.size - 1;
-  } else if (card.effect === "bias") {
-    const self = await applyGoldenDelta(team, card, actor, -2);
+    otherCount = applied.filter((entry) => entry.team !== team && entry.delta !== 0).length;
+    await notifyGoldenTargets(card, team, applied);
+  } else {
+    const self = await applyGoldenDelta(team, card, actor, Number(card.selfDelta) || 0);
     applied.push(self);
     selfDelta = self.delta;
   }
 
   const selfEntry = applied.find((entry) => entry.team === team);
   const selfCredits = selfEntry ? selfEntry.credits : Math.max(0, Number(await getCredits(team)) || 0);
-  const message = goldenMessage(card.effect, { otherCount, freeResubmits });
+  const message = goldenMessage(card);
 
   return {
+    title: card.title,
     concept: card.concept,
     effect: card.effect,
     code: card.code,
+    sign: card.sign,
+    ethicsMeaning: card.ethicsMeaning,
+    popup: card.popup,
     team,
     selfDelta,
     otherDelta,
     otherCount,
+    affectedTeams: applied.filter((entry) => entry.team !== team && entry.delta !== 0).map((entry) => entry.team),
     freeResubmits,
     credits: selfCredits,
     message: message.text,

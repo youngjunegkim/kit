@@ -538,6 +538,34 @@
       font-weight: 950;
     }
 
+    .student-ethics-head-tools {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .student-ethics-timer {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #fff7e0;
+      color: #8a4d00;
+      border: 1px solid #deb866;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .student-ethics-timer.is-warn,
+    .student-ethics-timer.is-ended {
+      background: #fff0ef;
+      color: #b3221d;
+      border-color: #e09894;
+    }
+
     .student-ethics-close {
       flex: 0 0 auto;
       width: 38px;
@@ -631,6 +659,24 @@
       color: #2a2118;
       line-height: 1.58;
       font-weight: 780;
+    }
+
+    .student-ethics-reveal {
+      --ethics-reveal-delay: 0ms;
+      clip-path: inset(0 100% 0 0);
+      animation: studentEthicsTextReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation-delay: var(--ethics-reveal-delay);
+      will-change: clip-path;
+    }
+
+    @keyframes studentEthicsTextReveal {
+      from {
+        clip-path: inset(0 100% 0 0);
+      }
+
+      to {
+        clip-path: inset(0 0 0 0);
+      }
     }
 
     .student-ethics-prompt {
@@ -755,6 +801,13 @@
 
     .student-ethics-explanation.is-visible {
       display: grid;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .student-ethics-reveal {
+        animation: none;
+        clip-path: none;
+      }
     }
 
     @media (max-width: 980px) {
@@ -1673,6 +1726,161 @@
       object-fit: cover;
       object-position: 47% 54%;
       filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.3));
+    }
+
+    .golden-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2200;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 50% 28%, rgba(241, 204, 112, 0.22), transparent 34%),
+        rgba(12, 10, 8, 0.78);
+      backdrop-filter: blur(8px);
+    }
+
+    .golden-modal[hidden] {
+      display: none;
+    }
+
+    .golden-modal__panel {
+      position: relative;
+      width: min(720px, calc(100vw - 28px));
+      max-height: min(780px, calc(100vh - 28px));
+      overflow-y: auto;
+      border: 2px solid #d7a94f;
+      border-radius: 12px;
+      background:
+        linear-gradient(145deg, rgba(255, 249, 232, 0.98), rgba(247, 226, 171, 0.98)),
+        #fff7df;
+      color: #1b1b20;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+      padding: 26px;
+    }
+
+    .golden-modal__panel::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(139, 84, 16, 0.26);
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
+    .golden-modal.is-bad .golden-modal__panel {
+      border-color: #b8342f;
+      background:
+        linear-gradient(145deg, rgba(255, 246, 232, 0.98), rgba(249, 219, 196, 0.98)),
+        #fff3e4;
+    }
+
+    .golden-modal__close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 1;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      background: #a71917;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 1.18rem;
+      font-weight: 950;
+      box-shadow: 0 12px 28px rgba(167, 25, 23, 0.28);
+    }
+
+    .golden-modal__kicker {
+      margin: 0 48px 8px 0;
+      color: #9b6417;
+      font-size: 0.86rem;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .golden-modal__title {
+      margin: 0;
+      color: #141820;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.05;
+      font-weight: 1000;
+    }
+
+    .golden-modal__code {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 14px;
+      min-height: 34px;
+      border: 1px solid rgba(154, 96, 23, 0.32);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.66);
+      color: #743f0d;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      font-weight: 950;
+    }
+
+    .golden-modal__section {
+      position: relative;
+      margin-top: 18px;
+      border: 1px solid rgba(154, 96, 23, 0.22);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.56);
+      padding: 14px;
+    }
+
+    .golden-modal__section h3 {
+      margin: 0 0 8px;
+      color: #9a1f1c;
+      font-size: 0.92rem;
+      font-weight: 1000;
+    }
+
+    .golden-modal__section p {
+      margin: 0;
+      color: #18202b;
+      font-size: 1rem;
+      line-height: 1.58;
+      font-weight: 850;
+    }
+
+    .golden-modal__delta {
+      margin: 18px 0 0;
+      border-radius: 8px;
+      background: #1a6f47;
+      color: #fff;
+      padding: 13px 14px;
+      font-size: 1.08rem;
+      font-weight: 1000;
+      text-align: center;
+    }
+
+    .golden-modal.is-bad .golden-modal__delta {
+      background: #a71917;
+    }
+
+    .credit-pill.is-credit-up {
+      animation: creditPulseUp 0.9s ease;
+    }
+
+    .credit-pill.is-credit-down {
+      animation: creditPulseDown 0.9s ease;
+    }
+
+    @keyframes creditPulseUp {
+      0% { transform: scale(1); box-shadow: none; }
+      35% { transform: scale(1.04); box-shadow: 0 0 0 5px rgba(52, 211, 153, 0.22); }
+      100% { transform: scale(1); box-shadow: none; }
+    }
+
+    @keyframes creditPulseDown {
+      0% { transform: scale(1); box-shadow: none; }
+      35% { transform: scale(1.04); box-shadow: 0 0 0 5px rgba(220, 52, 47, 0.24); }
+      100% { transform: scale(1); box-shadow: none; }
     }
 
     .similarity-modal {
@@ -2827,6 +3035,23 @@
   <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="Suspect card">
     <button class="card-lightbox__close" type="button" data-close-card aria-label="Close">X</button>
     <img class="card-lightbox__image" data-card-lightbox-image alt="">
+  </div>
+  <div class="golden-modal" data-golden-modal hidden role="dialog" aria-modal="true" aria-label="AI 윤리 황금열쇠">
+    <div class="golden-modal__panel">
+      <button class="golden-modal__close" type="button" data-golden-close aria-label="닫기">X</button>
+      <p class="golden-modal__kicker" data-golden-kicker>AI 윤리 황금열쇠</p>
+      <h2 class="golden-modal__title" data-golden-title>황금열쇠 카드</h2>
+      <div class="golden-modal__code" data-golden-code>코드 확인</div>
+      <section class="golden-modal__section">
+        <h3>AI 윤리 의미</h3>
+        <p data-golden-meaning></p>
+      </section>
+      <section class="golden-modal__section">
+        <h3>팝업 내용</h3>
+        <p data-golden-popup></p>
+      </section>
+      <p class="golden-modal__delta" data-golden-delta>코인 변동 없음</p>
+    </div>
   </div>
   <div class="similarity-modal" data-similarity-modal hidden role="dialog" aria-modal="true" aria-label="최종 유사도 측정">
     <div class="similarity-modal__panel">

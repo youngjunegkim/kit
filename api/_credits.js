@@ -16,6 +16,7 @@ const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map
 const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore || [];
 const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new Map();
 const memorySimilarityFreeStore = globalThis.__kitSimilarityFreeStore || new Map();
+const memoryGoldenNoticeStore = globalThis.__kitGoldenNoticeStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -31,6 +32,7 @@ globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
 globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
 globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
 globalThis.__kitSimilarityFreeStore = memorySimilarityFreeStore;
+globalThis.__kitGoldenNoticeStore = memoryGoldenNoticeStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
@@ -180,6 +182,10 @@ function similaritySubmitKeyFor(team) {
 
 function similarityFreeResubmitKeyFor(team) {
   return `kit:${storeNamespace()}:similarity-free-resubmits:${team}`;
+}
+
+function goldenNoticeKeyFor(team) {
+  return `kit:${storeNamespace()}:golden-notices:${team}`;
 }
 
 function hasPersistentStore() {
@@ -758,6 +764,27 @@ function cleanSimilaritySentenceEntry(entry = {}) {
   };
 }
 
+function cleanGoldenNoticeEntry(entry = {}) {
+  const team = normalizeTeam(entry.team);
+  if (!team) return null;
+
+  return {
+    id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    at: String(entry.at || new Date().toISOString()),
+    team,
+    sourceTeam: normalizeTeam(entry.sourceTeam) || "",
+    code: String(entry.code || "").replace(/[^a-z0-9]/gi, "").toUpperCase().slice(0, 12),
+    title: String(entry.title || "황금열쇠").trim().slice(0, 60),
+    concept: String(entry.concept || "").trim().slice(0, 40),
+    ethicsMeaning: String(entry.ethicsMeaning || "").trim().slice(0, 360),
+    popup: String(entry.popup || entry.message || "").trim().slice(0, 500),
+    delta: Math.round(Number(entry.delta) || 0),
+    credits: cleanCredits(entry.credits),
+    tone: String(entry.tone || "").trim().slice(0, 20),
+    namespace: String(entry.namespace || storeNamespace()).trim()
+  };
+}
+
 async function getSimilaritySubmitCount(team) {
   const normalized = normalizeTeam(team);
   if (!normalized) return 0;
@@ -848,6 +875,58 @@ async function recordSimilaritySentence(entry) {
   await redisCommand(["LPUSH", similaritySentenceKey(), JSON.stringify(cleanEntry)]);
   await redisCommand(["LTRIM", similaritySentenceKey(), "0", String(maxStoredLogs - 1)]);
   return cleanEntry;
+}
+
+async function recordGoldenNotice(team, entry = {}) {
+  const cleanEntry = cleanGoldenNoticeEntry({ ...entry, team });
+  if (!cleanEntry) return null;
+
+  if (!hasPersistentStore()) {
+    const key = goldenNoticeKeyFor(cleanEntry.team);
+    const notices = memoryGoldenNoticeStore.get(key) || [];
+    notices.unshift(cleanEntry);
+    notices.splice(12);
+    memoryGoldenNoticeStore.set(key, notices);
+    return cleanEntry;
+  }
+
+  const key = goldenNoticeKeyFor(cleanEntry.team);
+  await redisCommand(["LPUSH", key, JSON.stringify(cleanEntry)]);
+  await redisCommand(["LTRIM", key, "0", "11"]);
+  return cleanEntry;
+}
+
+async function consumeGoldenNotices(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return [];
+
+  if (!hasPersistentStore()) {
+    const key = goldenNoticeKeyFor(normalized);
+    const notices = (memoryGoldenNoticeStore.get(key) || [])
+      .map(cleanGoldenNoticeEntry)
+      .filter(Boolean)
+      .reverse();
+    memoryGoldenNoticeStore.delete(key);
+    return notices;
+  }
+
+  const key = goldenNoticeKeyFor(normalized);
+  const script = [
+    "local items = redis.call('LRANGE', KEYS[1], 0, -1)",
+    "redis.call('DEL', KEYS[1])",
+    "return items"
+  ].join("; ");
+  const rawNotices = await redisCommand(["EVAL", script, "1", key]);
+  return (Array.isArray(rawNotices) ? rawNotices : [])
+    .map((item) => {
+      try {
+        return cleanGoldenNoticeEntry(JSON.parse(item));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .reverse();
 }
 
 async function getSimilaritySentences(limit = maxReturnedEvidenceLogs) {
@@ -1220,6 +1299,7 @@ module.exports = {
   consumeCredits,
   consumeSimilarityFreeResubmit,
   clearQuestionLogs,
+  consumeGoldenNotices,
   currentClassId,
   getAllCredits,
   getAllEvidenceGrants,
@@ -1246,6 +1326,7 @@ module.exports = {
   normalizeTeam,
   recordEvidenceRedemption,
   recordEthicsQuizRedemption,
+  recordGoldenNotice,
   recordSimilaritySentence,
   removePresence,
   requestClassId,
