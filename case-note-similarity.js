@@ -67,7 +67,7 @@
     }
   ];
 
-  const defaultTeams = ["1팀", "2팀", "3팀", "4팀"];
+  const defaultTeams = ["1팀", "2팀", "3팀", "4팀", "5팀"];
   const studentTeamIds = {
     "승우": "1",
     "연수": "2",
@@ -424,6 +424,15 @@
         remainingCredits: cleanRemainingCredits(team.remainingCredits)
       }));
       state.reports = Array.isArray(parsed.reports) ? parsed.reports : [];
+      const hasSavedContent = state.teams.some((team) =>
+        String(team.note || "").trim() || team.result || cleanRemainingCredits(team.remainingCredits)
+      ) || state.reports.length;
+      if (!hasSavedContent && state.teams.length < defaultTeams.length) {
+        while (state.teams.length < defaultTeams.length) {
+          const index = state.teams.length;
+          state.teams.push(createTeam(defaultTeams[index], index + 1));
+        }
+      }
     } catch {
       state.teams = defaultTeams.map((name, index) => createTeam(name, index + 1));
       state.reports = [];
