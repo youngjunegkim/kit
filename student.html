@@ -989,6 +989,12 @@
       width: 100%;
     }
 
+    .student-status-metrics .receive-credit-btn--status {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 999px;
+    }
+
     .student-menu .student-status-bar {
       padding: 0;
       border: 0;
@@ -1249,6 +1255,15 @@
       font-size: 0.92rem;
     }
 
+    .credit-pill [data-credit-count] {
+      color: #fff8df;
+      font-size: 1.04rem;
+      font-weight: 1000;
+      letter-spacing: 0;
+      text-shadow: 0 0 14px rgba(255, 217, 120, 0.28);
+      white-space: nowrap;
+    }
+
     .status-ok {
       color: #8ee0b2;
     }
@@ -1307,9 +1322,9 @@
       place-items: center;
       margin: 0;
       width: 100%;
-      min-height: 430px;
+      min-height: 0;
       height: auto;
-      aspect-ratio: 1 / 1.22;
+      aspect-ratio: 1 / 0.92;
       border-radius: 8px;
       overflow: hidden;
       background: #000;
@@ -2883,12 +2898,13 @@
           <div class="student-status-metrics">
             <div class="credit-pill" aria-label="남은 코인">
               <span data-team-label>학생</span>
-              <strong data-credit-count>확인 중</strong>
+              <strong data-credit-count>coin: 확인 중</strong>
             </div>
             <div class="credit-pill" aria-label="사용한 코인">
               <span>사용</span>
               <strong data-log-count>0회</strong>
             </div>
+            <button class="receive-credit-btn receive-credit-btn--status" type="button" data-refresh-credits>코인 받기</button>
             <div class="credit-pill" aria-label="AI 연결 상태">
               <span>AI</span>
               <strong data-api-status>확인 중</strong>
@@ -2932,7 +2948,6 @@
           </form>
           <div class="ethics-solved-summary" data-student-ethics-solved>푼 문제: 없음</div>
           <button class="ethics-reset-btn" type="button" data-student-ethics-reset>푼 문제 초기화</button>
-          <button class="receive-credit-btn" type="button" data-refresh-credits>코인 받기</button>
           <button class="logout-btn" type="button" data-logout>로그아웃</button>
         </div>
       </aside>

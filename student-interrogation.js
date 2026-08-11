@@ -204,7 +204,8 @@
 
   function setCreditText(text) {
     creditCounts.forEach((node) => {
-      node.textContent = text;
+      const value = String(text || "").trim();
+      node.textContent = /^coin\s*:/i.test(value) ? value : `coin: ${value}`;
     });
   }
 
