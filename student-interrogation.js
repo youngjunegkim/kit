@@ -2115,12 +2115,12 @@
       return;
     }
     if (!code) {
-      setEvidenceMessage("증거 코드를 입력하세요.", "bad");
+      setEvidenceMessage("황금열쇠 코드를 입력하세요.", "bad");
       return;
     }
 
     state.redeeming = true;
-    setEvidenceMessage("증거 코드 확인 중...", "");
+    setEvidenceMessage("황금열쇠 코드 확인 중...", "");
     updateControls();
 
     try {
@@ -2156,10 +2156,10 @@
           return;
         }
         const message = data.code === "ALREADY_REDEEMED"
-          ? "이미 사용한 증거 코드입니다."
+          ? "이미 사용한 황금열쇠 코드입니다."
           : data.code === "INVALID_EVIDENCE_CODE"
-            ? "증거 코드가 맞지 않습니다."
-            : data.error || "증거 코드를 확인하지 못했습니다.";
+            ? "황금열쇠 코드가 맞지 않습니다."
+            : data.error || "황금열쇠 코드를 확인하지 못했습니다.";
         throw new Error(message);
       }
 
@@ -2185,7 +2185,7 @@
       setEvidenceMessage(`${teamLabelFor(state.team)} 코인 ${Number(data.added || evidenceRewardCredits)}개 추가 · ${card.room} 증거 카드 ${card.index}`, "ok");
       if (evidenceInput) evidenceInput.value = "";
     } catch (error) {
-      setEvidenceMessage(error.message || "증거 코드를 확인하지 못했습니다.", "bad");
+      setEvidenceMessage(error.message || "황금열쇠 코드를 확인하지 못했습니다.", "bad");
       await refreshCredits();
     } finally {
       state.redeeming = false;
