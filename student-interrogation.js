@@ -151,6 +151,7 @@
   const goldenMeaning = document.querySelector("[data-golden-meaning]");
   const goldenPopup = document.querySelector("[data-golden-popup]");
   const goldenDelta = document.querySelector("[data-golden-delta]");
+  const goldenConfirmBtn = document.querySelector("[data-golden-confirm]");
   const goldenPopupQueue = [];
   let goldenPopupOpen = false;
   const similarityTemplate = (v) =>
@@ -285,7 +286,7 @@
     goldenModal.hidden = false;
     goldenPopupOpen = true;
     document.body.classList.add("golden-modal-open");
-    goldenCloseBtn?.focus({ preventScroll: true });
+    (goldenConfirmBtn || goldenCloseBtn)?.focus({ preventScroll: true });
   }
 
   function showNextGoldenPopup() {
@@ -1342,6 +1343,7 @@
 
   function setupGoldenPopup() {
     goldenCloseBtn?.addEventListener("click", closeGoldenPopup);
+    goldenConfirmBtn?.addEventListener("click", closeGoldenPopup);
     goldenModal?.addEventListener("click", (event) => {
       if (event.target === goldenModal) closeGoldenPopup();
     });

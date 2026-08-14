@@ -43,33 +43,33 @@ const evidenceRevisitBonusCredits = 2;
 const goldenKeyCards = {
   974399: {
     effect: "biasHack",
-    title: "코인 해킹",
+    title: "질문권 해킹",
     concept: "편향",
     sign: "-",
     tone: "bad",
     selfDelta: -2,
     ethicsMeaning: "훈련 데이터나 알고리즘의 한계로 인해 특정 집단이나 관점에 치우친 불공정한 결과를 내는 현상",
-    popup: "[편향] 편향된 데이터처럼 특정 팀에게 코인이 치우치는 현상 발생! 해당 팀의 코인 2개가 사라집니다. 단, 현재 가진 코인 이하로만 차감됩니다."
+    popup: "[편향] 편향된 데이터처럼 특정 팀에게 코인이 치우치는 현상 발생! 해당 팀의 코인 두 개가 사라집니다."
   },
   337446: {
     effect: "biasedJudgment",
-    title: "편향된 판단",
+    title: "편향된 판단 (편향성 검증)",
     concept: "편향",
     sign: "-",
     tone: "bad",
     selfDelta: -2,
     ethicsMeaning: "훈련 데이터나 알고리즘의 한계로 인해 특정 집단이나 관점에 치우친 불공정한 결과를 내는 현상",
-    popup: "[편향] 편향된 AI가 특정 정보와 관점에 치우친 답변을 생성했습니다. 해당 팀은 코인 2개를 잃습니다. 단, 현재 가진 코인 이하로만 차감됩니다."
+    popup: "[편향] AI가 특정 정보와 관점에 치우친 답변 생성! 해당 팀은 코인 두 개를 잃습니다."
   },
   906458: {
     effect: "humanChoice",
-    title: "인간의 선택",
+    title: "인간의 선택 (주체성)",
     concept: "신뢰성",
     sign: "+",
     tone: "ok",
     selfDelta: 2,
     ethicsMeaning: "AI를 사용하는 목적과 의도 안에서 안전하게 사용하기",
-    popup: "[신뢰성] AI를 사용하는 목적과 의도 안에서 안전하게 사용했습니다. 해당 팀은 코인 2개를 획득합니다."
+    popup: "[신뢰성] AI를 사용하는 목적과 의도 안에서 안전하게 사용하기! 해당 팀은 코인 두 개를 획득합니다."
   },
   281797: {
     effect: "hallucinationTrap",
@@ -79,17 +79,27 @@ const goldenKeyCards = {
     tone: "bad",
     selfDelta: -2,
     ethicsMeaning: "AI가 교묘하게 정보나 사실이 아닌 거짓된 내용을 실제인 것처럼 그럴듯하게 생성해내는 현상",
-    popup: "[환각] AI는 사실이 아닌 정보를 그럴듯하게 만들어낼 수 있습니다. 신뢰를 잃어 코인 2개가 사라집니다."
+    popup: "[환각] AI는 사실이 아닌 정보를 그럴듯하게 만들어낼 수 있습니다. 신뢰를 잃어 코인 두 개가 사라집니다."
   },
   505132: {
-    effect: "hallucinationFilter",
-    title: "가짜뉴스 튕겨내기",
-    concept: "환각 필터",
+    effect: "fakeNews",
+    title: "가짜뉴스 (환각)",
+    concept: "환각",
+    sign: "-",
+    tone: "bad",
+    selfDelta: -2,
+    ethicsMeaning: "AI가 교묘하게 정보나 사실이 아닌 거짓된 내용을 실제인 것처럼 그럴듯하게 생성해내는 현상",
+    popup: "[환각] AI가 교묘하게 만들어낸 거짓된 내용으로 가짜뉴스가 발생했습니다! 해당 팀은 코인 두 개를 잃습니다."
+  },
+  149489: {
+    effect: "sourceAttribution",
+    title: "저작권 출처 표시",
+    concept: "신뢰성",
     sign: "+",
     tone: "ok",
-    selfDelta: 2,
-    ethicsMeaning: "AI의 환각에 속지 않고 정보를 검증하며 올바른 판단을 내리는 능력",
-    popup: "[환각] AI가 교묘하게 만들어낸 거짓된 내용에 대처했습니다. AI의 환각에 속지 않고 비판적으로 판단한 보상으로 코인 2개를 얻습니다."
+    selfDelta: 4,
+    ethicsMeaning: "AI를 사용하는 목적과 의도 안에서 안전하게 사용하기",
+    popup: "[신뢰성] AI를 올바른 목적과 의도에 맞게 안전하게 사용했습니다. 그 보상으로 코인 4개를 획득합니다."
   },
   382866: {
     effect: "aiUpgradeSweep",
@@ -97,32 +107,32 @@ const goldenKeyCards = {
     concept: "포용성",
     sign: "+",
     tone: "ok",
-    selfDelta: 0,
-    otherDelta: -1,
-    ethicsMeaning: "AI가 낸 차별이나 편견을 포함하지 않고 다양한 모습을 존중하고 있는지 살피기",
-    popup: "[포용성] 시스템 오류 발생! 우리 팀을 제외한 모든 참여 팀에서 코인 1개씩 뺏어옵니다.",
-    affectedPopup: "[포용성] 다른 팀의 AI 업그레이드 효과로 시스템 오류가 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
+    selfDelta: 2,
+    otherDelta: 2,
+    ethicsMeaning: "AI가 낸 차별이나 편견을 포함하지 않고, 다양한 모습을 존중하고 있는지 살피기",
+    popup: "[포용성] 우리 팀을 포함한 모든 팀에서 코인 2개씩 획득합니다.",
+    affectedPopup: "[포용성] 우리 팀을 포함한 모든 팀에서 코인 2개씩 획득합니다."
   },
   144051: {
     effect: "privacyShield",
-    title: "투명인간 보호막",
+    title: "투명인간 보호막 (개인정보 보호)",
     concept: "책임성",
     sign: "+",
     tone: "ok",
     selfDelta: 0,
     ethicsMeaning: "AI의 결과에 따라 문제가 발생한다면 충분히 책임질 수 있는 범위 안에서 사용하기",
-    popup: "[책임성] 개인정보 보호처럼 안전하게 다음 1턴 동안 상대의 모든 공격이나 지목 대상에서 제외됩니다. 코인 가감은 없습니다."
+    popup: "[책임성] AI의 결과에 따라 문제가 발생한다면 충분히 책임질 수 있는 범위 안에서 사용하기! 개인정보 보호처럼 안전하게 제외됩니다. 코인 가감은 없습니다. 다음 1턴 동안 상대의 모든 공격이나 지목 대상에서 회피합니다."
   },
   913561: {
     effect: "openSource",
-    title: "오픈소스",
+    title: "오픈소스 (같이 전진!)",
     concept: "포용성",
     sign: "+",
     tone: "ok",
     selfDelta: 1,
     otherDelta: 1,
-    ethicsMeaning: "AI가 낸 차별이나 편견을 포함하지 않고 다양한 모습을 존중하고 있는지 살피기",
-    popup: "[포용성] 차별이나 편견을 포함하지 않고 다양한 모습을 존중하며 같이 전진합니다. 해당 팀을 포함한 모든 참여 팀이 코인 1개씩 얻습니다.",
+    ethicsMeaning: "AI가 낸 차별이나 편견을 포함하지 않고, 다양한 모습을 존중하고 있는지 살피기 (여기서 참여 중인 팀은 부여 코인이 1개 이상 있는 팀 기준)",
+    popup: "[포용성] 차별이나 편견을 포함하지 않고 다양한 모습을 존중하며 같이 전진하기! 해당 팀을 포함한 모든 팀이 코인을 한 개씩 얻습니다.",
     affectedPopup: "[포용성] 다른 팀의 오픈소스 효과로 모두 함께 전진합니다. 우리 팀 코인 1개가 추가되었습니다."
   },
   392990: {
@@ -133,7 +143,7 @@ const goldenKeyCards = {
     tone: "ok",
     selfDelta: 0,
     ethicsMeaning: "AI의 결과에 따라 문제가 발생한다면 충분히 책임질 수 있는 범위 안에서 사용하기",
-    popup: "[책임성 / 통제] 너무 앞서가는 팀 1곳을 지목해 다음 턴 강제 휴식(일시정지)을 시킬 수 있습니다. 코인 가감은 없습니다."
+    popup: "[책임성 / 통제] AI의 결과에 따라 문제가 발생한다면 충분히 책임질 수 있는 범위 안에서 사용하기! 너무 앞서가는 팀 1곳을 지목해 다음 턴 강제 휴식(일시정지)을 시킵니다. 코인 가감은 없습니다."
   },
   244391: {
     effect: "deepfakeEvent",
@@ -144,8 +154,8 @@ const goldenKeyCards = {
     selfDelta: -1,
     otherDelta: -1,
     ethicsMeaning: "인공지능을 활용해 특정 인물의 얼굴이나 음성을 합성하여 진짜처럼 만드는 기술 및 결과물",
-    popup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 해당 팀을 포함해 코인을 가진 모든 팀의 코인 1개가 사라집니다.",
-    affectedPopup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
+    popup: "[딥페이크 경보 발동] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생! 해당 팀을 포함한 코인 1개 이상 가진 모든 팀의 코인이 1개씩 사라집니다.",
+    affectedPopup: "[딥페이크 경보 발동] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
   },
   564376: {
     effect: "deepfakeEvent",
@@ -156,8 +166,8 @@ const goldenKeyCards = {
     selfDelta: -1,
     otherDelta: -1,
     ethicsMeaning: "인공지능을 활용해 특정 인물의 얼굴이나 음성을 합성하여 진짜처럼 만드는 기술 및 결과물",
-    popup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 해당 팀을 포함해 코인을 가진 모든 팀의 코인 1개가 사라집니다.",
-    affectedPopup: "[딥페이크 경보 발생] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
+    popup: "[딥페이크 경보 발동] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생! 해당 팀을 포함한 코인 1개 이상 가진 모든 팀의 코인이 1개씩 사라집니다.",
+    affectedPopup: "[딥페이크 경보 발동] 인공지능 합성 가짜뉴스가 퍼져 사회적 혼란이 발생했습니다. 우리 팀 코인 1개가 차감되었습니다."
   }
 };
 
@@ -255,14 +265,16 @@ async function applyGoldenKey(team, card, actor) {
     otherCount = Math.max(0, targets.size - 1);
     await notifyGoldenTargets(card, team, applied);
   } else if (card.effect === "aiUpgradeSweep") {
-    const others = (await participatingTeams()).filter((other) => other !== team);
-    for (const other of others) {
-      applied.push(await applyGoldenDelta(other, card, actor, -1));
+    const targets = new Set(await teamsWithCredits());
+    targets.add(team);
+    for (const target of targets) {
+      const entry = await applyGoldenDelta(target, card, actor, 2);
+      applied.push(entry);
+      if (target === team) selfDelta = entry.delta;
     }
-    otherDelta = -1;
-    otherCount = applied.filter((entry) => entry.team !== team && entry.delta !== 0).length;
+    otherDelta = 2;
+    otherCount = Math.max(0, targets.size - 1);
     await notifyGoldenTargets(card, team, applied);
-    applied.push(await applyGoldenDelta(team, card, actor, 0));
   } else if (card.effect === "deepfakeEvent") {
     const targets = new Set(await teamsWithCredits());
     targets.add(team);

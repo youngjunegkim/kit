@@ -1864,18 +1864,35 @@
     }
 
     .golden-modal__delta {
+      display: block;
+      width: 100%;
       margin: 18px 0 0;
+      border: 0;
       border-radius: 8px;
       background: #1a6f47;
       color: #fff;
+      cursor: pointer;
       padding: 13px 14px;
+      font: inherit;
       font-size: 1.08rem;
       font-weight: 1000;
+      line-height: 1.35;
       text-align: center;
+      box-shadow: 0 12px 26px rgba(26, 111, 71, 0.22);
+      transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
     }
 
     .golden-modal.is-bad .golden-modal__delta {
       background: #a71917;
+      box-shadow: 0 12px 26px rgba(167, 25, 23, 0.24);
+    }
+
+    .golden-modal__delta:hover,
+    .golden-modal__delta:focus-visible {
+      filter: brightness(0.94);
+      outline: 3px solid rgba(255, 255, 255, 0.64);
+      outline-offset: 3px;
+      transform: translateY(-1px);
     }
 
     .credit-pill.is-credit-up {
@@ -2882,6 +2899,123 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @media (min-width: 700px) and (min-height: 600px) and (max-width: 1180px) {
+      body[data-auth="student"] {
+        min-width: 1180px;
+        overflow-x: auto;
+      }
+
+      body[data-auth="student"] .page {
+        width: 1180px;
+        max-width: none;
+        padding: 18px;
+      }
+
+      body[data-auth="student"] .student-status-bar {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      body[data-auth="student"] .student-status-metrics {
+        grid-template-columns: repeat(4, minmax(130px, 1fr));
+      }
+
+      body[data-auth="student"] .student-workspace {
+        grid-template-columns: 220px minmax(0, 1fr);
+      }
+
+      body[data-auth="student"] .student-main {
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+      }
+
+      body[data-auth="student"] .student-menu,
+      body[data-auth="student"] .evidence-vault-card,
+      body[data-auth="student"] .case-note-card {
+        position: sticky;
+        top: 18px;
+      }
+
+      body[data-auth="student"] .student-tools {
+        grid-template-columns: 1fr;
+      }
+
+      body[data-auth="student"] .ethics-quiz-tile,
+      body[data-auth="student"] .ethics-picker-form,
+      body[data-auth="student"] .ethics-reset-btn,
+      body[data-auth="student"] .ethics-solved-summary {
+        grid-column: auto;
+      }
+
+      body[data-auth="student"] .evidence-claim-options.evidence-claim-deck {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      body[data-auth="student"] .suspect-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      body[data-auth="student"] .suspect-column,
+      body[data-auth="student"] .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      body[data-auth="student"] .chat-card,
+      body[data-auth="student"] .suspect-card,
+      body[data-auth="student"] .note-card {
+        grid-column: auto;
+        grid-row: auto;
+      }
+
+      body[data-auth="student"] .chat-card {
+        grid-template-rows: auto minmax(150px, 24vh) auto;
+      }
+
+      body[data-auth="student"] .suspect-card img {
+        max-height: 100%;
+      }
+
+      body[data-auth="student"] .case-note-button {
+        grid-template-columns: 86px minmax(0, 1fr) 210px;
+        min-height: 116px;
+      }
+
+      body[data-auth="student"] .case-note-button__icon {
+        width: 54px;
+        height: 54px;
+        margin-left: 20px;
+        border-width: 4px;
+      }
+
+      body[data-auth="student"] .case-note-button__icon::after {
+        right: -15px;
+        bottom: -10px;
+        width: 24px;
+        height: 8px;
+      }
+
+      body[data-auth="student"] .case-note-button__copy {
+        padding: 18px 8px 18px 0;
+      }
+
+      body[data-auth="student"] .case-note-button__copy strong {
+        font-size: clamp(1.26rem, 2vw, 2rem);
+      }
+
+      body[data-auth="student"] .case-note-button__copy span {
+        font-size: 0.96rem;
+      }
+
+      body[data-auth="student"] .case-note-button__mascot {
+        min-height: 116px;
+      }
+
+      body[data-auth="student"] .case-note-button__mascot img {
+        right: -18px;
+        bottom: -22px;
+        width: 220px;
+        height: 148px;
+      }
+    }
   </style>
   <link rel="stylesheet" href="kit-ui-polish.css?v=20260725-ui1">
 </head>
@@ -3065,7 +3199,7 @@
         <h3>팝업 내용</h3>
         <p data-golden-popup></p>
       </section>
-      <p class="golden-modal__delta" data-golden-delta>코인 변동 없음</p>
+      <button class="golden-modal__delta" type="button" data-golden-delta data-golden-confirm>코인 변동 없음</button>
     </div>
   </div>
   <div class="similarity-modal" data-similarity-modal hidden role="dialog" aria-modal="true" aria-label="최종 유사도 측정">
