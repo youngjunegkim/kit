@@ -244,6 +244,33 @@
     if (node) node.textContent = text || "";
   }
 
+  function setHighlightedText(node, text, highlights = []) {
+    if (!node) return;
+    const value = String(text || "");
+    const marker = (Array.isArray(highlights) ? highlights : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .find((item) => value.includes(item));
+    node.textContent = "";
+    if (!marker) {
+      node.textContent = value;
+      return;
+    }
+
+    let start = 0;
+    let index = value.indexOf(marker, start);
+    while (index >= 0) {
+      if (index > start) node.append(document.createTextNode(value.slice(start, index)));
+      const emphasis = document.createElement("strong");
+      emphasis.className = "golden-modal__emphasis";
+      emphasis.textContent = marker;
+      node.append(emphasis);
+      start = index + marker.length;
+      index = value.indexOf(marker, start);
+    }
+    if (start < value.length) node.append(document.createTextNode(value.slice(start)));
+  }
+
   function formatCoinDelta(delta) {
     const value = Math.round(Number(delta) || 0);
     if (value > 0) return `코인 +${value}개`;
@@ -279,7 +306,7 @@
     setNodeText(goldenTitle, titleText);
     setNodeText(goldenCode, codeText);
     setNodeText(goldenMeaning, payload.ethicsMeaning || "이 카드의 AI 윤리 개념을 확인하세요.");
-    setNodeText(goldenPopup, payload.popup || payload.message || "황금열쇠 효과가 적용되었습니다.");
+    setHighlightedText(goldenPopup, payload.popup || payload.message || "황금열쇠 효과가 적용되었습니다.", payload.popupHighlights);
     setNodeText(goldenDelta, `${formatCoinDelta(delta)}${currentText}`);
     goldenModal.classList.toggle("is-bad", isBad);
     goldenModal.classList.toggle("is-good", !isBad);

@@ -1863,6 +1863,16 @@
       font-weight: 850;
     }
 
+    .golden-modal__emphasis {
+      color: #b91f1f;
+      font-size: 1.12em;
+      font-weight: 1000;
+      text-decoration: underline;
+      text-decoration-thickness: 0.12em;
+      text-underline-offset: 0.18em;
+      white-space: nowrap;
+    }
+
     .golden-modal__delta {
       display: block;
       width: 100%;
@@ -2904,43 +2914,57 @@
       }
     }
 
-    @media (min-width: 700px) and (min-height: 600px) and (max-width: 1180px) {
+    @media (min-width: 700px) and (min-height: 600px) and (max-width: 1180px),
+      (hover: none) and (pointer: coarse) and (min-width: 700px) and (min-height: 600px) and (max-width: 1400px) {
       body[data-auth="student"] {
-        min-width: 1180px;
-        overflow-x: auto;
+        min-width: 0;
+        overflow-x: hidden;
       }
 
       body[data-auth="student"] .page {
-        width: 1180px;
+        width: 100%;
         max-width: none;
-        padding: 18px;
+        padding: clamp(12px, 1.4vw, 18px);
+      }
+
+      body[data-auth="student"] .topbar {
+        margin-bottom: 12px;
       }
 
       body[data-auth="student"] .student-status-bar {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: 1fr;
       }
 
       body[data-auth="student"] .student-status-metrics {
-        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        grid-template-columns: 1fr;
       }
 
       body[data-auth="student"] .student-workspace {
-        grid-template-columns: 220px minmax(0, 1fr);
+        grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
+        gap: 14px;
       }
 
       body[data-auth="student"] .student-main {
-        grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+        grid-template-columns: 1fr;
+        gap: 14px;
       }
 
       body[data-auth="student"] .student-menu,
-      body[data-auth="student"] .evidence-vault-card,
       body[data-auth="student"] .case-note-card {
         position: sticky;
-        top: 18px;
+        top: 12px;
+      }
+
+      body[data-auth="student"] .student-menu {
+        max-height: calc(100dvh - 24px);
+        overflow-y: auto;
+        padding: 12px;
+        gap: 10px;
       }
 
       body[data-auth="student"] .student-tools {
         grid-template-columns: 1fr;
+        gap: 8px;
       }
 
       body[data-auth="student"] .ethics-quiz-tile,
@@ -2956,11 +2980,13 @@
 
       body[data-auth="student"] .suspect-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
       }
 
       body[data-auth="student"] .suspect-column,
       body[data-auth="student"] .footer-grid {
         grid-template-columns: 1fr;
+        gap: 8px;
       }
 
       body[data-auth="student"] .chat-card,
@@ -2971,7 +2997,41 @@
       }
 
       body[data-auth="student"] .chat-card {
-        grid-template-rows: auto minmax(150px, 24vh) auto;
+        grid-template-rows: auto minmax(136px, 20dvh) auto;
+      }
+
+      body[data-auth="student"] .chat-head,
+      body[data-auth="student"] .student-log-head {
+        padding: 10px;
+      }
+
+      body[data-auth="student"] .messages {
+        gap: 7px;
+        padding: 10px;
+      }
+
+      body[data-auth="student"] .message__bubble {
+        padding: 8px 9px;
+        font-size: 0.82rem;
+        line-height: 1.42;
+      }
+
+      body[data-auth="student"] .chat-form {
+        grid-template-columns: minmax(0, 1fr) 56px;
+        gap: 4px 6px;
+        padding: 8px;
+      }
+
+      body[data-auth="student"] .chat-input {
+        min-height: 38px;
+        padding: 8px;
+        font-size: 0.84rem;
+      }
+
+      body[data-auth="student"] .send-btn {
+        min-width: 56px;
+        min-height: 38px;
+        padding: 8px;
       }
 
       body[data-auth="student"] .suspect-card img {
@@ -2979,45 +3039,66 @@
       }
 
       body[data-auth="student"] .case-note-button {
-        grid-template-columns: 86px minmax(0, 1fr) 210px;
-        min-height: 116px;
+        grid-template-columns: 74px minmax(0, 1fr) minmax(150px, 180px);
+        min-height: 104px;
       }
 
       body[data-auth="student"] .case-note-button__icon {
-        width: 54px;
-        height: 54px;
-        margin-left: 20px;
-        border-width: 4px;
+        width: 48px;
+        height: 48px;
+        margin-left: 16px;
+        border-width: 3px;
       }
 
       body[data-auth="student"] .case-note-button__icon::after {
-        right: -15px;
-        bottom: -10px;
-        width: 24px;
-        height: 8px;
+        right: -13px;
+        bottom: -9px;
+        width: 22px;
+        height: 7px;
       }
 
       body[data-auth="student"] .case-note-button__copy {
-        padding: 18px 8px 18px 0;
+        padding: 16px 8px 16px 0;
       }
 
       body[data-auth="student"] .case-note-button__copy strong {
-        font-size: clamp(1.26rem, 2vw, 2rem);
+        font-size: clamp(1.14rem, 1.8vw, 1.65rem);
       }
 
       body[data-auth="student"] .case-note-button__copy span {
-        font-size: 0.96rem;
+        font-size: 0.86rem;
       }
 
       body[data-auth="student"] .case-note-button__mascot {
-        min-height: 116px;
+        min-height: 104px;
       }
 
       body[data-auth="student"] .case-note-button__mascot img {
-        right: -18px;
-        bottom: -22px;
-        width: 220px;
-        height: 148px;
+        right: -24px;
+        bottom: -20px;
+        width: 188px;
+        height: 130px;
+      }
+
+      body[data-auth="student"] .evidence-vault-card {
+        position: static;
+      }
+
+      body[data-auth="student"] .evidence-vault-layout {
+        grid-template-columns: 1fr;
+      }
+
+      body[data-auth="student"] .evidence-board {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      body[data-auth="student"] .evidence-board-slot {
+        min-height: 58px;
+      }
+
+      body[data-auth="student"] .evidence-room-detail {
+        min-height: 0;
       }
     }
   </style>
