@@ -1122,6 +1122,15 @@
     similarityBlanks.forEach(autoGrowSimilarityBlank);
   }
 
+  function restoreSimilarityBlankValue(element, value) {
+    if (element.tagName === "SELECT") {
+      const hasOption = [...element.options].some((option) => option.value === value);
+      element.value = hasOption ? value : "";
+      return;
+    }
+    element.value = value;
+  }
+
   function loadSimilarityDraft() {
     let saved = {};
     try {
@@ -1131,7 +1140,7 @@
     }
     similarityBlanks.forEach((element) => {
       const key = element.dataset.similarityBlank;
-      if (typeof saved[key] === "string") element.value = saved[key];
+      if (typeof saved[key] === "string") restoreSimilarityBlankValue(element, saved[key]);
     });
     autoGrowAllSimilarityBlanks();
     updateSimilarityCounter();
@@ -1322,11 +1331,13 @@
   function setupSimilaritySentenceForm() {
     updateSimilarityCounter();
     similarityBlanks.forEach((element) => {
-      element.addEventListener("input", () => {
+      const handleChange = () => {
         autoGrowSimilarityBlank(element);
         saveSimilarityDraft();
         updateSimilarityCounter();
-      });
+      };
+      element.addEventListener("input", handleChange);
+      element.addEventListener("change", handleChange);
     });
     similarityOpenBtn?.addEventListener("click", openSimilarityModal);
     similarityCloseBtn?.addEventListener("click", closeSimilarityModal);

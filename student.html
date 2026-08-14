@@ -2045,6 +2045,10 @@
       width: 132px;
     }
 
+    .s-blank--choice {
+      cursor: pointer;
+    }
+
     .s-blank--md {
       width: 210px;
       max-width: 100%;
@@ -3224,7 +3228,11 @@
             <textarea class="s-blank s-blank--area" data-similarity-blank="evidence" maxlength="190" rows="2" placeholder="확인한 근거를 쉼표로 구분해 적으세요"></textarea>
             <p class="s-line">
               <span>이다. 범인에게 가장 부족했던 AI 윤리 역량은</span>
-              <input class="s-blank s-blank--sm" type="text" data-similarity-blank="competency" maxlength="15" placeholder="역량">
+              <select class="s-blank s-blank--sm s-blank--choice" data-similarity-blank="competency" aria-label="부족했던 AI 윤리 역량 선택">
+                <option value="">선택</option>
+                <option value="신뢰성">신뢰성</option>
+                <option value="주체성">주체성</option>
+              </select>
               <span>이며, 그 이유는</span>
             </p>
             <textarea class="s-blank s-blank--area" data-similarity-blank="reason" maxlength="170" rows="2" placeholder="왜 그 역량이 부족했는지 적으세요"></textarea>
