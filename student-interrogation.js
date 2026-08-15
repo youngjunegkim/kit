@@ -144,7 +144,6 @@
   const similarityConfirmSend = document.querySelector("[data-similarity-confirm-send]");
   const similarityConfirmCancel = document.querySelector("[data-similarity-confirm-cancel]");
   const goldenModal = document.querySelector("[data-golden-modal]");
-  const goldenCloseBtn = document.querySelector("[data-golden-close]");
   const goldenKicker = document.querySelector("[data-golden-kicker]");
   const goldenTitle = document.querySelector("[data-golden-title]");
   const goldenCode = document.querySelector("[data-golden-code]");
@@ -313,7 +312,7 @@
     goldenModal.hidden = false;
     goldenPopupOpen = true;
     document.body.classList.add("golden-modal-open");
-    (goldenConfirmBtn || goldenCloseBtn)?.focus({ preventScroll: true });
+    goldenConfirmBtn?.focus({ preventScroll: true });
   }
 
   function showNextGoldenPopup() {
@@ -1380,14 +1379,7 @@
   }
 
   function setupGoldenPopup() {
-    goldenCloseBtn?.addEventListener("click", closeGoldenPopup);
     goldenConfirmBtn?.addEventListener("click", closeGoldenPopup);
-    goldenModal?.addEventListener("click", (event) => {
-      if (event.target === goldenModal) closeGoldenPopup();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && goldenModal && !goldenModal.hidden) closeGoldenPopup();
-    });
   }
 
   function updateEvidenceControls() {
