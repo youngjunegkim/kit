@@ -1,5 +1,5 @@
 (function () {
-  const classId = sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  const classId = "class-a";
   const STORAGE_KEY = `kit-case-note-similarity-v2:${classId}`;
   const standardNote = [
     "범인은 강우진이다.",

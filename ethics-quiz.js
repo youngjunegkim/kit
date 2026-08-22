@@ -297,7 +297,7 @@
   const choiceMarkers = ["\u2460", "\u2461", "\u2462", "\u2463", "\u2464"];
 
   function quizClassId() {
-    return sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+    return "class-a";
   }
 
   function customQuestionStorageKey() {

@@ -8,7 +8,7 @@
 
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const role = sessionStorage.getItem("kit-auth-role") || "";
-  const classId = sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  const classId = "class-a";
   const teamDisplayIds = {
     "승우": "1",
     "연수": "2",

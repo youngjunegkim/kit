@@ -2,7 +2,7 @@
   const root = document.querySelector("[data-ethics-manager]");
   if (!root) return;
 
-  const classId = sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a";
+  const classId = "class-a";
   const user = sessionStorage.getItem("kit-auth-user") || "teacher";
   const choiceMarkers = ["①", "②", "③", "④", "⑤"];
   const baseQuestionCount = 15;

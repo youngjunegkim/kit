@@ -45,7 +45,7 @@
     user: sessionStorage.getItem("kit-auth-user") || "",
     role: sessionStorage.getItem("kit-auth-role") || "",
     team: sessionStorage.getItem("kit-auth-team") || "",
-    classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a",
+    classId: "class-a",
     accessCode: sessionStorage.getItem("class-access-code") || "",
     teacherCode: sessionStorage.getItem("kit-teacher-access-code") || "",
     credits: 0,

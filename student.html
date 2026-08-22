@@ -943,15 +943,6 @@
       letter-spacing: 0;
     }
 
-    .student-class-badge {
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(225, 174, 45, 0.4);
-      padding: 2px 7px;
-      color: #fff;
-      font-size: 0.72rem;
-    }
-
     .student-status-bar {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
@@ -1024,6 +1015,8 @@
       min-width: 0;
       display: grid;
       gap: 16px;
+      grid-column: 1;
+      grid-row: 1;
     }
 
     .credit-pill {
@@ -1661,6 +1654,8 @@
       cursor: pointer;
       box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
       transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      grid-column: 1;
+      grid-row: 2;
     }
 
     .case-note-button:hover,
@@ -2129,6 +2124,8 @@
     .evidence-vault-card {
       position: sticky;
       top: 18px;
+      grid-column: 2;
+      grid-row: 1;
       border: 1px solid rgba(255, 255, 255, 0.62);
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.96);
@@ -2724,6 +2721,13 @@
         grid-template-columns: 1fr;
       }
 
+      .student-content,
+      .evidence-vault-card,
+      .case-note-button {
+        grid-column: 1;
+        grid-row: auto;
+      }
+
       .evidence-vault-card {
         position: static;
       }
@@ -2931,6 +2935,13 @@
         gap: 14px;
       }
 
+      body[data-auth="student"] .student-content,
+      body[data-auth="student"] .evidence-vault-card,
+      body[data-auth="student"] .case-note-button {
+        grid-column: 1;
+        grid-row: auto;
+      }
+
       body[data-auth="student"] .student-menu,
       body[data-auth="student"] .case-note-card {
         position: sticky;
@@ -3095,7 +3106,7 @@
     <div class="student-workspace">
       <aside class="student-menu" aria-label="코인 메뉴">
         <section class="student-status-bar" aria-label="학생 상태">
-          <strong class="student-status-title">MENU <span class="student-class-badge" data-class-label>1반</span></strong>
+          <strong class="student-status-title">MENU</strong>
           <div class="student-status-metrics">
             <div class="credit-pill" aria-label="남은 코인">
               <span data-team-label>학생</span>
@@ -3216,16 +3227,6 @@
 
           <section class="student-ethics-card" id="studentEthicsCard" data-student-ethics-card hidden aria-live="polite"></section>
 
-          <button class="case-note-button" type="button" data-similarity-open aria-label="최종 유사도 측정 팝업 열기">
-            <span class="case-note-button__icon" aria-hidden="true"></span>
-            <span class="case-note-button__copy">
-              <strong>사건노트 최종 제출</strong>
-              <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
-            </span>
-            <span class="case-note-button__mascot" aria-hidden="true">
-              <img src="assets/characters/detective-note-mascot.png" alt="">
-            </span>
-          </button>
         </div>
 
         <section class="evidence-vault-card" aria-label="획득한 증거카드">
@@ -3245,6 +3246,17 @@
             </aside>
           </div>
         </section>
+
+        <button class="case-note-button" type="button" data-similarity-open aria-label="최종 유사도 측정 팝업 열기">
+          <span class="case-note-button__icon" aria-hidden="true"></span>
+          <span class="case-note-button__copy">
+            <strong>사건노트 최종 제출</strong>
+            <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
+          </span>
+          <span class="case-note-button__mascot" aria-hidden="true">
+            <img src="assets/characters/detective-note-mascot.png" alt="">
+          </span>
+        </button>
       </div>
     </div>
   </main>

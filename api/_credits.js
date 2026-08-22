@@ -42,16 +42,6 @@ const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
 const evidenceGrantTtlMs = Number(process.env.KIT_EVIDENCE_GRANT_TTL_MS || 600000);
 const defaultClassId = "class-a";
 
-function decodeValue(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return raw;
-  }
-}
-
 function headerValue(request, name) {
   const value = request?.headers?.[name.toLowerCase()] || request?.headers?.[name];
   return Array.isArray(value) ? value[0] : value;
@@ -66,19 +56,12 @@ function queryValue(request, name) {
   }
 }
 
-function normalizeClassId(value) {
-  const raw = decodeValue(value).toLowerCase().replace(/\s+/g, "");
-  if (!raw) return defaultClassId;
-  if (["1", "1반", "반1", "class1", "class-a", "classa", "a", "a반"].includes(raw)) return "class-a";
-  if (["2", "2반", "반2", "class2", "class-b", "classb", "b", "b반"].includes(raw)) return "class-b";
-  return raw.replace(/[^a-z0-9_-]/g, "").slice(0, 24) || defaultClassId;
+function normalizeClassId() {
+  return defaultClassId;
 }
 
-function classLabelFor(value) {
-  const classId = normalizeClassId(value);
-  if (classId === "class-b") return "2반";
-  if (classId === "class-a") return "1반";
-  return classId;
+function classLabelFor() {
+  return "우리 반";
 }
 
 function currentClassId() {

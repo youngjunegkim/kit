@@ -254,48 +254,6 @@
       margin-top: 20px;
     }
 
-    .class-picker {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .class-btn {
-      min-height: 54px;
-      border-radius: 8px;
-      background: #fffaf0;
-      border: 1px solid #d9c487;
-      color: #59431a;
-      padding: 10px 11px;
-      text-align: left;
-      font-weight: 950;
-    }
-
-    .class-btn span {
-      display: block;
-      margin-top: 3px;
-      color: #7a6747;
-      font-size: 0.76rem;
-      line-height: 1.22;
-      font-weight: 850;
-    }
-
-    .class-btn:hover,
-    .class-btn:focus-visible,
-    .class-btn.is-active {
-      background: #101826;
-      border-color: #101826;
-      color: #fff;
-      outline: none;
-    }
-
-    .class-btn.is-active span,
-    .class-btn:hover span,
-    .class-btn:focus-visible span {
-      color: rgba(255, 255, 255, 0.76);
-    }
-
     .role-btn {
       min-height: 70px;
       border-radius: 8px;
@@ -742,8 +700,7 @@
       }
 
       .ready-list,
-      .role-picker,
-      .class-picker {
+      .role-picker {
         grid-template-columns: 1fr;
       }
 
@@ -838,17 +795,6 @@
         보드게임판
       </button>
 
-      <div class="class-picker" aria-label="진행 반 선택">
-        <button class="class-btn" type="button" data-class-preset="class-a">
-          1반
-          <span>1반 학생/선생님 저장소</span>
-        </button>
-        <button class="class-btn" type="button" data-class-preset="class-b">
-          2반
-          <span>2반 학생/선생님 저장소</span>
-        </button>
-      </div>
-
       <div class="role-picker" aria-label="역할 빠른 선택">
         <button class="role-btn" type="button" data-role-preset="">
           학생용
@@ -856,7 +802,7 @@
         </button>
         <button class="role-btn" type="button" data-role-preset="master">
           선생용
-          <span>선택한 반 진행 화면 및 교실 미션</span>
+          <span>전체 진행 화면 및 교실 미션</span>
         </button>
       </div>
 
@@ -886,7 +832,7 @@
       </form>
 
       <div class="account-note" aria-label="계정별 이동 화면">
-        <div><strong>선생님</strong><span>1반/2반 모두 master</span></div>
+        <div><strong>선생님</strong><span>master</span></div>
         <div><strong>학생</strong><span>1, 2, 3, 4, 5, 6, 7, 8</span></div>
       </div>
     </section>

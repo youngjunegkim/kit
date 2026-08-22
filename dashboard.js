@@ -1,6 +1,5 @@
 (function () {
-  const classKey = "kit-class-section";
-  const classId = sessionStorage.getItem(classKey) || localStorage.getItem("kit-last-class-section") || "class-a";
+  const classId = "class-a";
   const draftKey = `kit-student-question-credit-additions:${classId}`;
   const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
   const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));

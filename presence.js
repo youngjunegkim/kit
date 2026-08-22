@@ -7,7 +7,7 @@
       role: sessionStorage.getItem("kit-auth-role") || "",
       label: sessionStorage.getItem("kit-auth-label") || "",
       team: sessionStorage.getItem("kit-auth-team") || "",
-      classId: sessionStorage.getItem("kit-class-section") || localStorage.getItem("kit-last-class-section") || "class-a"
+      classId: "class-a"
     };
   }
 

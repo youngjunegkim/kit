@@ -35,14 +35,8 @@
   const lastClassKey = "kit-last-class-section";
   const defaultClassId = "class-a";
 
-  function normalizeClassId(value) {
-    const compact = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
-    if (["2", "2반", "반2", "class2", "class-b", "classb", "b", "b반"].includes(compact)) return "class-b";
-    return "class-a";
-  }
-
-  function classLabelFor(value) {
-    return normalizeClassId(value) === "class-b" ? "2반" : "1반";
+  function classLabelFor() {
+    return "우리 반";
   }
 
   function teacherAccountIdForClass() {
@@ -53,21 +47,12 @@
     return String(id || "").trim().toLowerCase() === "master";
   }
 
-  function classIdForAccount(account, fallbackClassId) {
-    return normalizeClassId(account?.classId || fallbackClassId);
-  }
-
-  function queryClassId() {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("classId") || params.get("class") || params.get("classSection") || "";
-    } catch {
-      return "";
-    }
+  function classIdForAccount() {
+    return defaultClassId;
   }
 
   function currentClassId() {
-    return normalizeClassId(queryClassId() || sessionStorage.getItem(classKey) || localStorage.getItem(lastClassKey) || defaultClassId);
+    return defaultClassId;
   }
 
   function go(path) {
@@ -92,7 +77,6 @@
     const studentStart = document.querySelector("[data-student-start]");
     const userIdInput = form.elements.userId;
     const passwordInput = form.elements.password;
-    let selectedClassId = currentClassId();
     let pendingPath = "";
 
     function setMessage(text, isOk) {
@@ -110,20 +94,6 @@
           : Boolean(normalizedId) && preset === normalizedId;
         button.classList.toggle("is-active", isActive);
       });
-    }
-
-    function setActiveClass(classId) {
-      selectedClassId = normalizeClassId(classId);
-      document.querySelectorAll("[data-class-preset]").forEach((button) => {
-        button.classList.toggle("is-active", button.dataset.classPreset === selectedClassId);
-      });
-    }
-
-    function applyAccountClassSelection(id) {
-      const account = accounts[String(id || "").trim().toLowerCase()];
-      if (!account?.classId) return;
-      setActiveClass(account.classId);
-      localStorage.setItem(lastClassKey, selectedClassId);
     }
 
     function clearErrorState() {
@@ -152,9 +122,6 @@
       document.querySelectorAll("[data-role-preset]").forEach((button) => {
         button.disabled = true;
       });
-      document.querySelectorAll("[data-class-preset]").forEach((button) => {
-        button.disabled = true;
-      });
       submitButton?.classList.add("is-loading");
       if (submitText) submitText.textContent = "권한 확인 중";
     }
@@ -172,7 +139,7 @@
 
     function completeLogin(account) {
       pendingPath = homeFor(account.role);
-      const classId = classIdForAccount(account, selectedClassId);
+      const classId = classIdForAccount();
       sessionStorage.setItem("kit-auth-user", userIdInput.value.trim().toLowerCase());
       sessionStorage.setItem("kit-auth-role", account.role);
       sessionStorage.setItem("kit-auth-label", account.label);
@@ -210,7 +177,7 @@
     document.querySelectorAll("[data-role-preset]").forEach((button) => {
       button.addEventListener("click", () => {
         const preset = button.dataset.rolePreset || "";
-        const id = preset === "master" ? teacherAccountIdForClass(selectedClassId) : preset;
+        const id = preset === "master" ? teacherAccountIdForClass() : preset;
         userIdInput.value = id;
         if (id) {
           localStorage.setItem(lastLoginKey, id);
@@ -225,20 +192,6 @@
         } else {
           userIdInput.focus();
         }
-      });
-    });
-
-    document.querySelectorAll("[data-class-preset]").forEach((button) => {
-      button.addEventListener("click", () => {
-        setActiveClass(button.dataset.classPreset);
-        localStorage.setItem(lastClassKey, selectedClassId);
-        if (isTeacherAccountId(userIdInput.value)) {
-          const teacherId = teacherAccountIdForClass(selectedClassId);
-          userIdInput.value = teacherId;
-          localStorage.setItem(lastLoginKey, teacherId);
-          setActiveRole(teacherId);
-        }
-        setMessage(`${classLabelFor(selectedClassId)}으로 진행합니다.`, true);
       });
     });
 
@@ -264,7 +217,6 @@
         if (input === userIdInput) {
           const id = input.value.trim().toLowerCase();
           setActiveRole(id);
-          applyAccountClassSelection(id);
         }
       });
     });
@@ -280,7 +232,6 @@
     localStorage.removeItem(lastLoginKey);
     userIdInput.value = "";
     setActiveRole("");
-    setActiveClass(selectedClassId);
     if (fullscreenToggle) fullscreenToggle.checked = localStorage.getItem(fullscreenKey) === "1";
 
     form.addEventListener("submit", (event) => {
@@ -330,9 +281,6 @@
       const account = accounts[user];
       node.textContent = account ? account.label : sessionStorage.getItem("kit-auth-label") || "";
     });
-    document.querySelectorAll("[data-class-label]").forEach((node) => {
-      node.textContent = sessionStorage.getItem(classLabelKey) || classLabelFor(currentClassId());
-    });
   }
 
   function guardPage() {
@@ -344,19 +292,10 @@
       return;
     }
 
-    if (!sessionStorage.getItem(classKey)) {
-      const classId = currentClassId();
-      sessionStorage.setItem(classKey, classId);
-      sessionStorage.setItem(classLabelKey, classLabelFor(classId));
-    }
-
-    const account = accounts[user];
-    if (account?.classId) {
-      const lockedClassId = classIdForAccount(account, currentClassId());
-      sessionStorage.setItem(classKey, lockedClassId);
-      sessionStorage.setItem(classLabelKey, classLabelFor(lockedClassId));
-      localStorage.setItem(lastClassKey, lockedClassId);
-    }
+    const classId = currentClassId();
+    sessionStorage.setItem(classKey, classId);
+    sessionStorage.setItem(classLabelKey, classLabelFor());
+    localStorage.setItem(lastClassKey, classId);
 
     if (role === "student" && !team) {
       sessionStorage.removeItem("kit-auth-user");
