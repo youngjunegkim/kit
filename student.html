@@ -1647,7 +1647,8 @@
       border: 1px solid rgba(231, 196, 134, 0.58);
       border-radius: 8px;
       background:
-        linear-gradient(90deg, rgba(31, 25, 21, 0.96) 0%, rgba(70, 47, 32, 0.95) 48%, rgba(229, 202, 156, 0.96) 100%);
+        radial-gradient(circle at 91% 50%, rgba(255, 249, 235, 0.98) 0 11%, rgba(218, 194, 154, 0.72) 27%, transparent 44%),
+        linear-gradient(90deg, rgba(31, 25, 21, 0.98) 0%, rgba(70, 47, 32, 0.97) 56%, rgba(203, 176, 132, 0.98) 100%);
       color: #fff8eb;
       text-align: left;
       font: inherit;
@@ -1724,18 +1725,32 @@
       align-self: stretch;
       position: relative;
       min-height: 116px;
-      background: rgba(255, 244, 222, 0.22);
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .case-note-button__mascot::before {
+      content: "";
+      position: absolute;
+      inset: 12px 22px 8px;
+      z-index: 0;
+      border-radius: 999px;
+      background: rgba(255, 252, 242, 0.72);
+      filter: blur(10px);
     }
 
     .case-note-button__mascot img {
       position: absolute;
-      right: -18px;
-      bottom: -22px;
-      width: 220px;
-      height: 148px;
-      object-fit: cover;
-      object-position: 47% 54%;
-      filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.3));
+      left: 50%;
+      bottom: 4px;
+      z-index: 1;
+      width: 108px;
+      height: 108px;
+      object-fit: contain;
+      object-position: center;
+      mix-blend-mode: multiply;
+      transform: translateX(-50%);
+      filter: drop-shadow(0 9px 10px rgba(75, 45, 24, 0.2));
     }
 
     .golden-modal {
@@ -2858,10 +2873,9 @@
       }
 
       .case-note-button__mascot img {
-        right: -52px;
-        bottom: -18px;
-        width: 148px;
-        height: 116px;
+        bottom: 5px;
+        width: 88px;
+        height: 88px;
       }
 
       .suspect-column,
@@ -3067,10 +3081,9 @@
       }
 
       body[data-auth="student"] .case-note-button__mascot img {
-        right: -24px;
-        bottom: -20px;
-        width: 188px;
-        height: 130px;
+        bottom: 5px;
+        width: 96px;
+        height: 96px;
       }
 
       body[data-auth="student"] .evidence-vault-card {
@@ -3254,7 +3267,7 @@
             <span>우리 팀의 최종 추리를 선생님께 보냅니다</span>
           </span>
           <span class="case-note-button__mascot" aria-hidden="true">
-            <img src="assets/characters/detective-note-mascot.png" alt="">
+            <img src="assets/characters/detective-note-mascot-full.png" alt="">
           </span>
         </button>
       </div>
