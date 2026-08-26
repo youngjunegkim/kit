@@ -767,6 +767,7 @@
         input.disabled = disabled;
         input.dataset.evidenceShopId = card.id;
         input.setAttribute("aria-label", `${card.room} 증거카드 ${card.index} 선택`);
+        input.addEventListener("change", selectEvidenceShopCard);
 
         label.append(cardBack, copy, input);
         cards.append(label);
@@ -846,7 +847,7 @@
   }
 
   function selectEvidenceShopCard(event) {
-    const input = event.target.closest("[data-evidence-shop-id]");
+    const input = event.currentTarget;
     if (!input || state.shopLoading || state.shopPurchasing) return;
     const cardId = String(input.dataset.evidenceShopId || "").trim();
     if (!cardId) return;
@@ -927,7 +928,6 @@
     evidenceShopModal?.addEventListener("click", (event) => {
       if (event.target === evidenceShopModal) closeEvidenceShop();
     });
-    evidenceShopList?.addEventListener("change", selectEvidenceShopCard);
     evidenceShopPurchase?.addEventListener("click", purchaseEvidenceShopCards);
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && state.shopOpen) closeEvidenceShop();
