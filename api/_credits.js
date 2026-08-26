@@ -10,6 +10,7 @@ const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
 const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
 const memoryEvidenceGrantStore = globalThis.__kitEvidenceGrantStore || new Map();
+const memoryEvidenceApprovalStore = globalThis.__kitEvidenceApprovalStore || [];
 const memoryEthicsQuizRedeemStore = globalThis.__kitEthicsQuizRedeemStore || new Map();
 const memoryEthicsQuizLogStore = globalThis.__kitEthicsQuizLogStore || [];
 const memoryEthicsQuestionStore = globalThis.__kitEthicsQuestionStore || new Map();
@@ -26,6 +27,7 @@ globalThis.__kitPresenceStore = memoryPresenceStore;
 globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
 globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
 globalThis.__kitEvidenceGrantStore = memoryEvidenceGrantStore;
+globalThis.__kitEvidenceApprovalStore = memoryEvidenceApprovalStore;
 globalThis.__kitEthicsQuizRedeemStore = memoryEthicsQuizRedeemStore;
 globalThis.__kitEthicsQuizLogStore = memoryEthicsQuizLogStore;
 globalThis.__kitEthicsQuestionStore = memoryEthicsQuestionStore;
@@ -141,6 +143,10 @@ function evidenceLogKey() {
 
 function evidenceGrantKeyFor(team) {
   return `kit:${storeNamespace()}:evidence-grant:${team}`;
+}
+
+function evidenceApprovalLogKey() {
+  return `kit:${storeNamespace()}:evidence-approval-logs`;
 }
 
 function ethicsQuizRedeemKeyFor(team) {
@@ -440,6 +446,83 @@ async function getAllEvidenceGrants() {
     await redisCommand(["DEL", ...staleKeys]);
   }
   return Object.fromEntries(entries);
+}
+
+function cleanEvidenceApprovalEntry(entry = {}) {
+  const team = normalizeTeam(entry.team);
+  const roomId = String(entry.roomId || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 20);
+  if (!team || !roomId) return null;
+  return {
+    id: String(entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    at: String(entry.at || new Date().toISOString()),
+    team,
+    roomId,
+    roomName: String(entry.roomName || "").trim().slice(0, 40),
+    visit: Math.max(1, cleanCredits(entry.visit) || 1),
+    by: String(entry.by || "teacher").trim().slice(0, 40),
+    namespace: String(entry.namespace || storeNamespace()).trim()
+  };
+}
+
+async function getEvidenceApprovals(limit = maxReturnedEvidenceLogs) {
+  const safeLimit = Math.min(maxReturnedEvidenceLogs, Math.max(1, cleanCredits(limit) || maxReturnedEvidenceLogs));
+
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    return memoryEvidenceApprovalStore
+      .filter((entry) => entry.namespace === namespace)
+      .slice(0, safeLimit);
+  }
+
+  const rawLogs = await redisCommand(["LRANGE", evidenceApprovalLogKey(), "0", String(maxStoredLogs - 1)]);
+  return (Array.isArray(rawLogs) ? rawLogs : [])
+    .map((item) => {
+      try {
+        return cleanEvidenceApprovalEntry(JSON.parse(item));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .slice(0, safeLimit);
+}
+
+async function recordEvidenceApproval(entry) {
+  const baseEntry = cleanEvidenceApprovalEntry({ ...entry, visit: 1 });
+  if (!baseEntry) return null;
+
+  const existing = await getEvidenceApprovals(maxReturnedEvidenceLogs);
+  const visit = existing.filter((item) => (
+    item.team === baseEntry.team && item.roomId === baseEntry.roomId
+  )).length + 1;
+  const cleanEntry = cleanEvidenceApprovalEntry({ ...baseEntry, visit });
+
+  if (!hasPersistentStore()) {
+    memoryEvidenceApprovalStore.unshift(cleanEntry);
+    memoryEvidenceApprovalStore.splice(maxStoredLogs);
+    return cleanEntry;
+  }
+
+  await redisCommand(["LPUSH", evidenceApprovalLogKey(), JSON.stringify(cleanEntry)]);
+  await redisCommand(["LTRIM", evidenceApprovalLogKey(), "0", String(maxStoredLogs - 1)]);
+  return cleanEntry;
+}
+
+async function clearEvidenceApprovals() {
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    const removed = [];
+    for (let index = memoryEvidenceApprovalStore.length - 1; index >= 0; index -= 1) {
+      if (memoryEvidenceApprovalStore[index]?.namespace === namespace) {
+        removed.unshift(...memoryEvidenceApprovalStore.splice(index, 1));
+      }
+    }
+    return removed;
+  }
+
+  const removed = await getEvidenceApprovals(maxReturnedEvidenceLogs);
+  await redisCommand(["DEL", evidenceApprovalLogKey()]);
+  return removed;
 }
 
 function cleanEvidenceEntry(entry = {}) {
@@ -1275,6 +1358,7 @@ module.exports = {
   classLabelFor,
   deleteCustomEthicsQuestion,
   clearEvidenceGrant,
+  clearEvidenceApprovals,
   clearEvidenceRedemptions,
   clearSimilaritySentences,
   clearEthicsQuizRedemptions,
@@ -1291,6 +1375,7 @@ module.exports = {
   getCredits,
   getCustomEthicsQuestions,
   getEvidenceGrant,
+  getEvidenceApprovals,
   getEvidenceRedemptions,
   getEthicsQuizRedemptions,
   getEthicsQuizSolvedQuestions,
@@ -1308,6 +1393,7 @@ module.exports = {
   normalizeClassId,
   normalizeTeam,
   recordEvidenceRedemption,
+  recordEvidenceApproval,
   recordEthicsQuizRedemption,
   recordGoldenNotice,
   recordSimilaritySentence,

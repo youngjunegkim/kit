@@ -1,5 +1,6 @@
 const {
   areEvidenceCodesRedeemed,
+  clearEvidenceApprovals,
   clearEvidenceGrant,
   clearEvidenceRedemptions,
   getAllCredits,
@@ -7,6 +8,7 @@ const {
   getAllGrantedCredits,
   getCredits,
   getEvidenceGrant,
+  getEvidenceApprovals,
   getEvidenceRedemptions,
   getGrantedCredits,
   getQuestionLogs,
@@ -14,6 +16,7 @@ const {
   hasPersistentStore,
   normalizeTeam,
   recordGoldenNotice,
+  recordEvidenceApproval,
   recordEvidenceRedemption,
   redeemEvidenceCode,
   reduceCredits,
@@ -410,6 +413,17 @@ function publicEvidenceLog(entry = {}) {
   };
 }
 
+function publicEvidenceApprovalLog(entry = {}) {
+  return {
+    team: normalizeTeam(entry.team),
+    roomId: String(entry.roomId || "").trim().slice(0, 20),
+    roomName: String(entry.roomName || "").trim().slice(0, 40),
+    visit: Math.max(1, Number(entry.visit) || 1),
+    by: String(entry.by || "teacher").trim().slice(0, 40),
+    at: entry.at || ""
+  };
+}
+
 function publicEvidence(evidence = {}) {
   return {
     room: String(evidence.room || "").trim().slice(0, 40),
@@ -464,6 +478,7 @@ async function handleEvidenceCode(request, response) {
 
       sendJson(response, 200, {
         evidenceLogs: logs,
+        approvalLogs: (await getEvidenceApprovals()).map(publicEvidenceApprovalLog),
         credits: await getAllCredits(),
         granted: await getAllGrantedCredits(),
         grants: await getAllEvidenceGrants(),
@@ -492,6 +507,7 @@ async function handleEvidenceCode(request, response) {
       const shouldResetCredits = body.resetCredits !== false;
       if (shouldResetCredits) await subtractEvidenceCredits(logs);
       const removed = await clearEvidenceRedemptions();
+      const clearedApprovals = await clearEvidenceApprovals();
       await Promise.all(teams.map((team) => clearEvidenceGrant(team)));
 
       sendJson(response, 200, {
@@ -499,10 +515,12 @@ async function handleEvidenceCode(request, response) {
         removed: removed.length,
         resetCredits: shouldResetCredits,
         evidenceLogs: [],
+        approvalLogs: [],
         credits: await getAllCredits(),
         granted: await getAllGrantedCredits(),
         grants: await getAllEvidenceGrants(),
         clearedGrants: teams.length,
+        clearedApprovals: clearedApprovals.length,
         persistent: hasPersistentStore()
       });
       return;
@@ -526,17 +544,27 @@ async function handleEvidenceCode(request, response) {
         return;
       }
 
+      const approvedAt = Date.now();
+      const approvedBy = decodedHeaderValue(request, "x-kit-user") || body.user || "teacher";
       const grant = await setEvidenceGrant(grantTeam, {
         roomId: room.roomId,
         roomName: room.name,
-        at: Date.now(),
-        by: decodedHeaderValue(request, "x-kit-user") || body.user || "teacher"
+        at: approvedAt,
+        by: approvedBy
+      });
+      const approvalLog = await recordEvidenceApproval({
+        team: grantTeam,
+        roomId: room.roomId,
+        roomName: room.name,
+        at: new Date(approvedAt).toISOString(),
+        by: approvedBy
       });
 
       sendJson(response, 200, {
         ok: true,
         team: grantTeam,
         grant,
+        approvalLog: publicEvidenceApprovalLog(approvalLog),
         grants: await getAllEvidenceGrants(),
         persistent: hasPersistentStore()
       });

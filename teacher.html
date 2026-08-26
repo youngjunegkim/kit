@@ -793,6 +793,56 @@
       font-weight: 850;
     }
 
+    .evidence-approval-list {
+      display: grid;
+      gap: 7px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-top: 1px;
+    }
+
+    .evidence-approval-entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-radius: 7px;
+      background: #f7f9fc;
+      border-left: 3px solid #9aa8b8;
+      padding: 8px 9px;
+    }
+
+    .evidence-approval-entry__details {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      color: #18202b;
+      font-size: 0.8rem;
+    }
+
+    .evidence-approval-entry__details strong {
+      overflow-wrap: anywhere;
+      font-weight: 900;
+    }
+
+    .evidence-approval-entry__details span {
+      color: #7a8695;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .evidence-approval-entry__visit {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #e9eef5;
+      color: #344154;
+      padding: 4px 7px;
+      font-size: 0.74rem;
+      line-height: 1;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
     .team-row {
       display: grid;
       grid-template-columns: 36px 1fr;
@@ -1333,6 +1383,8 @@
         <p class="evidence-grant-status" id="grantStatus" role="status"></p>
         <div class="evidence-grant-subhead">승인 대기</div>
         <div class="evidence-grant-list" id="evidenceGrantList"></div>
+        <div class="evidence-grant-subhead">승인 이력</div>
+        <div class="evidence-approval-list" id="evidenceApprovalLogList" aria-live="polite"></div>
       </section>
 
       <div class="team-list">

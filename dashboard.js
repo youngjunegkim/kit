@@ -19,6 +19,7 @@
   let questionCounts = { ...emptyByTeam };
   let questionLogs = [];
   let evidenceLogs = [];
+  let evidenceApprovalLogs = [];
   let evidenceGrants = {};
 
   function cleanScore(value) {
@@ -257,6 +258,7 @@
       throw new Error(data.error || "증거코드 입력 기록 불러오기 실패");
     }
     evidenceLogs = Array.isArray(data.evidenceLogs) ? data.evidenceLogs : [];
+    applyApprovalLogs(data);
     applyGrants(data);
     renderEvidenceLogs();
     return data;
@@ -328,7 +330,7 @@
   }
 
   async function clearEvidenceLogs() {
-    const confirmed = window.confirm("이번 반의 학생용 증거카드, 증거코드 입력 기록, 승인 대기, 해당 증거코드로 받은 코인을 모두 초기화할까요? 다음 게임을 시작하기 전 사용하는 기능입니다.");
+    const confirmed = window.confirm("이번 반의 학생용 증거카드, 증거코드 입력 기록, 승인 대기와 승인 이력, 해당 증거코드로 받은 코인을 모두 초기화할까요? 다음 게임을 시작하기 전 사용하는 기능입니다.");
     if (!confirmed) return;
 
     const { response, data } = await requestCredits("/api/evidence-code", {
@@ -343,8 +345,10 @@
     }
 
     evidenceLogs = [];
+    evidenceApprovalLogs = [];
     applyGrants(data);
     renderEvidenceLogs();
+    renderApprovalLogs();
     if (data.credits) {
       applyCreditData({ credits: data.credits, granted: data.granted, counts: questionCounts });
       renderScores();
@@ -352,7 +356,7 @@
     } else {
       await fetchScores();
     }
-    setSyncStatus(`증거카드 ${data.removed || 0}건, 승인 대기 ${data.clearedGrants || 0}팀, 해당 코인을 초기화했습니다. 학생은 코인 받기/증거 받기를 누르면 화면이 비워집니다.`, data.persistent ? "ok" : "bad");
+    setSyncStatus(`증거카드 ${data.removed || 0}건, 승인 이력 ${data.clearedApprovals || 0}건, 승인 대기 ${data.clearedGrants || 0}팀과 해당 코인을 초기화했습니다. 학생은 코인 받기/증거 받기를 누르면 화면이 비워집니다.`, data.persistent ? "ok" : "bad");
   }
 
   function startScoreSync() {
@@ -440,6 +444,55 @@
     });
   }
 
+  function renderApprovalLogs() {
+    const list = document.getElementById("evidenceApprovalLogList");
+    if (!list) return;
+    list.textContent = "";
+
+    if (!evidenceApprovalLogs.length) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-grant-empty";
+      empty.textContent = "아직 승인 기록이 없습니다.";
+      list.append(empty);
+      return;
+    }
+
+    evidenceApprovalLogs.slice(0, 40).forEach((entry) => {
+      const item = document.createElement("article");
+      item.className = "evidence-approval-entry";
+
+      const details = document.createElement("div");
+      details.className = "evidence-approval-entry__details";
+
+      const route = document.createElement("strong");
+      route.textContent = `${teamLabelFor(entry.team)} · ${entry.roomName || roomNameFor(entry.roomId)}`;
+
+      const time = document.createElement("span");
+      time.textContent = formatLogTime(entry.at);
+
+      const visit = document.createElement("span");
+      visit.className = "evidence-approval-entry__visit";
+      visit.textContent = `${Math.max(1, Number(entry.visit) || 1)}번째 방문`;
+
+      details.append(route, time);
+      item.append(details, visit);
+      list.append(item);
+    });
+  }
+
+  function applyApprovalLogs(data = {}) {
+    if (Array.isArray(data.approvalLogs)) {
+      evidenceApprovalLogs = data.approvalLogs;
+      renderApprovalLogs();
+    }
+  }
+
+  function prependApprovalLog(entry) {
+    if (!entry || !entry.team || !entry.roomId) return;
+    evidenceApprovalLogs = [entry, ...evidenceApprovalLogs].slice(0, 100);
+    renderApprovalLogs();
+  }
+
   function applyGrants(data = {}) {
     if (data && data.grants && typeof data.grants === "object") {
       evidenceGrants = data.grants;
@@ -452,6 +505,7 @@
     if (!response.ok) {
       throw new Error(data.error || "승인 현황 불러오기 실패");
     }
+    applyApprovalLogs(data);
     applyGrants(data);
     return data;
   }
@@ -473,7 +527,9 @@
       return;
     }
     applyGrants(data);
-    setGrantStatus(`${teamLabelFor(team)} · ${roomNameFor(roomId)} 승인 완료.`, "ok");
+    prependApprovalLog(data.approvalLog);
+    const visit = Math.max(1, Number(data.approvalLog?.visit) || 1);
+    setGrantStatus(`${teamLabelFor(team)} · ${roomNameFor(roomId)} ${visit}번째 방문 승인 완료.`, "ok");
   }
 
   async function revokeEvidence(team) {
@@ -625,6 +681,7 @@
   renderQuestionStats();
   renderEvidenceLogs();
   renderGrants();
+  renderApprovalLogs();
   startScoreSync();
 
   const stopwatchDisplay = document.getElementById("stopwatchDisplay");
