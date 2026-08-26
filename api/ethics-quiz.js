@@ -15,10 +15,10 @@ const {
 } = require("./_credits");
 
 const answers = {
-  1: "3",
+  1: "2",
   2: "3",
   3: "2",
-  4: "2",
+  4: "3",
   5: "3",
   6: "3",
   7: "2",
@@ -28,7 +28,7 @@ const answers = {
   11: "3",
   12: "3",
   13: "4",
-  14: "3",
+  14: "2",
   15: "3"
 };
 const ethicsQuizRewardCredits = 1;

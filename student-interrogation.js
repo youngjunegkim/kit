@@ -126,7 +126,27 @@
   const caseNoteStatus = document.querySelector("[data-note-status='case']");
   const clearCaseNote = document.querySelector("[data-clear-note='case']");
   const apiStatus = document.querySelector("[data-api-status]");
-  const ethicsQuestions = Array.isArray(window.KitEthicsQuizQuestions) ? window.KitEthicsQuizQuestions : [];
+  const ethicsQuestionOrder = [4, 11, 14, 1, 5, 6, 7, 8, 9, 10, 2, 12, 13, 3, 15];
+  const ethicsQuestions = [];
+
+  function syncStudentEthicsQuestionOrder() {
+    const source = Array.isArray(window.KitEthicsQuizQuestions) ? window.KitEthicsQuizQuestions : [];
+    const baseByNumber = new Map(source
+      .filter((question) => Number(question?.number) >= 1 && Number(question?.number) <= 15)
+      .map((question) => [Number(question.number), question]));
+    const orderedBase = ethicsQuestionOrder
+      .map((sourceNumber, index) => {
+        const question = baseByNumber.get(sourceNumber);
+        return question ? { ...question, number: index + 1, sourceNumber } : null;
+      })
+      .filter(Boolean);
+    const customQuestions = source
+      .filter((question) => Number(question?.number) > 15)
+      .map((question) => ({ ...question }));
+    ethicsQuestions.splice(0, ethicsQuestions.length, ...orderedBase, ...customQuestions);
+  }
+
+  syncStudentEthicsQuestionOrder();
   const ethicsOpenButton = document.querySelector("[data-student-ethics-open]");
   const ethicsForm = document.querySelector("[data-student-ethics-form]");
   const ethicsPasswordInput = document.querySelector("[data-student-ethics-password]");
@@ -2366,6 +2386,7 @@
     updateEthicsNumberInputRange();
 
     window.addEventListener("kit-ethics-questions-updated", () => {
+      syncStudentEthicsQuestionOrder();
       updateEthicsNumberInputRange();
       renderEthicsSolvedSummary();
       if (ethicsCard && !ethicsCard.hidden) {
