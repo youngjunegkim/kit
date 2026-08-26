@@ -19,6 +19,7 @@
   let questionCounts = { ...emptyByTeam };
   let questionLogs = [];
   let evidenceLogs = [];
+  let evidenceRoomCounts = new Map();
   let evidenceGrants = {};
 
   function cleanScore(value) {
@@ -398,6 +399,34 @@
     return rooms.find((room) => room.id === roomId)?.name || String(roomId || "");
   }
 
+  function evidenceRoomCountKey(team, room) {
+    return `${team}\u0000${room}`;
+  }
+
+  function evidenceRoomCountFor(team, roomId) {
+    const room = roomNameFor(roomId);
+    return evidenceRoomCounts.get(evidenceRoomCountKey(team, room))?.count || 0;
+  }
+
+  function updateGrantSubmitState(showMessage = false) {
+    const submit = document.getElementById("grantSubmit");
+    const team = document.getElementById("grantTeamSelect")?.value || "";
+    const roomId = document.getElementById("grantRoomSelect")?.value || "";
+    if (!submit) return;
+
+    const complete = Boolean(team && roomId && evidenceRoomCountFor(team, roomId) >= 2);
+    submit.disabled = requesting || complete;
+    submit.classList.toggle("is-room-complete", complete);
+    submit.title = complete ? "이 교실의 증거카드 2개를 모두 획득했습니다." : "";
+
+    if (showMessage) {
+      setGrantStatus(
+        complete ? `${teamLabelFor(team)} · ${roomNameFor(roomId)} 증거카드 2개 획득 완료. 더 이상 승인할 수 없습니다.` : "",
+        complete ? "bad" : ""
+      );
+    }
+  }
+
   function formatRelativeTime(at) {
     const ms = Date.now() - Number(at || 0);
     if (!Number.isFinite(ms) || ms < 60000) return "방금";
@@ -448,19 +477,19 @@
     list.textContent = "";
 
     const roomOrder = Object.fromEntries(rooms.map((room, index) => [room.name, index]));
-    const counts = new Map();
+    evidenceRoomCounts = new Map();
     evidenceLogs.forEach((entry) => {
       const team = String(entry.team || "").trim();
       const room = String(entry.room || "").trim();
       if (!teams.includes(team) || roomOrder[room] === undefined) return;
       if (String(entry.code || "").startsWith("REVISIT") || entry.evidence === "재방문 보너스") return;
-      const key = `${team}\u0000${room}`;
-      const current = counts.get(key) || { team, room, count: 0 };
+      const key = evidenceRoomCountKey(team, room);
+      const current = evidenceRoomCounts.get(key) || { team, room, count: 0 };
       current.count += 1;
-      counts.set(key, current);
+      evidenceRoomCounts.set(key, current);
     });
 
-    const summaries = [...counts.values()].sort((left, right) => (
+    const summaries = [...evidenceRoomCounts.values()].sort((left, right) => (
       teams.indexOf(left.team) - teams.indexOf(right.team) ||
       roomOrder[left.room] - roomOrder[right.room]
     ));
@@ -470,12 +499,16 @@
       empty.className = "evidence-grant-empty";
       empty.textContent = "아직 획득한 증거카드가 없습니다.";
       list.append(empty);
+      updateGrantSubmitState();
       return;
     }
 
     summaries.forEach((entry) => {
       const item = document.createElement("article");
       item.className = "evidence-room-count-entry";
+      const complete = entry.count >= 2;
+      item.classList.toggle("is-complete", complete);
+      if (complete) item.setAttribute("aria-label", `${teamLabelFor(entry.team)} ${entry.room} 증거카드 2개 획득 완료`);
 
       const route = document.createElement("strong");
       route.textContent = `${teamLabelFor(entry.team)} · ${entry.room}`;
@@ -487,6 +520,7 @@
       item.append(route, count);
       list.append(item);
     });
+    updateGrantSubmitState();
   }
 
   function applyGrants(data = {}) {
@@ -512,6 +546,10 @@
     const roomId = document.getElementById("grantRoomSelect")?.value || "";
     if (!team || !roomId) {
       setGrantStatus("팀과 장소를 선택하세요.", "bad");
+      return;
+    }
+    if (evidenceRoomCountFor(team, roomId) >= 2) {
+      updateGrantSubmitState(true);
       return;
     }
 
@@ -556,6 +594,7 @@
     actionButtons.forEach((button) => {
       button.disabled = value;
     });
+    if (!value) updateGrantSubmitState();
   }
 
   async function runExclusive(button, task) {
@@ -645,6 +684,10 @@
         setGrantStatus(error.message || "승인 실패", "bad");
       })
     );
+  });
+
+  ["grantTeamSelect", "grantRoomSelect"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => updateGrantSubmitState(true));
   });
 
   document.getElementById("refreshGrants")?.addEventListener("click", (event) => {

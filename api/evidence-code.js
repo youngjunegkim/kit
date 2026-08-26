@@ -530,6 +530,19 @@ async function handleEvidenceCode(request, response) {
         return;
       }
 
+      const roomCodes = room.options.map((option) => option.code);
+      const redeemedStatus = await areEvidenceCodesRedeemed(grantTeam, roomCodes);
+      const allEvidenceCollected = roomCodes.length > 0 && redeemedStatus.length === roomCodes.length && redeemedStatus.every(Boolean);
+      if (allEvidenceCollected) {
+        sendJson(response, 409, {
+          error: `${room.name} 증거카드 2개를 모두 획득한 팀은 더 이상 승인할 수 없습니다.`,
+          code: "ROOM_EVIDENCE_COMPLETE",
+          team: grantTeam,
+          roomId: room.roomId
+        });
+        return;
+      }
+
       const grant = await setEvidenceGrant(grantTeam, {
         roomId: room.roomId,
         roomName: room.name,
