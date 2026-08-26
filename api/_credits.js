@@ -8,6 +8,7 @@ const memoryCountStore = globalThis.__kitQuestionCountStore || new Map();
 const memoryLogStore = globalThis.__kitQuestionLogStore || [];
 const memoryPresenceStore = globalThis.__kitPresenceStore || new Map();
 const memoryEvidenceRedeemStore = globalThis.__kitEvidenceRedeemStore || new Map();
+const memoryEvidenceShopStore = globalThis.__kitEvidenceShopStore || new Map();
 const memoryEvidenceLogStore = globalThis.__kitEvidenceLogStore || [];
 const memoryEvidenceGrantStore = globalThis.__kitEvidenceGrantStore || new Map();
 const memoryEvidenceApprovalStore = globalThis.__kitEvidenceApprovalStore || [];
@@ -25,6 +26,7 @@ globalThis.__kitQuestionCountStore = memoryCountStore;
 globalThis.__kitQuestionLogStore = memoryLogStore;
 globalThis.__kitPresenceStore = memoryPresenceStore;
 globalThis.__kitEvidenceRedeemStore = memoryEvidenceRedeemStore;
+globalThis.__kitEvidenceShopStore = memoryEvidenceShopStore;
 globalThis.__kitEvidenceLogStore = memoryEvidenceLogStore;
 globalThis.__kitEvidenceGrantStore = memoryEvidenceGrantStore;
 globalThis.__kitEvidenceApprovalStore = memoryEvidenceApprovalStore;
@@ -135,6 +137,10 @@ function presenceKey() {
 
 function evidenceRedeemKeyFor(team) {
   return `kit:${storeNamespace()}:evidence-redeemed:${team}`;
+}
+
+function evidenceShopKeyFor(team) {
+  return `kit:${storeNamespace()}:evidence-shop-purchases:${team}`;
 }
 
 function evidenceLogKey() {
@@ -541,6 +547,7 @@ function cleanEvidenceEntry(entry = {}) {
     room: String(entry.room || "").trim().slice(0, 30),
     evidence: String(entry.evidence || "").trim().slice(0, 80),
     person: String(entry.person || "").trim().slice(0, 30),
+    source: String(entry.source || "").trim().toLowerCase().replace(/[^a-z-]/g, "").slice(0, 20),
     added,
     delta,
     remaining: cleanCredits(entry.remaining || 0),
@@ -587,6 +594,149 @@ async function getEvidenceRedemptions(team = "", limit = maxReturnedEvidenceLogs
     .slice(0, safeLimit);
 }
 
+async function getEvidenceShopPurchases(team) {
+  const normalized = normalizeTeam(team);
+  if (!normalized) return [];
+
+  if (!hasPersistentStore()) {
+    return [...(memoryEvidenceShopStore.get(evidenceShopKeyFor(normalized)) || new Set())];
+  }
+
+  const members = await redisCommand(["SMEMBERS", evidenceShopKeyFor(normalized)]);
+  return Array.isArray(members) ? members.map((member) => String(member)) : [];
+}
+
+async function purchaseEvidenceCards(team, entries = [], unitCost = 5, maxCards = 3) {
+  const normalized = normalizeTeam(team);
+  const cost = Math.max(1, cleanCredits(unitCost));
+  const maximum = Math.max(1, cleanCredits(maxCards));
+  const cards = (Array.isArray(entries) ? entries : [])
+    .map((entry) => ({
+      ...entry,
+      code: String(entry?.code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16)
+    }))
+    .filter((entry) => entry.code);
+  const codes = cards.map((entry) => entry.code);
+
+  if (!normalized || !codes.length || new Set(codes).size !== codes.length || codes.length > maximum) {
+    return { ok: false, team: normalized, remaining: 0, purchasedCount: 0, reason: "INVALID_SELECTION" };
+  }
+
+  const logs = cards.map((card) => cleanEvidenceEntry({
+    team: normalized,
+    user: card.user || normalized,
+    code: card.code,
+    room: card.room,
+    evidence: card.evidence,
+    person: card.person,
+    source: "shop",
+    added: 0,
+    delta: -cost,
+    remaining: 0
+  }));
+  if (logs.some((entry) => !entry)) {
+    return { ok: false, team: normalized, remaining: 0, purchasedCount: 0, reason: "INVALID_SELECTION" };
+  }
+
+  const total = cost * cards.length;
+  if (!hasPersistentStore()) {
+    const creditKey = keyFor(normalized);
+    const redeemKey = evidenceRedeemKeyFor(normalized);
+    const shopKey = evidenceShopKeyFor(normalized);
+    const current = cleanCredits(memoryStore.get(creditKey) || 0);
+    const redeemed = memoryEvidenceRedeemStore.get(redeemKey) || new Set();
+    const purchased = memoryEvidenceShopStore.get(shopKey) || new Set();
+
+    if (purchased.size + codes.length > maximum) {
+      return { ok: false, team: normalized, remaining: current, purchasedCount: purchased.size, reason: "SHOP_LIMIT" };
+    }
+    const ownedCode = codes.find((code) => redeemed.has(code));
+    if (ownedCode) {
+      return { ok: false, team: normalized, remaining: current, purchasedCount: purchased.size, reason: "ALREADY_OWNED", code: ownedCode };
+    }
+    if (current < total) {
+      return { ok: false, team: normalized, remaining: current, purchasedCount: purchased.size, reason: "NO_CREDITS" };
+    }
+
+    const remaining = current - total;
+    memoryStore.set(creditKey, remaining);
+    codes.forEach((code) => {
+      redeemed.add(code);
+      purchased.add(code);
+    });
+    memoryEvidenceRedeemStore.set(redeemKey, redeemed);
+    memoryEvidenceShopStore.set(shopKey, purchased);
+    logs.forEach((entry, index) => {
+      entry.remaining = Math.max(0, current - (cost * (index + 1)));
+      memoryEvidenceLogStore.unshift(entry);
+    });
+    memoryEvidenceLogStore.splice(maxStoredLogs);
+
+    return {
+      ok: true,
+      team: normalized,
+      remaining,
+      purchasedCount: purchased.size,
+      charged: total,
+      logs
+    };
+  }
+
+  const script = [
+    "local current = tonumber(redis.call('GET', KEYS[1]) or '0')",
+    "local cost = tonumber(ARGV[1]) or 0",
+    "local maximum = tonumber(ARGV[2]) or 0",
+    "local count = tonumber(ARGV[3]) or 0",
+    "local purchased = tonumber(redis.call('SCARD', KEYS[3]) or '0')",
+    "if purchased + count > maximum then return {-1, current, purchased} end",
+    "if current < cost * count then return {-2, current, purchased} end",
+    "for i = 1, count do local code = ARGV[3 + i]; if redis.call('SISMEMBER', KEYS[2], code) == 1 then return {-3, current, purchased, code} end end",
+    "local remaining = current - (cost * count)",
+    "redis.call('SET', KEYS[1], remaining)",
+    "for i = 1, count do local code = ARGV[3 + i]; redis.call('SADD', KEYS[2], code); redis.call('SADD', KEYS[3], code); redis.call('LPUSH', KEYS[4], ARGV[3 + count + i]) end",
+    `redis.call('LTRIM', KEYS[4], 0, ${maxStoredLogs - 1})`,
+    "return {1, remaining, purchased + count}"
+  ].join("; ");
+  const result = await redisCommand([
+    "EVAL",
+    script,
+    "4",
+    keyFor(normalized),
+    evidenceRedeemKeyFor(normalized),
+    evidenceShopKeyFor(normalized),
+    evidenceLogKey(),
+    String(cost),
+    String(maximum),
+    String(codes.length),
+    ...codes,
+    ...logs.map((entry) => JSON.stringify(entry))
+  ]);
+  const status = Number(Array.isArray(result) ? result[0] : 0);
+  const remaining = cleanCredits(Array.isArray(result) ? result[1] : 0);
+  const purchasedCount = cleanCredits(Array.isArray(result) ? result[2] : 0);
+
+  if (status !== 1) {
+    const reasons = { "-1": "SHOP_LIMIT", "-2": "NO_CREDITS", "-3": "ALREADY_OWNED" };
+    return {
+      ok: false,
+      team: normalized,
+      remaining,
+      purchasedCount,
+      reason: reasons[String(status)] || "PURCHASE_FAILED",
+      code: status === -3 ? String(result?.[3] || "") : ""
+    };
+  }
+
+  return {
+    ok: true,
+    team: normalized,
+    remaining,
+    purchasedCount,
+    charged: total,
+    logs
+  };
+}
+
 async function clearEvidenceRedemptions() {
   if (!hasPersistentStore()) {
     const namespace = storeNamespace();
@@ -596,14 +746,20 @@ async function clearEvidenceRedemptions() {
         removed.unshift(...memoryEvidenceLogStore.splice(index, 1));
       }
     }
-    teams.forEach((team) => memoryEvidenceRedeemStore.delete(evidenceRedeemKeyFor(team)));
+    teams.forEach((team) => {
+      memoryEvidenceRedeemStore.delete(evidenceRedeemKeyFor(team));
+      memoryEvidenceShopStore.delete(evidenceShopKeyFor(team));
+    });
     return removed;
   }
 
   const removed = await getEvidenceRedemptions("", maxReturnedEvidenceLogs);
   await Promise.all([
     redisCommand(["DEL", evidenceLogKey()]),
-    ...teams.map((team) => redisCommand(["DEL", evidenceRedeemKeyFor(team)]))
+    ...teams.flatMap((team) => [
+      redisCommand(["DEL", evidenceRedeemKeyFor(team)]),
+      redisCommand(["DEL", evidenceShopKeyFor(team)])
+    ])
   ]);
   return removed;
 }
@@ -1377,6 +1533,7 @@ module.exports = {
   getEvidenceGrant,
   getEvidenceApprovals,
   getEvidenceRedemptions,
+  getEvidenceShopPurchases,
   getEthicsQuizRedemptions,
   getEthicsQuizSolvedQuestions,
   getGrantedCredits,
@@ -1401,6 +1558,7 @@ module.exports = {
   requestClassId,
   redeemEthicsQuizQuestion,
   redeemEvidenceCode,
+  purchaseEvidenceCards,
   reduceCredits,
   resetCredits,
   setEvidenceGrant,

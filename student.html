@@ -8,7 +8,7 @@
   <script src="presence.js?v=manual-presence-3" defer></script>
   <script src="ethics-quiz.js" defer></script>
   <script src="token-estimator.js" defer></script>
-  <script src="student-interrogation.js" defer></script>
+  <script src="student-interrogation.js?v=evidence-shop-1" defer></script>
   <script src="student-notes.js" defer></script>
   <style>
     * {
@@ -1042,6 +1042,35 @@
       justify-content: center;
     }
 
+    .evidence-shop-open {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid rgba(231, 189, 73, 0.62);
+      border-radius: 7px;
+      background: #fff5d8;
+      color: #3b2612;
+      padding: 9px 12px;
+      font-weight: 1000;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+    }
+
+    .evidence-shop-open span {
+      color: #9d1f1b;
+      font-size: 0.72rem;
+      font-weight: 950;
+    }
+
+    .evidence-shop-open:hover,
+    .evidence-shop-open:focus-visible {
+      border-color: #e1ae2d;
+      background: #ffe9a9;
+      outline: 3px solid rgba(225, 174, 45, 0.2);
+      outline-offset: 2px;
+    }
+
     .ethics-quiz-tile {
       min-height: 86px;
       display: grid;
@@ -1744,6 +1773,351 @@
       mix-blend-mode: darken;
       transform: translateX(-50%);
       filter: none;
+    }
+
+    .evidence-shop-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2250;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(12, 9, 6, 0.82);
+      backdrop-filter: blur(7px);
+    }
+
+    .evidence-shop-modal[hidden] {
+      display: none;
+    }
+
+    .evidence-shop-modal__panel {
+      width: min(940px, calc(100vw - 28px));
+      max-height: min(860px, calc(100dvh - 28px));
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      overflow: hidden;
+      border: 2px solid #c79a3b;
+      border-radius: 8px;
+      background: #fffaf0;
+      color: #21170f;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
+    }
+
+    .evidence-shop-modal__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-width: 0;
+      padding: 18px 20px;
+      background: #21160f;
+      color: #fff8df;
+    }
+
+    .evidence-shop-modal__head p,
+    .evidence-shop-modal__head h2 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .evidence-shop-modal__head p {
+      color: #e1ae2d;
+      font-size: 0.76rem;
+      font-weight: 950;
+    }
+
+    .evidence-shop-modal__head h2 {
+      margin-top: 3px;
+      font-size: 1.55rem;
+      line-height: 1.15;
+      font-weight: 1000;
+    }
+
+    .evidence-shop-modal__close {
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #b91f1f;
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 1000;
+    }
+
+    .evidence-shop-modal__close:hover,
+    .evidence-shop-modal__close:focus-visible {
+      background: #8f1717;
+      outline: 3px solid rgba(255, 255, 255, 0.62);
+      outline-offset: 2px;
+    }
+
+    .evidence-shop-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-bottom: 1px solid #e2d3b3;
+      background: #fff2cf;
+    }
+
+    .evidence-shop-summary div {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      padding: 11px 16px;
+      border-left: 1px solid #e2d3b3;
+    }
+
+    .evidence-shop-summary div:first-child {
+      border-left: 0;
+    }
+
+    .evidence-shop-summary span {
+      color: #785b35;
+      font-size: 0.72rem;
+      font-weight: 850;
+    }
+
+    .evidence-shop-summary strong {
+      color: #291b10;
+      font-size: 0.94rem;
+      line-height: 1.25;
+      font-weight: 1000;
+    }
+
+    .evidence-shop-catalog {
+      min-height: 180px;
+      overflow-y: auto;
+      padding: 8px 20px 18px;
+      overscroll-behavior: contain;
+    }
+
+    .evidence-shop-room {
+      display: grid;
+      gap: 8px;
+      padding: 14px 0;
+      border-top: 1px solid #eadfc7;
+    }
+
+    .evidence-shop-room:first-child {
+      border-top: 0;
+    }
+
+    .evidence-shop-room__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .evidence-shop-room__head h3,
+    .evidence-shop-room__head span {
+      margin: 0;
+    }
+
+    .evidence-shop-room__head h3 {
+      color: #4a2e18;
+      font-size: 0.98rem;
+      font-weight: 1000;
+    }
+
+    .evidence-shop-room__head span {
+      color: #9d1f1b;
+      font-size: 0.72rem;
+      font-weight: 950;
+    }
+
+    .evidence-shop-room__cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .evidence-shop-card {
+      position: relative;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 104px minmax(0, 1fr) 24px;
+      gap: 10px;
+      align-items: center;
+      min-height: 86px;
+      border: 1px solid #ddcfb1;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+      cursor: pointer;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .evidence-shop-card:hover,
+    .evidence-shop-card:focus-within,
+    .evidence-shop-card.is-selected {
+      border-color: #b91f1f;
+      background: #fff8ed;
+      box-shadow: 0 0 0 3px rgba(185, 31, 31, 0.12);
+    }
+
+    .evidence-shop-card.is-disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .evidence-shop-card img {
+      width: 100%;
+      aspect-ratio: 1.5 / 1;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #17110d;
+    }
+
+    .evidence-shop-card__copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .evidence-shop-card__copy span {
+      color: #9d1f1b;
+      font-size: 0.68rem;
+      font-weight: 950;
+    }
+
+    .evidence-shop-card__copy strong {
+      color: #2b1e14;
+      font-size: 0.82rem;
+      line-height: 1.25;
+      font-weight: 1000;
+      word-break: keep-all;
+    }
+
+    .evidence-shop-card__copy em {
+      color: #116c46;
+      font-size: 0.7rem;
+      line-height: 1.25;
+      font-style: normal;
+      font-weight: 950;
+    }
+
+    .evidence-shop-card input {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      accent-color: #b91f1f;
+    }
+
+    .evidence-shop-empty {
+      margin: 0;
+      padding: 40px 16px;
+      color: #725e46;
+      text-align: center;
+      font-weight: 900;
+    }
+
+    .evidence-shop-modal__foot {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+      border-top: 1px solid #ddcfb1;
+      background: #fffaf0;
+      padding: 12px 16px;
+    }
+
+    .evidence-shop-modal__status {
+      min-width: 0;
+      margin: 0;
+      color: #6f5d48;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      font-weight: 850;
+    }
+
+    .evidence-shop-modal__status.is-ok {
+      color: #137548;
+    }
+
+    .evidence-shop-modal__status.is-bad {
+      color: #b91f1f;
+    }
+
+    .evidence-shop-modal__total {
+      min-width: 112px;
+      color: #3d2918;
+      text-align: right;
+      font-size: 0.86rem;
+      font-weight: 1000;
+    }
+
+    .evidence-shop-modal__purchase {
+      min-width: 108px;
+      min-height: 42px;
+      border-radius: 7px;
+      background: #b91f1f;
+      color: #fff;
+      padding: 9px 15px;
+      font-weight: 1000;
+    }
+
+    .evidence-shop-modal__purchase:hover,
+    .evidence-shop-modal__purchase:focus-visible {
+      background: #8f1717;
+      outline: 3px solid rgba(185, 31, 31, 0.18);
+      outline-offset: 2px;
+    }
+
+    body.evidence-shop-open {
+      overflow: hidden;
+    }
+
+    @media (max-width: 680px) {
+      .evidence-shop-modal {
+        padding: 8px;
+      }
+
+      .evidence-shop-modal__panel {
+        width: calc(100vw - 16px);
+        max-height: calc(100dvh - 16px);
+      }
+
+      .evidence-shop-modal__head {
+        padding: 13px 14px;
+      }
+
+      .evidence-shop-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .evidence-shop-summary div,
+      .evidence-shop-summary div:first-child {
+        grid-template-columns: minmax(0, 1fr) auto;
+        border-top: 1px solid #e2d3b3;
+        border-left: 0;
+        padding: 7px 12px;
+      }
+
+      .evidence-shop-summary div:first-child {
+        border-top: 0;
+      }
+
+      .evidence-shop-catalog {
+        padding: 6px 12px 14px;
+      }
+
+      .evidence-shop-room__cards {
+        grid-template-columns: 1fr;
+      }
+
+      .evidence-shop-card {
+        grid-template-columns: 84px minmax(0, 1fr) 22px;
+      }
+
+      .evidence-shop-modal__foot {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .evidence-shop-modal__status {
+        grid-column: 1 / -1;
+      }
     }
 
     .golden-modal {
@@ -3139,6 +3513,10 @@
             <input class="evidence-code-input" id="studentEvidenceCode" data-evidence-code type="text" autocomplete="off" maxlength="12" placeholder="황금열쇠 코드">
             <button class="receive-credit-btn" type="submit" data-evidence-submit>입력</button>
           </form>
+          <button class="evidence-shop-open" type="button" data-evidence-shop-open aria-controls="studentEvidenceShop">
+            <strong>상점</strong>
+            <span>증거카드</span>
+          </button>
           <p class="evidence-code-message" data-evidence-message></p>
           <div class="presence-menu">
             <div class="presence-menu-row">
@@ -3269,6 +3647,28 @@
   <div class="card-lightbox" data-card-lightbox hidden role="dialog" aria-modal="true" aria-label="Suspect card">
     <button class="card-lightbox__close" type="button" data-close-card aria-label="Close">X</button>
     <img class="card-lightbox__image" data-card-lightbox-image alt="">
+  </div>
+  <div class="evidence-shop-modal" id="studentEvidenceShop" data-evidence-shop-modal hidden role="dialog" aria-modal="true" aria-label="증거카드 상점">
+    <section class="evidence-shop-modal__panel">
+      <header class="evidence-shop-modal__head">
+        <div>
+          <p>AI 수사단</p>
+          <h2>증거카드 상점</h2>
+        </div>
+        <button class="evidence-shop-modal__close" type="button" data-evidence-shop-close aria-label="상점 닫기">X</button>
+      </header>
+      <div class="evidence-shop-summary">
+        <div><span>보유 코인</span><strong data-evidence-shop-credits>0개</strong></div>
+        <div><span>카드 가격</span><strong data-evidence-shop-price>1장 · 5코인</strong></div>
+        <div><span>구매 가능</span><strong data-evidence-shop-remaining>3장</strong></div>
+      </div>
+      <div class="evidence-shop-catalog" data-evidence-shop-list aria-live="polite"></div>
+      <footer class="evidence-shop-modal__foot">
+        <p class="evidence-shop-modal__status" data-evidence-shop-status role="status"></p>
+        <strong class="evidence-shop-modal__total" data-evidence-shop-total>0장 · 0코인</strong>
+        <button class="evidence-shop-modal__purchase" type="button" data-evidence-shop-purchase disabled>구매</button>
+      </footer>
+    </section>
   </div>
   <div class="golden-modal" data-golden-modal hidden role="dialog" aria-modal="true" aria-label="AI 윤리 황금열쇠">
     <div class="golden-modal__panel">

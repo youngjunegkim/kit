@@ -1,4 +1,5 @@
 const {
+  addCredits,
   areEvidenceCodesRedeemed,
   clearEvidenceApprovals,
   clearEvidenceGrant,
@@ -9,6 +10,7 @@ const {
   getCredits,
   getEvidenceGrant,
   getEvidenceRedemptions,
+  getEvidenceShopPurchases,
   getGrantedCredits,
   getQuestionLogs,
   grantCredits,
@@ -16,6 +18,7 @@ const {
   normalizeTeam,
   recordGoldenNotice,
   recordEvidenceRedemption,
+  purchaseEvidenceCards,
   redeemEvidenceCode,
   reduceCredits,
   requestClassId,
@@ -40,6 +43,8 @@ const evidenceCodes = {
 };
 const evidenceRewardCredits = 1;
 const evidenceRevisitBonusCredits = 2;
+const evidenceShopUnitCost = 5;
+const evidenceShopMaxCards = 3;
 
 const goldenKeyCards = {
   337446: {
@@ -405,6 +410,7 @@ function publicEvidenceLog(entry = {}) {
     room: String(catalog?.room || entry.room || "").trim().slice(0, 40),
     evidence: String(catalog?.evidence || entry.evidence || "").trim().slice(0, 80),
     person: String(catalog?.person || entry.person || "").trim().slice(0, 40),
+    source: String(entry.source || "").trim().slice(0, 20),
     added: Math.max(0, Number(entry.added) || 0),
     delta: Number.isFinite(Number(entry.delta)) ? Math.round(Number(entry.delta)) : Math.max(0, Number(entry.added) || 0),
     at: entry.at || ""
@@ -431,6 +437,16 @@ async function subtractEvidenceCredits(logs = []) {
   }));
 }
 
+async function refundEvidenceShopCredits(logs = []) {
+  const totals = logs.reduce((result, entry) => {
+    const team = normalizeTeam(entry.team);
+    if (!team || entry.source !== "shop") return result;
+    result[team] = (result[team] || 0) + Math.max(0, -(Number(entry.delta) || 0));
+    return result;
+  }, {});
+  await Promise.all(Object.entries(totals).map(([team, amount]) => addCredits(team, amount)));
+}
+
 async function handleEvidenceCode(request, response) {
   try {
     if (!isAllowedOrigin(request)) {
@@ -441,13 +457,38 @@ async function handleEvidenceCode(request, response) {
     if (request.method === "GET") {
       const role = String(headerValue(request, "x-kit-role") || queryValue(request, "role") || "").toLowerCase();
       const team = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || queryValue(request, "team"));
-      const logs = await getEvidenceRedemptions();
+      const action = String(queryValue(request, "action") || "").toLowerCase();
 
       if (role === "student") {
         if (!team) {
           sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
           return;
         }
+        if (action === "shop") {
+          const catalog = Object.entries(evidenceCodes);
+          const codes = catalog.map(([code]) => cleanCode(code));
+          const [ownedStatus, purchasedCodes, credits] = await Promise.all([
+            areEvidenceCodesRedeemed(team, codes),
+            getEvidenceShopPurchases(team),
+            getCredits(team)
+          ]);
+          const cards = catalog
+            .filter(([, card], index) => card && !ownedStatus[index])
+            .map(([code, card]) => ({ code: cleanCode(code), ...publicEvidence(card) }));
+          const purchasedCount = purchasedCodes.length;
+          sendJson(response, 200, {
+            ok: true,
+            cards,
+            credits: Math.max(0, Number(credits) || 0),
+            unitCost: evidenceShopUnitCost,
+            maxCards: evidenceShopMaxCards,
+            purchasedCount,
+            remainingPurchases: Math.max(0, evidenceShopMaxCards - purchasedCount),
+            persistent: hasPersistentStore()
+          });
+          return;
+        }
+        const logs = await getEvidenceRedemptions();
         sendJson(response, 200, {
           evidenceLogs: logs
             .filter((entry) => normalizeTeam(entry.team) === team)
@@ -457,6 +498,7 @@ async function handleEvidenceCode(request, response) {
         return;
       }
 
+      const logs = await getEvidenceRedemptions();
       const authError = teacherAuthError(request);
       if (authError) {
         sendJson(response, authError.status, { ...authError, fallback: true });
@@ -491,7 +533,10 @@ async function handleEvidenceCode(request, response) {
 
       const logs = await getEvidenceRedemptions();
       const shouldResetCredits = body.resetCredits !== false;
-      if (shouldResetCredits) await subtractEvidenceCredits(logs);
+      if (shouldResetCredits) {
+        await subtractEvidenceCredits(logs);
+        await refundEvidenceShopCredits(logs);
+      }
       const removed = await clearEvidenceRedemptions();
       const clearedApprovals = await clearEvidenceApprovals();
       await Promise.all(teams.map((team) => clearEvidenceGrant(team)));
@@ -507,6 +552,86 @@ async function handleEvidenceCode(request, response) {
         grants: await getAllEvidenceGrants(),
         clearedGrants: teams.length,
         clearedApprovals: clearedApprovals.length,
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    if (action === "shop-purchase") {
+      const purchaseRole = String(headerValue(request, "x-kit-role") || body.role || "").toLowerCase();
+      const purchaseTeam = normalizeTeam(decodedHeaderValue(request, "x-kit-team") || body.team);
+      if (purchaseRole !== "student") {
+        sendJson(response, 403, { error: "Student role is required.", code: "STUDENT_ROLE_REQUIRED" });
+        return;
+      }
+      if (!purchaseTeam) {
+        sendJson(response, 400, { error: "Valid student team is required.", code: "INVALID_TEAM" });
+        return;
+      }
+
+      const requestedCodes = (Array.isArray(body.codes) ? body.codes : []).map(cleanCode).filter(Boolean);
+      const uniqueCodes = [...new Set(requestedCodes)];
+      if (!uniqueCodes.length || uniqueCodes.length !== requestedCodes.length || uniqueCodes.length > evidenceShopMaxCards) {
+        sendJson(response, 400, {
+          error: `증거카드는 한 번에 1장부터 ${evidenceShopMaxCards}장까지 선택할 수 있습니다.`,
+          code: "INVALID_SHOP_SELECTION"
+        });
+        return;
+      }
+
+      const cards = uniqueCodes.map((code) => ({ code, ...evidenceCodes[code] }));
+      if (cards.some((card) => !card.roomId)) {
+        sendJson(response, 400, { error: "구매할 수 없는 증거카드가 포함되어 있습니다.", code: "INVALID_SHOP_CARD" });
+        return;
+      }
+
+      const result = await purchaseEvidenceCards(
+        purchaseTeam,
+        cards.map((card) => ({ ...card, user: decodedHeaderValue(request, "x-kit-user") || body.user || purchaseTeam })),
+        evidenceShopUnitCost,
+        evidenceShopMaxCards
+      );
+      if (!result.ok) {
+        const errors = {
+          NO_CREDITS: {
+            status: 409,
+            code: "INSUFFICIENT_CREDITS",
+            error: `선택한 증거카드를 구매하려면 코인 ${evidenceShopUnitCost * uniqueCodes.length}개가 필요합니다.`
+          },
+          SHOP_LIMIT: {
+            status: 409,
+            code: "SHOP_LIMIT_REACHED",
+            error: `상점에서는 팀당 증거카드를 최대 ${evidenceShopMaxCards}장까지 구매할 수 있습니다.`
+          },
+          ALREADY_OWNED: {
+            status: 409,
+            code: "EVIDENCE_ALREADY_OWNED",
+            error: "이미 획득한 증거카드가 포함되어 있습니다."
+          }
+        };
+        const failure = errors[result.reason] || {
+          status: 400,
+          code: "SHOP_PURCHASE_FAILED",
+          error: "증거카드를 구매하지 못했습니다."
+        };
+        sendJson(response, failure.status, {
+          ...failure,
+          credits: result.remaining,
+          purchasedCount: result.purchasedCount,
+          remainingPurchases: Math.max(0, evidenceShopMaxCards - result.purchasedCount)
+        });
+        return;
+      }
+
+      sendJson(response, 200, {
+        ok: true,
+        cards: cards.map((card) => ({ code: card.code, ...publicEvidence(card) })),
+        credits: result.remaining,
+        charged: result.charged,
+        unitCost: evidenceShopUnitCost,
+        maxCards: evidenceShopMaxCards,
+        purchasedCount: result.purchasedCount,
+        remainingPurchases: Math.max(0, evidenceShopMaxCards - result.purchasedCount),
         persistent: hasPersistentStore()
       });
       return;

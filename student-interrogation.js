@@ -65,6 +65,7 @@
     87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진", image: "assets/evidence-cards/gym-ex-girlfriend-message.png", position: "center" },
     13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘", image: "assets/evidence-cards/gym-daniel-usb-cctv-full.png", position: "center" }
   };
+  const evidenceShopRoomOrder = ["broadcast", "art", "office", "science", "gym"];
 
   const state = {
     credits: 0,
@@ -81,6 +82,15 @@
     redeeming: false,
     evidenceCards: [],
     selectedEvidenceCode: "",
+    shopOpen: false,
+    shopLoading: false,
+    shopPurchasing: false,
+    shopCards: [],
+    shopCredits: 0,
+    shopUnitCost: 5,
+    shopMaxCards: 3,
+    shopPurchasedCount: 0,
+    shopSelectedCodes: new Set(),
     ethicsAnswers: {},
     ethicsServerSolved: [],
     ethicsCurrent: 1,
@@ -114,6 +124,16 @@
   const evidenceClaimOpen = document.querySelector("[data-evidence-claim-open]");
   const evidenceClaimStatus = document.querySelector("[data-evidence-claim-status]");
   const evidenceClaimArea = document.querySelector("[data-evidence-claim]");
+  const evidenceShopOpenButton = document.querySelector("[data-evidence-shop-open]");
+  const evidenceShopModal = document.querySelector("[data-evidence-shop-modal]");
+  const evidenceShopCloseButtons = [...document.querySelectorAll("[data-evidence-shop-close]")];
+  const evidenceShopCredits = document.querySelector("[data-evidence-shop-credits]");
+  const evidenceShopPrice = document.querySelector("[data-evidence-shop-price]");
+  const evidenceShopRemaining = document.querySelector("[data-evidence-shop-remaining]");
+  const evidenceShopList = document.querySelector("[data-evidence-shop-list]");
+  const evidenceShopStatus = document.querySelector("[data-evidence-shop-status]");
+  const evidenceShopTotal = document.querySelector("[data-evidence-shop-total]");
+  const evidenceShopPurchase = document.querySelector("[data-evidence-shop-purchase]");
   const caseNoteArea = document.querySelector("[data-note-key='case']");
   const caseNoteStatus = document.querySelector("[data-note-status='case']");
   const clearCaseNote = document.querySelector("[data-clear-note='case']");
@@ -628,6 +648,278 @@
     saveEvidenceCards();
     renderEvidenceBoard();
     return card;
+  }
+
+  function setEvidenceShopStatus(text, type = "") {
+    if (!evidenceShopStatus) return;
+    evidenceShopStatus.textContent = text || "";
+    evidenceShopStatus.classList.toggle("is-ok", type === "ok");
+    evidenceShopStatus.classList.toggle("is-bad", type === "bad");
+  }
+
+  function evidenceShopRemainingCount() {
+    return Math.max(0, state.shopMaxCards - state.shopPurchasedCount);
+  }
+
+  function evidenceShopSelectionLimit() {
+    const affordable = Math.floor(Math.max(0, state.shopCredits) / Math.max(1, state.shopUnitCost));
+    return Math.max(0, Math.min(evidenceShopRemainingCount(), affordable));
+  }
+
+  function renderEvidenceShop() {
+    if (!evidenceShopList) return;
+
+    const selectedCount = state.shopSelectedCodes.size;
+    const remaining = evidenceShopRemainingCount();
+    const selectionLimit = evidenceShopSelectionLimit();
+    if (evidenceShopCredits) evidenceShopCredits.textContent = `${Math.max(0, state.shopCredits)}개`;
+    if (evidenceShopPrice) evidenceShopPrice.textContent = `1장 · ${state.shopUnitCost}코인`;
+    if (evidenceShopRemaining) {
+      evidenceShopRemaining.textContent = `${remaining}장 · 누적 ${state.shopPurchasedCount}/${state.shopMaxCards}`;
+    }
+    if (evidenceShopTotal) {
+      evidenceShopTotal.textContent = `${selectedCount}장 · ${selectedCount * state.shopUnitCost}코인`;
+    }
+    if (evidenceShopPurchase) {
+      evidenceShopPurchase.disabled = state.shopLoading || state.shopPurchasing || selectedCount < 1 || selectedCount > selectionLimit;
+      evidenceShopPurchase.textContent = state.shopPurchasing ? "구매 중" : "구매";
+    }
+
+    evidenceShopList.textContent = "";
+    if (state.shopLoading) {
+      const loading = document.createElement("p");
+      loading.className = "evidence-shop-empty";
+      loading.textContent = "상점 정보를 불러오는 중입니다.";
+      evidenceShopList.append(loading);
+      return;
+    }
+
+    if (!remaining) {
+      const limitMessage = document.createElement("p");
+      limitMessage.className = "evidence-shop-empty";
+      limitMessage.textContent = "상점 구매 한도 3장을 모두 사용했습니다.";
+      evidenceShopList.append(limitMessage);
+      return;
+    }
+
+    if (!state.shopCards.length) {
+      const empty = document.createElement("p");
+      empty.className = "evidence-shop-empty";
+      empty.textContent = "구매할 수 있는 증거카드가 없습니다.";
+      evidenceShopList.append(empty);
+      return;
+    }
+
+    const grouped = state.shopCards.reduce((rooms, card) => {
+      const key = card.roomId || card.room;
+      if (!rooms.has(key)) rooms.set(key, { name: card.room, cards: [] });
+      rooms.get(key).cards.push(card);
+      return rooms;
+    }, new Map());
+
+    grouped.forEach((group) => {
+      const section = document.createElement("section");
+      section.className = "evidence-shop-room";
+
+      const head = document.createElement("div");
+      head.className = "evidence-shop-room__head";
+      const title = document.createElement("h3");
+      title.textContent = group.name;
+      const count = document.createElement("span");
+      count.textContent = `${group.cards.length}장`;
+      head.append(title, count);
+
+      const cards = document.createElement("div");
+      cards.className = "evidence-shop-room__cards";
+      group.cards.forEach((card) => {
+        const selected = state.shopSelectedCodes.has(card.code);
+        const disabled = state.shopPurchasing || (!selected && selectedCount >= selectionLimit);
+        const label = document.createElement("label");
+        label.className = "evidence-shop-card";
+        label.classList.toggle("is-selected", selected);
+        label.classList.toggle("is-disabled", disabled);
+
+        const image = document.createElement("img");
+        image.src = card.image;
+        image.alt = `${card.room} 증거 카드 ${card.index}`;
+        image.decoding = "async";
+        image.style.objectPosition = card.position || "center";
+
+        const copy = document.createElement("span");
+        copy.className = "evidence-shop-card__copy";
+        const meta = document.createElement("span");
+        meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
+        const name = document.createElement("strong");
+        name.textContent = card.evidence;
+        const person = document.createElement("em");
+        person.textContent = `관련 인물: ${card.person || "미상"}`;
+        copy.append(meta, name, person);
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = selected;
+        input.disabled = disabled;
+        input.dataset.evidenceShopCode = card.code;
+        input.setAttribute("aria-label", `${card.evidence} 선택`);
+
+        label.append(image, copy, input);
+        cards.append(label);
+      });
+
+      section.append(head, cards);
+      evidenceShopList.append(section);
+    });
+  }
+
+  function closeEvidenceShop() {
+    if (!evidenceShopModal || state.shopPurchasing) return;
+    evidenceShopModal.hidden = true;
+    state.shopOpen = false;
+    state.shopSelectedCodes.clear();
+    document.body.classList.remove("evidence-shop-open");
+    evidenceShopOpenButton?.focus({ preventScroll: true });
+  }
+
+  async function openEvidenceShop() {
+    if (!evidenceShopModal || state.shopLoading || state.shopPurchasing) return;
+    if (!state.team) {
+      setEvidenceMessage("학생 팀 정보가 없습니다.", "bad");
+      return;
+    }
+
+    state.shopOpen = true;
+    state.shopLoading = true;
+    state.shopSelectedCodes.clear();
+    evidenceShopModal.hidden = false;
+    document.body.classList.add("evidence-shop-open");
+    setEvidenceShopStatus("");
+    renderEvidenceShop();
+    evidenceShopCloseButtons[0]?.focus({ preventScroll: true });
+
+    try {
+      const response = await fetch(`/api/evidence-code?action=shop&team=${encodeURIComponent(state.team)}&classId=${encodeURIComponent(state.classId)}`, {
+        cache: "no-store",
+        headers: {
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "상점 정보를 불러오지 못했습니다.");
+
+      applyCredits(data.credits);
+      state.shopCredits = Math.max(0, Number(data.credits) || 0);
+      state.shopUnitCost = Math.max(1, Number(data.unitCost) || 5);
+      state.shopMaxCards = Math.max(1, Number(data.maxCards) || 3);
+      state.shopPurchasedCount = Math.max(0, Number(data.purchasedCount) || 0);
+      state.shopCards = (Array.isArray(data.cards) ? data.cards : [])
+        .map((card) => evidenceFromResponse(card.code, card))
+        .sort((a, b) => {
+          const roomDelta = evidenceShopRoomOrder.indexOf(a.roomId) - evidenceShopRoomOrder.indexOf(b.roomId);
+          return roomDelta || a.index - b.index;
+        });
+      if (evidenceShopRemainingCount() > 0 && state.shopCards.length && state.shopCredits < state.shopUnitCost) {
+        setEvidenceShopStatus(`증거카드 1장을 구매하려면 코인 ${state.shopUnitCost}개가 필요합니다.`, "bad");
+      }
+    } catch (error) {
+      state.shopCards = [];
+      setEvidenceShopStatus(error.message || "상점 정보를 불러오지 못했습니다.", "bad");
+    } finally {
+      state.shopLoading = false;
+      renderEvidenceShop();
+      updateControls();
+    }
+  }
+
+  function selectEvidenceShopCard(event) {
+    const input = event.target.closest("[data-evidence-shop-code]");
+    if (!input || state.shopLoading || state.shopPurchasing) return;
+    const code = cleanCode(input.dataset.evidenceShopCode);
+    if (!code) return;
+
+    if (input.checked) {
+      if (state.shopSelectedCodes.size >= evidenceShopSelectionLimit()) {
+        input.checked = false;
+        setEvidenceShopStatus(`현재는 최대 ${evidenceShopSelectionLimit()}장까지 선택할 수 있습니다.`, "bad");
+      } else {
+        state.shopSelectedCodes.add(code);
+        setEvidenceShopStatus("");
+      }
+    } else {
+      state.shopSelectedCodes.delete(code);
+      setEvidenceShopStatus("");
+    }
+    renderEvidenceShop();
+  }
+
+  async function purchaseEvidenceShopCards() {
+    if (state.shopPurchasing || !state.shopSelectedCodes.size) return;
+    const codes = [...state.shopSelectedCodes];
+    const total = codes.length * state.shopUnitCost;
+    state.shopPurchasing = true;
+    setEvidenceShopStatus(`증거카드 ${codes.length}장을 구매하는 중입니다.`);
+    renderEvidenceShop();
+
+    try {
+      const response = await fetch("/api/evidence-code", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-kit-role": "student",
+          "x-kit-class": state.classId,
+          "x-kit-team": encodeURIComponent(state.team),
+          "x-kit-user": encodeURIComponent(state.user)
+        },
+        body: JSON.stringify({
+          action: "shop-purchase",
+          codes,
+          role: "student",
+          classId: state.classId,
+          team: state.team,
+          user: state.user
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        if (data.credits !== undefined) {
+          applyCredits(data.credits);
+          state.shopCredits = Math.max(0, Number(data.credits) || 0);
+        }
+        throw new Error(data.error || "증거카드를 구매하지 못했습니다.");
+      }
+
+      applyCredits(data.credits);
+      state.shopCredits = Math.max(0, Number(data.credits) || 0);
+      state.shopPurchasedCount = Math.max(0, Number(data.purchasedCount) || state.shopPurchasedCount + codes.length);
+      const purchasedCards = Array.isArray(data.cards) ? data.cards : [];
+      purchasedCards.forEach((card) => storeEvidenceCard(card.code, card));
+      const purchasedCodes = new Set(purchasedCards.map((card) => cleanCode(card.code)));
+      state.shopCards = state.shopCards.filter((card) => !purchasedCodes.has(card.code));
+      state.shopSelectedCodes.clear();
+      pulseCreditDisplay(-Math.max(0, Number(data.charged) || total));
+      setEvidenceShopStatus(`증거카드 ${purchasedCards.length}장을 구매했습니다.`, "ok");
+    } catch (error) {
+      setEvidenceShopStatus(error.message || "증거카드를 구매하지 못했습니다.", "bad");
+    } finally {
+      state.shopPurchasing = false;
+      renderEvidenceShop();
+      updateControls();
+    }
+  }
+
+  function setupEvidenceShop() {
+    evidenceShopOpenButton?.addEventListener("click", openEvidenceShop);
+    evidenceShopCloseButtons.forEach((button) => button.addEventListener("click", closeEvidenceShop));
+    evidenceShopModal?.addEventListener("click", (event) => {
+      if (event.target === evidenceShopModal) closeEvidenceShop();
+    });
+    evidenceShopList?.addEventListener("change", selectEvidenceShopCard);
+    evidenceShopPurchase?.addEventListener("click", purchaseEvidenceShopCards);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.shopOpen) closeEvidenceShop();
+    });
   }
 
   function selectedEvidenceCard() {
@@ -1389,7 +1681,7 @@
   }
 
   function updateEvidenceControls() {
-    const disabled = state.redeeming || state.claiming || !state.team;
+    const disabled = state.redeeming || state.claiming || state.shopPurchasing || !state.team;
     if (evidenceInput) evidenceInput.disabled = disabled;
     if (evidenceSubmit) {
       evidenceSubmit.disabled = disabled;
@@ -1398,6 +1690,9 @@
     if (evidenceClaimOpen) {
       evidenceClaimOpen.disabled = disabled;
       evidenceClaimOpen.textContent = state.claiming ? "받는 중" : "받기";
+    }
+    if (evidenceShopOpenButton) {
+      evidenceShopOpenButton.disabled = disabled || state.shopLoading;
     }
     updateSimilaritySubmitButton();
   }
@@ -2405,6 +2700,7 @@
 
   setupCardLightbox();
   setupGoldenPopup();
+  setupEvidenceShop();
 
   evidenceBoard?.addEventListener("click", (event) => {
     const item = event.target.closest("[data-evidence-code-card]");
