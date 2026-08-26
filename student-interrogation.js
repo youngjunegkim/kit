@@ -53,18 +53,6 @@
     technicalCrime: "그런 방법 같은 건 몰라요. 실제로 따라 할 수 있는 얘기는 하지 않겠습니다.",
     unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
-  const evidenceCatalog = {
-    39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린", image: "assets/evidence-cards/broadcast-equipment-checklist.png", position: "center" },
-    26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린", image: "assets/evidence-cards/broadcast-ai-access-log.png", position: "center" },
-    65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", person: "서하린", image: "assets/evidence-cards/art-exam-notice-poster.png", position: "center" },
-    40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", person: "강우진", image: "assets/evidence-cards/art-deleted-ai-prompt.png", position: "center" },
-    91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진", image: "assets/evidence-cards/office-woojin-tablet-cctv.png", position: "center" },
-    11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", person: "강우진", image: "assets/evidence-cards/office-final-exam-paper.png", position: "center" },
-    79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", person: "최다니엘", image: "assets/evidence-cards/science-report-submission.png", position: "center" },
-    61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", person: "최다니엘", image: "assets/evidence-cards/science-lost-usb-record.png", position: "center" },
-    87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진", image: "assets/evidence-cards/gym-ex-girlfriend-message.png", position: "center" },
-    13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘", image: "assets/evidence-cards/gym-daniel-usb-cctv-full.png", position: "center" }
-  };
   const evidenceShopRoomOrder = ["broadcast", "art", "office", "science", "gym"];
 
   const state = {
@@ -90,7 +78,7 @@
     shopUnitCost: 5,
     shopMaxCards: 3,
     shopPurchasedCount: 0,
-    shopSelectedCodes: new Set(),
+    shopSelectedIds: new Set(),
     ethicsAnswers: {},
     ethicsServerSolved: [],
     ethicsCurrent: 1,
@@ -558,19 +546,16 @@
 
   function evidenceFromResponse(code, evidence = {}) {
     const clean = cleanCode(code);
-    const catalog = evidenceCatalog[clean] || Object.values(evidenceCatalog).find((item) => {
-      return item.room === evidence.room && item.evidence === evidence.evidence;
-    }) || {};
 
     return {
       code: clean,
-      room: evidence.room || catalog.room || "교실",
-      roomId: catalog.roomId || "",
-      index: Number(catalog.index) || Number(evidence.index) || 1,
-      evidence: catalog.evidence || evidence.evidence || "증거카드",
-      person: evidence.person || catalog.person || "",
-      image: catalog.image || "",
-      position: catalog.position || "center",
+      room: evidence.room || "교실",
+      roomId: evidence.roomId || "",
+      index: Number(evidence.index) || 1,
+      evidence: evidence.evidence || "증거카드",
+      person: evidence.person || "",
+      image: evidence.image || "",
+      position: evidence.position || "center",
       at: new Date().toISOString()
     };
   }
@@ -597,7 +582,7 @@
 
   function evidenceCardsFromLogs(logs = []) {
     return logs
-      .filter((entry) => entry?.code && entry?.evidence && evidenceCatalog[cleanCode(entry.code)])
+      .filter((entry) => entry?.code && entry?.evidence && entry?.roomId && entry?.image)
       .map((entry) => evidenceFromResponse(entry.code, {
         room: entry.room,
         evidence: entry.evidence,
@@ -669,7 +654,7 @@
   function renderEvidenceShop() {
     if (!evidenceShopList) return;
 
-    const selectedCount = state.shopSelectedCodes.size;
+    const selectedCount = state.shopSelectedIds.size;
     const remaining = evidenceShopRemainingCount();
     const selectionLimit = evidenceShopSelectionLimit();
     if (evidenceShopCredits) evidenceShopCredits.textContent = `${Math.max(0, state.shopCredits)}개`;
@@ -732,37 +717,38 @@
       const cards = document.createElement("div");
       cards.className = "evidence-shop-room__cards";
       group.cards.forEach((card) => {
-        const selected = state.shopSelectedCodes.has(card.code);
+        const selected = state.shopSelectedIds.has(card.id);
         const disabled = state.shopPurchasing || (!selected && selectedCount >= selectionLimit);
         const label = document.createElement("label");
         label.className = "evidence-shop-card";
         label.classList.toggle("is-selected", selected);
         label.classList.toggle("is-disabled", disabled);
 
-        const image = document.createElement("img");
-        image.src = card.image;
-        image.alt = `${card.room} 증거 카드 ${card.index}`;
-        image.decoding = "async";
-        image.style.objectPosition = card.position || "center";
+        const cardBack = document.createElement("span");
+        cardBack.className = "evidence-shop-card__back";
+        cardBack.setAttribute("aria-hidden", "true");
+        const cardBackMark = document.createElement("strong");
+        cardBackMark.textContent = "?";
+        cardBack.append(cardBackMark);
 
         const copy = document.createElement("span");
         copy.className = "evidence-shop-card__copy";
         const meta = document.createElement("span");
         meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
         const name = document.createElement("strong");
-        name.textContent = card.evidence;
+        name.textContent = `증거카드 ${card.index}`;
         const person = document.createElement("em");
-        person.textContent = `관련 인물: ${card.person || "미상"}`;
+        person.textContent = "구매 후 공개";
         copy.append(meta, name, person);
 
         const input = document.createElement("input");
         input.type = "checkbox";
         input.checked = selected;
         input.disabled = disabled;
-        input.dataset.evidenceShopCode = card.code;
-        input.setAttribute("aria-label", `${card.evidence} 선택`);
+        input.dataset.evidenceShopId = card.id;
+        input.setAttribute("aria-label", `${card.room} 증거카드 ${card.index} 선택`);
 
-        label.append(image, copy, input);
+        label.append(cardBack, copy, input);
         cards.append(label);
       });
 
@@ -775,7 +761,7 @@
     if (!evidenceShopModal || state.shopPurchasing) return;
     evidenceShopModal.hidden = true;
     state.shopOpen = false;
-    state.shopSelectedCodes.clear();
+    state.shopSelectedIds.clear();
     document.body.classList.remove("evidence-shop-open");
     evidenceShopOpenButton?.focus({ preventScroll: true });
   }
@@ -789,7 +775,7 @@
 
     state.shopOpen = true;
     state.shopLoading = true;
-    state.shopSelectedCodes.clear();
+    state.shopSelectedIds.clear();
     evidenceShopModal.hidden = false;
     document.body.classList.add("evidence-shop-open");
     setEvidenceShopStatus("");
@@ -815,7 +801,13 @@
       state.shopMaxCards = Math.max(1, Number(data.maxCards) || 3);
       state.shopPurchasedCount = Math.max(0, Number(data.purchasedCount) || 0);
       state.shopCards = (Array.isArray(data.cards) ? data.cards : [])
-        .map((card) => evidenceFromResponse(card.code, card))
+        .map((card) => ({
+          id: String(card.id || ""),
+          room: String(card.room || "교실"),
+          roomId: String(card.roomId || ""),
+          index: Math.max(1, Number(card.index) || 1)
+        }))
+        .filter((card) => card.id && card.roomId)
         .sort((a, b) => {
           const roomDelta = evidenceShopRoomOrder.indexOf(a.roomId) - evidenceShopRoomOrder.indexOf(b.roomId);
           return roomDelta || a.index - b.index;
@@ -834,32 +826,32 @@
   }
 
   function selectEvidenceShopCard(event) {
-    const input = event.target.closest("[data-evidence-shop-code]");
+    const input = event.target.closest("[data-evidence-shop-id]");
     if (!input || state.shopLoading || state.shopPurchasing) return;
-    const code = cleanCode(input.dataset.evidenceShopCode);
-    if (!code) return;
+    const cardId = String(input.dataset.evidenceShopId || "").trim();
+    if (!cardId) return;
 
     if (input.checked) {
-      if (state.shopSelectedCodes.size >= evidenceShopSelectionLimit()) {
+      if (state.shopSelectedIds.size >= evidenceShopSelectionLimit()) {
         input.checked = false;
         setEvidenceShopStatus(`현재는 최대 ${evidenceShopSelectionLimit()}장까지 선택할 수 있습니다.`, "bad");
       } else {
-        state.shopSelectedCodes.add(code);
+        state.shopSelectedIds.add(cardId);
         setEvidenceShopStatus("");
       }
     } else {
-      state.shopSelectedCodes.delete(code);
+      state.shopSelectedIds.delete(cardId);
       setEvidenceShopStatus("");
     }
     renderEvidenceShop();
   }
 
   async function purchaseEvidenceShopCards() {
-    if (state.shopPurchasing || !state.shopSelectedCodes.size) return;
-    const codes = [...state.shopSelectedCodes];
-    const total = codes.length * state.shopUnitCost;
+    if (state.shopPurchasing || !state.shopSelectedIds.size) return;
+    const cardIds = [...state.shopSelectedIds];
+    const total = cardIds.length * state.shopUnitCost;
     state.shopPurchasing = true;
-    setEvidenceShopStatus(`증거카드 ${codes.length}장을 구매하는 중입니다.`);
+    setEvidenceShopStatus(`증거카드 ${cardIds.length}장을 구매하는 중입니다.`);
     renderEvidenceShop();
 
     try {
@@ -874,7 +866,7 @@
         },
         body: JSON.stringify({
           action: "shop-purchase",
-          codes,
+          cardIds,
           role: "student",
           classId: state.classId,
           team: state.team,
@@ -892,12 +884,12 @@
 
       applyCredits(data.credits);
       state.shopCredits = Math.max(0, Number(data.credits) || 0);
-      state.shopPurchasedCount = Math.max(0, Number(data.purchasedCount) || state.shopPurchasedCount + codes.length);
+      state.shopPurchasedCount = Math.max(0, Number(data.purchasedCount) || state.shopPurchasedCount + cardIds.length);
       const purchasedCards = Array.isArray(data.cards) ? data.cards : [];
       purchasedCards.forEach((card) => storeEvidenceCard(card.code, card));
-      const purchasedCodes = new Set(purchasedCards.map((card) => cleanCode(card.code)));
-      state.shopCards = state.shopCards.filter((card) => !purchasedCodes.has(card.code));
-      state.shopSelectedCodes.clear();
+      const purchasedIds = new Set(purchasedCards.map((card) => String(card.id || "")));
+      state.shopCards = state.shopCards.filter((card) => !purchasedIds.has(card.id));
+      state.shopSelectedIds.clear();
       pulseCreditDisplay(-Math.max(0, Number(data.charged) || total));
       setEvidenceShopStatus(`증거카드 ${purchasedCards.length}장을 구매했습니다.`, "ok");
     } catch (error) {

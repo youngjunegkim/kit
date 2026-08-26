@@ -30,16 +30,16 @@ const {
 } = require("./_credits");
 
 const evidenceCodes = {
-  39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린" },
-  26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린" },
-  65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", person: "서하린" },
-  40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", person: "강우진" },
-  91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진" },
-  11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", person: "강우진" },
-  79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", person: "최다니엘" },
-  61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", person: "최다니엘" },
-  87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진" },
-  13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘" }
+  39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린", image: "assets/evidence-cards/broadcast-equipment-checklist.png", position: "center" },
+  26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린", image: "assets/evidence-cards/broadcast-ai-access-log.png", position: "center" },
+  65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", person: "서하린", image: "assets/evidence-cards/art-exam-notice-poster.png", position: "center" },
+  40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", person: "강우진", image: "assets/evidence-cards/art-deleted-ai-prompt.png", position: "center" },
+  91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진", image: "assets/evidence-cards/office-woojin-tablet-cctv.png", position: "center" },
+  11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", person: "강우진", image: "assets/evidence-cards/office-final-exam-paper.png", position: "center" },
+  79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", person: "최다니엘", image: "assets/evidence-cards/science-report-submission.png", position: "center" },
+  61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", person: "최다니엘", image: "assets/evidence-cards/science-lost-usb-record.png", position: "center" },
+  87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진", image: "assets/evidence-cards/gym-ex-girlfriend-message.png", position: "center" },
+  13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘", image: "assets/evidence-cards/gym-daniel-usb-cctv-full.png", position: "center" }
 };
 const evidenceRewardCredits = 1;
 const evidenceRevisitBonusCredits = 2;
@@ -311,6 +311,19 @@ function roomOptionsFor(roomId) {
   }));
 }
 
+function evidenceShopId(evidence = {}) {
+  const roomId = String(evidence.roomId || "").trim();
+  const index = Math.max(0, Number(evidence.index) || 0);
+  return roomId && index ? `${roomId}:${index}` : "";
+}
+
+function evidenceShopCardById(value) {
+  const [roomId, rawIndex] = String(value || "").trim().split(":");
+  const code = codeForRoomIndex(roomId, rawIndex);
+  const evidence = code ? evidenceCodes[code] : null;
+  return evidence ? { id: evidenceShopId(evidence), code, ...evidence } : null;
+}
+
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
   response.setHeader("content-type", "application/json; charset=utf-8");
@@ -408,8 +421,12 @@ function publicEvidenceLog(entry = {}) {
     user: String(entry.user || entry.team || "").trim().slice(0, 40),
     code: cleanCode(entry.code),
     room: String(catalog?.room || entry.room || "").trim().slice(0, 40),
+    roomId: String(catalog?.roomId || entry.roomId || "").trim().slice(0, 20),
+    index: Math.max(0, Number(catalog?.index || entry.index) || 0),
     evidence: String(catalog?.evidence || entry.evidence || "").trim().slice(0, 80),
     person: String(catalog?.person || entry.person || "").trim().slice(0, 40),
+    image: String(catalog?.image || entry.image || "").trim().slice(0, 180),
+    position: String(catalog?.position || entry.position || "center").trim().slice(0, 30),
     source: String(entry.source || "").trim().slice(0, 20),
     added: Math.max(0, Number(entry.added) || 0),
     delta: Number.isFinite(Number(entry.delta)) ? Math.round(Number(entry.delta)) : Math.max(0, Number(entry.added) || 0),
@@ -423,7 +440,9 @@ function publicEvidence(evidence = {}) {
     roomId: String(evidence.roomId || "").trim().slice(0, 20),
     index: Math.max(0, Number(evidence.index) || 0),
     evidence: String(evidence.evidence || "").trim().slice(0, 80),
-    person: String(evidence.person || "").trim().slice(0, 40)
+    person: String(evidence.person || "").trim().slice(0, 40),
+    image: String(evidence.image || "").trim().slice(0, 180),
+    position: String(evidence.position || "center").trim().slice(0, 30)
   };
 }
 
@@ -474,7 +493,12 @@ async function handleEvidenceCode(request, response) {
           ]);
           const cards = catalog
             .filter(([, card], index) => card && !ownedStatus[index])
-            .map(([code, card]) => ({ code: cleanCode(code), ...publicEvidence(card) }));
+            .map(([, card]) => ({
+              id: evidenceShopId(card),
+              room: card.room,
+              roomId: card.roomId,
+              index: card.index
+            }));
           const purchasedCount = purchasedCodes.length;
           sendJson(response, 200, {
             ok: true,
@@ -569,9 +593,11 @@ async function handleEvidenceCode(request, response) {
         return;
       }
 
-      const requestedCodes = (Array.isArray(body.codes) ? body.codes : []).map(cleanCode).filter(Boolean);
-      const uniqueCodes = [...new Set(requestedCodes)];
-      if (!uniqueCodes.length || uniqueCodes.length !== requestedCodes.length || uniqueCodes.length > evidenceShopMaxCards) {
+      const requestedIds = (Array.isArray(body.cardIds) ? body.cardIds : [])
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean);
+      const uniqueIds = [...new Set(requestedIds)];
+      if (!uniqueIds.length || uniqueIds.length !== requestedIds.length || uniqueIds.length > evidenceShopMaxCards) {
         sendJson(response, 400, {
           error: `증거카드는 한 번에 1장부터 ${evidenceShopMaxCards}장까지 선택할 수 있습니다.`,
           code: "INVALID_SHOP_SELECTION"
@@ -579,8 +605,8 @@ async function handleEvidenceCode(request, response) {
         return;
       }
 
-      const cards = uniqueCodes.map((code) => ({ code, ...evidenceCodes[code] }));
-      if (cards.some((card) => !card.roomId)) {
+      const cards = uniqueIds.map(evidenceShopCardById);
+      if (cards.some((card) => !card)) {
         sendJson(response, 400, { error: "구매할 수 없는 증거카드가 포함되어 있습니다.", code: "INVALID_SHOP_CARD" });
         return;
       }
@@ -596,7 +622,7 @@ async function handleEvidenceCode(request, response) {
           NO_CREDITS: {
             status: 409,
             code: "INSUFFICIENT_CREDITS",
-            error: `선택한 증거카드를 구매하려면 코인 ${evidenceShopUnitCost * uniqueCodes.length}개가 필요합니다.`
+            error: `선택한 증거카드를 구매하려면 코인 ${evidenceShopUnitCost * uniqueIds.length}개가 필요합니다.`
           },
           SHOP_LIMIT: {
             status: 409,
@@ -625,7 +651,7 @@ async function handleEvidenceCode(request, response) {
 
       sendJson(response, 200, {
         ok: true,
-        cards: cards.map((card) => ({ code: card.code, ...publicEvidence(card) })),
+        cards: cards.map((card) => ({ id: card.id, code: card.code, ...publicEvidence(card) })),
         credits: result.remaining,
         charged: result.charged,
         unitCost: evidenceShopUnitCost,
