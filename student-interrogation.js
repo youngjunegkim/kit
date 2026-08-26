@@ -694,8 +694,10 @@
       meta.textContent = `${item.room} · 증거 카드 ${item.index}`;
       const name = document.createElement("strong");
       name.textContent = item.evidence;
+      const person = document.createElement("em");
+      person.textContent = `관련 인물: ${item.person || "미상"}`;
 
-      body.append(meta, name);
+      body.append(meta, name, person);
       row.append(thumb, body);
       list.append(row);
     });
@@ -751,8 +753,10 @@
 
       const title = document.createElement("strong");
       title.textContent = card.evidence;
+      const person = document.createElement("em");
+      person.textContent = `관련 인물: ${card.person || "미상"}`;
 
-      body.append(meta, title);
+      body.append(meta, title, person);
       item.append(thumb, body);
       evidenceBoard.append(item);
     });
@@ -810,8 +814,10 @@
       meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
       const title = document.createElement("strong");
       title.textContent = card.evidence;
+      const person = document.createElement("em");
+      person.textContent = `관련 인물: ${card.person || "미상"}`;
 
-      front.append(image, meta, title);
+      front.append(image, meta, title, person);
     }
 
     selected.classList.add("is-flipped", "is-picked");

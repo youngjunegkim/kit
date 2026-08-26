@@ -427,8 +427,10 @@
       meta.textContent = `${card.room} · 증거 카드 ${card.index}`;
       const text = document.createElement("strong");
       text.textContent = card.evidence;
+      const person = document.createElement("em");
+      person.textContent = `관련 인물: ${card.person || "미상"}`;
 
-      info.append(meta, text);
+      info.append(meta, text, person);
       body.append(image, info);
       nodes.evidenceReveal.append(body);
     });
