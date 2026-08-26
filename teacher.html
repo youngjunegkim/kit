@@ -412,11 +412,11 @@
 
     .case-note-button__mascot img {
       position: absolute;
-      left: 50%;
+      left: 55%;
       bottom: 9px;
       z-index: 1;
-      width: 94px;
-      height: 94px;
+      width: 100px;
+      height: 100px;
       object-fit: contain;
       object-position: center;
       mix-blend-mode: darken;
@@ -793,7 +793,7 @@
       font-weight: 850;
     }
 
-    .evidence-approval-list {
+    .evidence-room-count-list {
       display: grid;
       gap: 7px;
       max-height: 220px;
@@ -801,7 +801,7 @@
       padding-top: 1px;
     }
 
-    .evidence-approval-entry {
+    .evidence-room-count-entry {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -812,26 +812,15 @@
       padding: 8px 9px;
     }
 
-    .evidence-approval-entry__details {
+    .evidence-room-count-entry strong {
       min-width: 0;
-      display: grid;
-      gap: 2px;
       color: #18202b;
       font-size: 0.8rem;
-    }
-
-    .evidence-approval-entry__details strong {
       overflow-wrap: anywhere;
       font-weight: 900;
     }
 
-    .evidence-approval-entry__details span {
-      color: #7a8695;
-      font-size: 0.72rem;
-      font-weight: 800;
-    }
-
-    .evidence-approval-entry__visit {
+    .evidence-room-count-entry__count {
       flex: 0 0 auto;
       border-radius: 999px;
       background: #e9eef5;
@@ -1144,8 +1133,8 @@
       }
 
       .case-note-button__mascot img {
-        width: 90px;
-        height: 90px;
+        width: 96px;
+        height: 96px;
       }
     }
 
@@ -1218,8 +1207,8 @@
 
       .case-note-button__mascot img {
         bottom: 9px;
-        width: 78px;
-        height: 78px;
+        width: 82px;
+        height: 82px;
       }
     }
   </style>
@@ -1383,8 +1372,8 @@
         <p class="evidence-grant-status" id="grantStatus" role="status"></p>
         <div class="evidence-grant-subhead">승인 대기</div>
         <div class="evidence-grant-list" id="evidenceGrantList"></div>
-        <div class="evidence-grant-subhead">승인 이력</div>
-        <div class="evidence-approval-list" id="evidenceApprovalLogList" aria-live="polite"></div>
+        <div class="evidence-grant-subhead">증거카드 획득 횟수</div>
+        <div class="evidence-room-count-list" id="evidenceRoomCountList" aria-live="polite"></div>
       </section>
 
       <div class="team-list">
