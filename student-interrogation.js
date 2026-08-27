@@ -54,6 +54,18 @@
     unsafe: "그런 질문에는 답하지 않겠습니다. 사건과 관련된 증거를 바탕으로 질문해 주세요."
   };
   const evidenceShopRoomOrder = ["broadcast", "art", "office", "science", "gym"];
+  const evidenceCatalog = {
+    39275: { room: "방송실", roomId: "broadcast", index: 1, evidence: "방송실 장비 점검표", person: "서하린", image: "assets/evidence-cards/broadcast-equipment-checklist.png", position: "center" },
+    26547: { room: "방송실", roomId: "broadcast", index: 2, evidence: "AI 자료 열람 기록", person: "서하린", image: "assets/evidence-cards/broadcast-ai-access-log.png", position: "center" },
+    65927: { room: "미술실", roomId: "art", index: 1, evidence: "기말고사 유의사항 포스터 파일", person: "서하린", image: "assets/evidence-cards/art-exam-notice-poster.png", position: "center" },
+    40018: { room: "미술실", roomId: "art", index: 2, evidence: "삭제된 AI 프롬프트 기록", person: "강우진", image: "assets/evidence-cards/art-deleted-ai-prompt.png", position: "center" },
+    91648: { room: "교무실", roomId: "office", index: 1, evidence: "CCTV에 찍힌 강우진의 태블릿", person: "강우진", image: "assets/evidence-cards/office-woojin-tablet-cctv.png", position: "center" },
+    11582: { room: "교무실", roomId: "office", index: 2, evidence: "책상 위 기말고사 문제지", person: "강우진", image: "assets/evidence-cards/office-final-exam-paper.png", position: "center" },
+    79610: { room: "과학실", roomId: "science", index: 1, evidence: "실험 보고서 제출 기록", person: "최다니엘", image: "assets/evidence-cards/science-report-submission.png", position: "center" },
+    61408: { room: "과학실", roomId: "science", index: 2, evidence: "과학실 분실물함 기록", person: "최다니엘", image: "assets/evidence-cards/science-lost-usb-record.png", position: "center" },
+    87143: { room: "체육관", roomId: "gym", index: 1, evidence: "전교 1등 전 여자친구의 메시지", person: "강우진", image: "assets/evidence-cards/gym-ex-girlfriend-message.png", position: "center" },
+    13450: { room: "체육관", roomId: "gym", index: 2, evidence: "CCTV에 찍힌 최다니엘의 USB", person: "최다니엘", image: "assets/evidence-cards/gym-daniel-usb-cctv-full.png", position: "center" }
+  };
 
   const state = {
     credits: 0,
@@ -566,16 +578,17 @@
 
   function evidenceFromResponse(code, evidence = {}) {
     const clean = cleanCode(code);
+    const catalog = evidenceCatalog[clean] || {};
 
     return {
       code: clean,
-      room: evidence.room || "교실",
-      roomId: evidence.roomId || "",
-      index: Number(evidence.index) || 1,
-      evidence: evidence.evidence || "증거카드",
-      person: evidence.person || "",
-      image: evidence.image || "",
-      position: evidence.position || "center",
+      room: evidence.room || catalog.room || "교실",
+      roomId: evidence.roomId || catalog.roomId || "",
+      index: Number(evidence.index) || Number(catalog.index) || 1,
+      evidence: evidence.evidence || catalog.evidence || "증거카드",
+      person: evidence.person || catalog.person || "",
+      image: evidence.image || catalog.image || "",
+      position: evidence.position || catalog.position || "center",
       at: new Date().toISOString()
     };
   }
@@ -602,12 +615,8 @@
 
   function evidenceCardsFromLogs(logs = []) {
     return logs
-      .filter((entry) => entry?.code && entry?.evidence && entry?.roomId && entry?.image)
-      .map((entry) => evidenceFromResponse(entry.code, {
-        room: entry.room,
-        evidence: entry.evidence,
-        person: entry.person
-      }));
+      .filter((entry) => entry?.code && entry?.evidence)
+      .map((entry) => evidenceFromResponse(entry.code, entry));
   }
 
   function applySyncedEvidenceCards(cards = []) {
