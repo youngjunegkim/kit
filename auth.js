@@ -1,11 +1,12 @@
 (function () {
-  const teacherAccount = { user: "master", password: "master1", role: "teacher", label: "선생님" };
+  const teacherServiceCode = "master1";
   const studentTeams = ["january", "february", "march", "april", "may", "june", "july", "august"];
 
   const role = sessionStorage.getItem("kit-auth-role") || "";
   const user = sessionStorage.getItem("kit-auth-user") || "";
   const team = sessionStorage.getItem("kit-auth-team") || "";
   const lastLoginKey = "kit-last-login-id";
+  const lastTeacherLoginKey = "kit-last-teacher-login-id";
   const fullscreenKey = "kit-fullscreen-start";
   const teacherCodeKey = "kit-teacher-access-code";
   const teacherMainSoundKey = "kit-teacher-main-sound";
@@ -17,14 +18,6 @@
 
   function classLabelFor() {
     return "우리 반";
-  }
-
-  function teacherAccountIdForClass() {
-    return "master";
-  }
-
-  function isTeacherAccountId(id) {
-    return String(id || "").trim().toLowerCase() === "master";
   }
 
   function classIdForAccount() {
@@ -65,14 +58,9 @@
       message.classList.toggle("is-ok", Boolean(isOk));
     }
 
-    function setActiveRole(id) {
-      const normalizedId = String(id || "").trim().toLowerCase();
+    function setActiveRole(roleType) {
       document.querySelectorAll("[data-role-preset]").forEach((button) => {
-        const preset = button.dataset.rolePreset || "";
-        const isActive = preset === "master"
-          ? isTeacherAccountId(normalizedId)
-          : Boolean(normalizedId) && !isTeacherAccountId(normalizedId);
-        button.classList.toggle("is-active", isActive);
+        button.classList.toggle("is-active", button.dataset.roleType === roleType);
       });
     }
 
@@ -139,7 +127,8 @@
         sessionStorage.removeItem("kit-auth-team");
       }
       if (account.role === "teacher") {
-        sessionStorage.setItem(teacherCodeKey, passwordInput.value.trim());
+        localStorage.setItem(lastTeacherLoginKey, loginId);
+        sessionStorage.setItem(teacherCodeKey, teacherServiceCode);
         sessionStorage.setItem(teacherMainSoundKey, "1");
       } else {
         sessionStorage.removeItem(teacherCodeKey);
@@ -163,15 +152,15 @@
 
     document.querySelectorAll("[data-role-preset]").forEach((button) => {
       button.addEventListener("click", () => {
-        const preset = button.dataset.rolePreset || "";
-        const id = preset === "master" ? teacherAccountIdForClass() : preset;
+        const roleType = button.dataset.roleType || "";
+        const id = roleType === "teacher" ? (localStorage.getItem(lastTeacherLoginKey) || "master") : "";
         userIdInput.value = id;
         if (id) {
           localStorage.setItem(lastLoginKey, id);
         } else {
           localStorage.removeItem(lastLoginKey);
         }
-        setActiveRole(id);
+        setActiveRole(roleType);
         clearErrorState();
         setMessage("", false);
         if (id) {
@@ -201,10 +190,6 @@
       input.addEventListener("input", () => {
         clearErrorState();
         setMessage("", false);
-        if (input === userIdInput) {
-          const id = input.value.trim().toLowerCase();
-          setActiveRole(id);
-        }
       });
     });
 
@@ -230,21 +215,12 @@
         return;
       }
 
-      if (isTeacherAccountId(id)) {
-        if (password !== teacherAccount.password) {
-          showError();
-          return;
-        }
-        completeLogin(teacherAccount);
-        return;
-      }
-
       setLoginChecking(true);
       try {
         const response = await fetch("api/credits", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "studentaccountlogin", id, password })
+          body: JSON.stringify({ action: "accountlogin", id, password })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.account) {
@@ -271,7 +247,9 @@
     const list = modal.querySelector("[data-account-admin-list]");
     const saveButton = modal.querySelector("[data-account-admin-save]");
     const message = modal.querySelector("[data-account-admin-message]");
+    const idInput = unlockForm.elements.teacherId;
     const codeInput = unlockForm.elements.teacherCode;
+    let teacherId = "";
     let teacherCode = "";
     let lastFocus = null;
 
@@ -288,7 +266,9 @@
     function closeAdmin() {
       modal.hidden = true;
       document.body.classList.remove("is-account-admin-open");
+      teacherId = "";
       teacherCode = "";
+      idInput.value = "";
       codeInput.value = "";
       editor.hidden = true;
       unlockForm.hidden = false;
@@ -302,10 +282,11 @@
       accounts.forEach((account) => {
         const row = document.createElement("div");
         row.className = "account-admin-row";
-        row.dataset.team = account.team;
+        row.dataset.role = account.role;
+        row.dataset.team = account.team || "";
 
         const teamLabel = document.createElement("strong");
-        teamLabel.textContent = `${account.label}팀`;
+        teamLabel.textContent = account.role === "teacher" ? "선생님" : `${account.label}팀`;
 
         const idLabel = document.createElement("label");
         idLabel.textContent = "아이디";
@@ -336,17 +317,18 @@
       const response = await fetch("api/credits?studentAccounts=1", {
         headers: {
           "x-kit-role": "teacher",
+          "x-kit-user": encodeURIComponent(teacherId),
           "x-teacher-code": teacherCode
         }
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !Array.isArray(data.accounts)) {
-        throw new Error(data.error || "학생 계정을 불러오지 못했습니다.");
+        throw new Error(data.error || "계정을 불러오지 못했습니다.");
       }
       renderAccounts(data.accounts);
       unlockForm.hidden = true;
       editor.hidden = false;
-      setAdminMessage("아이디 또는 필요한 팀의 새 비밀번호를 수정한 뒤 저장하세요.");
+      setAdminMessage("선생님 또는 학생 아이디와 필요한 계정의 새 비밀번호를 수정한 뒤 저장하세요.");
       list.querySelector("input")?.focus();
     }
 
@@ -354,7 +336,7 @@
       lastFocus = document.activeElement;
       modal.hidden = false;
       document.body.classList.add("is-account-admin-open");
-      codeInput.focus();
+      idInput.focus();
     });
 
     closeButtons.forEach((button) => button.addEventListener("click", closeAdmin));
@@ -364,9 +346,10 @@
 
     unlockForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      teacherId = idInput.value.trim().toLowerCase();
       teacherCode = codeInput.value.trim();
-      if (!teacherCode) {
-        setAdminMessage("관리자 비밀번호를 입력하세요.");
+      if (!teacherId || !teacherCode) {
+        setAdminMessage("관리자 아이디와 비밀번호를 입력하세요.");
         return;
       }
       const button = unlockForm.querySelector("button[type='submit']");
@@ -374,9 +357,10 @@
       try {
         await loadAccounts();
       } catch (error) {
+        teacherId = "";
         teacherCode = "";
         setAdminMessage(error.message);
-        codeInput.select();
+        idInput.select();
       } finally {
         setAdminBusy(button, false, "확인 중", "계정 불러오기");
       }
@@ -384,6 +368,7 @@
 
     saveButton.addEventListener("click", async () => {
       const accounts = [...list.querySelectorAll(".account-admin-row")].map((row) => ({
+        role: row.dataset.role,
         team: row.dataset.team,
         id: row.querySelector("[data-account-id]").value,
         password: row.querySelector("[data-account-password]").value
@@ -395,6 +380,7 @@
           headers: {
             "content-type": "application/json",
             "x-kit-role": "teacher",
+            "x-kit-user": encodeURIComponent(teacherId),
             "x-teacher-code": teacherCode
           },
           body: JSON.stringify({ action: "studentaccountupdate", accounts })
@@ -403,8 +389,12 @@
         if (!response.ok || !data.ok) {
           throw new Error(data.error || "계정 변경 내용을 저장하지 못했습니다.");
         }
+        const changedTeacher = accounts.find((account) => account.role === "teacher");
+        teacherId = changedTeacher.id.trim().toLowerCase();
+        localStorage.setItem(lastTeacherLoginKey, teacherId);
+        if (changedTeacher.password.trim()) teacherCode = changedTeacher.password.trim();
         renderAccounts(data.accounts);
-        setAdminMessage("학생 계정 변경을 저장했습니다. 다음 로그인부터 적용됩니다.", true);
+        setAdminMessage("계정 변경을 저장했습니다. 다음 로그인부터 적용됩니다.", true);
       } catch (error) {
         setAdminMessage(error.message);
       } finally {

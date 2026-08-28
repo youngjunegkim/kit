@@ -19,9 +19,9 @@ const {
   withClassScope
 } = require("./_credits");
 const {
-  getStudentAccountsForAdmin,
-  loginStudentAccount,
-  updateStudentAccounts
+  getAccountsForAdmin,
+  loginAccount,
+  updateAccounts
 } = require("./_student-accounts");
 
 function sendJson(response, statusCode, body) {
@@ -115,7 +115,7 @@ async function handleCredits(request, response) {
 
     if (request.method === "GET") {
       if (queryParam(request, "studentAccounts") === "1") {
-        const result = await getStudentAccountsForAdmin(request);
+        const result = await getAccountsForAdmin(request);
         sendJson(response, result.status, result.body);
         return;
       }
@@ -160,14 +160,14 @@ async function handleCredits(request, response) {
     const body = bodyFor(request);
     const action = String(body.action || "set").toLowerCase();
 
-    if (action === "studentaccountlogin") {
-      const result = await loginStudentAccount(body);
+    if (action === "accountlogin" || action === "studentaccountlogin") {
+      const result = await loginAccount(body);
       sendJson(response, result.status, result.body);
       return;
     }
 
     if (action === "studentaccountupdate") {
-      const result = await updateStudentAccounts(request, body);
+      const result = await updateAccounts(request, body);
       sendJson(response, result.status, result.body);
       return;
     }

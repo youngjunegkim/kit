@@ -223,25 +223,25 @@ async function getStudentAccountConfig() {
     raw = await redisCommand(["GET", studentAccountKey()]);
   }
 
-  if (!raw) return [];
+  if (!raw) return null;
   try {
-    const records = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return Array.isArray(records) ? records : [];
+    const config = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return config && typeof config === "object" ? config : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-async function setStudentAccountConfig(records) {
-  const cleanRecords = Array.isArray(records) ? records : [];
-  const serialized = JSON.stringify(cleanRecords);
+async function setStudentAccountConfig(config) {
+  const cleanConfig = config && typeof config === "object" ? config : {};
+  const serialized = JSON.stringify(cleanConfig);
   if (!hasPersistentStore()) {
     memoryStudentAccountStore.set(studentAccountKey(), serialized);
-    return cleanRecords;
+    return cleanConfig;
   }
 
   await redisCommand(["SET", studentAccountKey(), serialized]);
-  return cleanRecords;
+  return cleanConfig;
 }
 
 async function getCredits(team) {

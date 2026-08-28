@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI 수사단 로그인</title>
-  <script src="auth.js?v=student-account-admin-2" defer></script>
+  <script src="auth.js?v=account-teacher-1" defer></script>
   <style>
     * {
       box-sizing: border-box;
@@ -549,7 +549,7 @@
 
     .account-admin-unlock {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
       gap: 10px;
       align-items: end;
     }
@@ -996,11 +996,11 @@
       </button>
 
       <div class="role-picker" aria-label="역할 빠른 선택">
-        <button class="role-btn" type="button" data-role-preset="">
+        <button class="role-btn" type="button" data-role-preset data-role-type="student">
           학생용
           <span>서하린, 강우진, 최다니엘 심문</span>
         </button>
-        <button class="role-btn" type="button" data-role-preset="master">
+        <button class="role-btn" type="button" data-role-preset data-role-type="teacher">
           선생용
           <span>전체 진행 화면 및 교실 미션</span>
         </button>
@@ -1032,29 +1032,33 @@
       </form>
 
       <div class="account-note" aria-label="계정별 이동 화면">
-        <div><strong>선생님</strong><span>master</span></div>
+        <div><strong>선생님</strong><span>관리 화면에서 설정</span></div>
         <div><strong>학생</strong><span>관리 화면에서 설정</span></div>
       </div>
-      <button class="account-admin-open-btn" type="button" data-account-admin-open>학생 계정 관리</button>
+      <button class="account-admin-open-btn" type="button" data-account-admin-open>계정 관리</button>
     </section>
   </main>
 
-  <section class="account-admin-overlay" data-account-admin hidden aria-label="학생 계정 관리">
+  <section class="account-admin-overlay" data-account-admin hidden aria-label="계정 관리">
     <div class="account-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="accountAdminTitle">
       <header class="account-admin-header">
-        <h2 id="accountAdminTitle">학생 계정 관리</h2>
+        <h2 id="accountAdminTitle">계정 관리</h2>
         <button class="account-admin-close-btn" type="button" data-account-admin-close>닫기</button>
       </header>
       <div class="account-admin-body">
-        <p class="account-admin-intro">관리자 인증 후 팀별 로그인 아이디와 비밀번호를 변경할 수 있습니다. 비밀번호를 유지할 팀은 새 비밀번호 칸을 비워 두세요.</p>
+        <p class="account-admin-intro">현재 선생용 계정으로 인증한 뒤 선생님과 팀별 로그인 정보를 변경할 수 있습니다. 비밀번호를 유지할 계정은 새 비밀번호 칸을 비워 두세요.</p>
         <form class="account-admin-unlock" data-account-admin-unlock>
+          <label class="field">
+            관리자 아이디
+            <input name="teacherId" type="text" autocomplete="username" required>
+          </label>
           <label class="field">
             관리자 비밀번호
             <input name="teacherCode" type="password" autocomplete="current-password" required>
           </label>
           <button class="account-admin-primary-btn" type="submit">계정 불러오기</button>
         </form>
-        <section data-account-admin-editor hidden aria-label="팀별 학생 계정">
+        <section data-account-admin-editor hidden aria-label="선생님 및 팀별 계정">
           <div class="account-admin-list" data-account-admin-list></div>
           <div class="account-admin-actions">
             <button class="account-admin-primary-btn" type="button" data-account-admin-save>변경 저장</button>

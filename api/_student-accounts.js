@@ -24,6 +24,16 @@ function headerValue(request, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function decodedHeaderValue(request, name) {
+  const value = headerValue(request, name);
+  if (!value) return "";
+  try {
+    return decodeURIComponent(String(value));
+  } catch {
+    return String(value);
+  }
+}
+
 function normalizeId(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -42,7 +52,11 @@ function result(status, body) {
   return { status, body };
 }
 
-function defaultAccounts() {
+function defaultTeacherAccount() {
+  return { id: "master", passwordHash: hashPassword("master1") };
+}
+
+function defaultStudentAccounts() {
   return teams.map((team, index) => ({
     team,
     id: defaultIds[index],
@@ -50,58 +64,75 @@ function defaultAccounts() {
   }));
 }
 
-function cleanStoredAccounts(records) {
-  if (!Array.isArray(records) || records.length !== teams.length) return defaultAccounts();
-  const defaults = defaultAccounts();
+function cleanTeacherAccount(record) {
+  const fallback = defaultTeacherAccount();
+  const id = normalizeId(record?.id);
+  const passwordHash = String(record?.passwordHash || "").toLowerCase();
+  if (!idPattern.test(id) || !passwordHashPattern.test(passwordHash)) return fallback;
+  return { id, passwordHash };
+}
+
+function cleanStudentAccounts(records) {
+  if (!Array.isArray(records) || records.length !== teams.length) return defaultStudentAccounts();
+  const defaults = defaultStudentAccounts();
   const byTeam = new Map(records.map((record) => [String(record?.team || ""), record]));
   const cleaned = teams.map((team, index) => {
     const record = byTeam.get(team) || {};
     const id = normalizeId(record.id);
     const passwordHash = String(record.passwordHash || "").toLowerCase();
-    if (!idPattern.test(id) || id === "master" || !passwordHashPattern.test(passwordHash)) {
-      return defaults[index];
-    }
+    if (!idPattern.test(id) || !passwordHashPattern.test(passwordHash)) return defaults[index];
     return { team, id, passwordHash };
   });
   const ids = cleaned.map((record) => record.id);
   return new Set(ids).size === ids.length ? cleaned : defaults;
 }
 
-async function currentAccounts() {
-  return cleanStoredAccounts(await getStudentAccountConfig());
+function cleanAccountConfig(stored) {
+  const legacyStudents = Array.isArray(stored) ? stored : null;
+  const teacher = cleanTeacherAccount(legacyStudents ? null : stored?.teacher);
+  const students = cleanStudentAccounts(legacyStudents || stored?.students);
+  const allIds = [teacher.id, ...students.map((record) => record.id)];
+  if (new Set(allIds).size !== allIds.length) {
+    return { teacher: defaultTeacherAccount(), students: defaultStudentAccounts() };
+  }
+  return { teacher, students };
 }
 
-function publicAccounts(records) {
-  return records.map((record, index) => ({
-    team: record.team,
-    label: String(index + 1),
-    id: record.id
-  }));
+async function currentAccountConfig() {
+  return cleanAccountConfig(await getStudentAccountConfig());
 }
 
-function teacherAccessCode() {
-  return String(
-    process.env.TEACHER_ACCESS_CODE ||
-    process.env.KIT_TEACHER_ACCESS_CODE ||
-    "master1"
-  ).trim();
+function publicAccounts(config) {
+  return [
+    { role: "teacher", label: "선생님", id: config.teacher.id },
+    ...config.students.map((record, index) => ({
+      role: "student",
+      team: record.team,
+      label: String(index + 1),
+      id: record.id
+    }))
+  ];
 }
 
-function isTeacherAuthorized(request) {
-  const role = String(headerValue(request, "x-kit-role") || "").trim().toLowerCase();
-  const suppliedCode = String(headerValue(request, "x-teacher-code") || "").trim();
-  return role === "teacher" && valuesMatch(suppliedCode, teacherAccessCode());
+function passwordMatches(record, password) {
+  return valuesMatch(hashPassword(String(password || "").trim()), record.passwordHash);
 }
 
-async function loginStudentAccount(body) {
+async function loginAccount(body) {
   const id = normalizeId(body.id || body.userId);
   const password = String(body.password || "").trim();
-  const records = await currentAccounts();
-  const index = records.findIndex((record) => record.id === id);
-  const record = index >= 0 ? records[index] : null;
-  const suppliedHash = hashPassword(password);
+  const config = await currentAccountConfig();
 
-  if (!record || !valuesMatch(suppliedHash, record.passwordHash)) {
+  if (config.teacher.id === id && passwordMatches(config.teacher, password)) {
+    return result(200, {
+      ok: true,
+      account: { user: config.teacher.id, role: "teacher", label: "선생님" }
+    });
+  }
+
+  const index = config.students.findIndex((record) => record.id === id);
+  const record = index >= 0 ? config.students[index] : null;
+  if (!record || !passwordMatches(record, password)) {
     return result(401, {
       ok: false,
       error: "아이디 또는 비밀번호가 올바르지 않습니다.",
@@ -120,48 +151,72 @@ async function loginStudentAccount(body) {
   });
 }
 
-async function getStudentAccountsForAdmin(request) {
-  if (!isTeacherAuthorized(request)) {
+async function isTeacherAuthorized(request) {
+  const role = String(headerValue(request, "x-kit-role") || "").trim().toLowerCase();
+  const id = normalizeId(decodedHeaderValue(request, "x-kit-user"));
+  const password = String(headerValue(request, "x-teacher-code") || "").trim();
+  if (role !== "teacher" || !id || !password) return false;
+  const config = await currentAccountConfig();
+  return config.teacher.id === id && passwordMatches(config.teacher, password);
+}
+
+async function getAccountsForAdmin(request) {
+  if (!await isTeacherAuthorized(request)) {
     return result(401, {
       ok: false,
-      error: "관리자 비밀번호가 올바르지 않습니다.",
+      error: "관리자 아이디 또는 비밀번호가 올바르지 않습니다.",
       code: "TEACHER_CODE_REQUIRED"
     });
   }
 
   return result(200, {
     ok: true,
-    accounts: publicAccounts(await currentAccounts()),
+    accounts: publicAccounts(await currentAccountConfig()),
     persistent: hasPersistentStore()
   });
 }
 
-async function updateStudentAccounts(request, body) {
-  if (!isTeacherAuthorized(request)) {
+async function updateAccounts(request, body) {
+  if (!await isTeacherAuthorized(request)) {
     return result(401, {
       ok: false,
-      error: "관리자 비밀번호가 올바르지 않습니다.",
+      error: "관리자 아이디 또는 비밀번호가 올바르지 않습니다.",
       code: "TEACHER_CODE_REQUIRED"
     });
   }
 
   const updates = Array.isArray(body.accounts) ? body.accounts : [];
-  if (updates.length !== teams.length) {
-    return result(400, { ok: false, error: "8개 팀의 계정 정보를 모두 확인하세요.", code: "INVALID_ACCOUNTS" });
+  const teacherUpdate = updates.find((record) => record?.role === "teacher") || {};
+  const studentUpdates = updates.filter((record) => record?.role === "student");
+  if (updates.length !== teams.length + 1 || studentUpdates.length !== teams.length) {
+    return result(400, { ok: false, error: "선생님과 8개 팀의 계정 정보를 모두 확인하세요.", code: "INVALID_ACCOUNTS" });
   }
 
-  const current = await currentAccounts();
-  const updatesByTeam = new Map(updates.map((record) => [String(record?.team || ""), record]));
-  const next = [];
+  const current = await currentAccountConfig();
+  const teacherId = normalizeId(teacherUpdate.id);
+  const teacherPassword = String(teacherUpdate.password || "").trim();
+  if (!idPattern.test(teacherId)) {
+    return result(400, { ok: false, error: "선생님 아이디는 3~24자로 입력하세요.", code: "INVALID_ID" });
+  }
+  if (teacherPassword && (teacherPassword.length < 4 || teacherPassword.length > 64)) {
+    return result(400, { ok: false, error: "선생님 새 비밀번호는 4~64자로 입력하세요.", code: "INVALID_PASSWORD" });
+  }
+
+  const nextTeacher = {
+    id: teacherId,
+    passwordHash: teacherPassword ? hashPassword(teacherPassword) : current.teacher.passwordHash
+  };
+  const updatesByTeam = new Map(studentUpdates.map((record) => [String(record?.team || ""), record]));
+  const nextStudents = [];
   for (let index = 0; index < teams.length; index += 1) {
     const team = teams[index];
     const update = updatesByTeam.get(team) || {};
     const id = normalizeId(update.id);
     const password = String(update.password || "").trim();
-    if (!idPattern.test(id) || id === "master") {
+    if (!idPattern.test(id)) {
       return result(400, {
         ok: false,
-        error: `${index + 1}팀 아이디는 3~24자의 문자, 숫자, 마침표, 밑줄 또는 하이픈으로 입력하세요.`,
+        error: `${index + 1}팀 아이디는 3~24자로 입력하세요.`,
         code: "INVALID_ID"
       });
     }
@@ -172,18 +227,19 @@ async function updateStudentAccounts(request, body) {
         code: "INVALID_PASSWORD"
       });
     }
-    next.push({
+    nextStudents.push({
       team,
       id,
-      passwordHash: password ? hashPassword(password) : current[index].passwordHash
+      passwordHash: password ? hashPassword(password) : current.students[index].passwordHash
     });
   }
 
-  const ids = next.map((record) => record.id);
+  const ids = [nextTeacher.id, ...nextStudents.map((record) => record.id)];
   if (new Set(ids).size !== ids.length) {
-    return result(400, { ok: false, error: "학생 아이디는 팀마다 서로 달라야 합니다.", code: "DUPLICATE_ID" });
+    return result(400, { ok: false, error: "선생님과 학생 아이디는 모두 서로 달라야 합니다.", code: "DUPLICATE_ID" });
   }
 
+  const next = { teacher: nextTeacher, students: nextStudents };
   await setStudentAccountConfig(next);
   return result(200, {
     ok: true,
@@ -193,7 +249,7 @@ async function updateStudentAccounts(request, body) {
 }
 
 module.exports = {
-  getStudentAccountsForAdmin,
-  loginStudentAccount,
-  updateStudentAccounts
+  getAccountsForAdmin,
+  loginAccount,
+  updateAccounts
 };
