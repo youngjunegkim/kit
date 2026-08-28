@@ -619,9 +619,19 @@
     }
 
     #resetGame {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 44px;
+      margin: 0 0 14px;
+      border: 1px solid #711717;
+      border-radius: 6px;
       background: #8d1f1f;
       color: #fff;
       box-shadow: 0 10px 22px rgba(141, 31, 31, 0.2);
+      font-size: 0.96rem;
+      font-weight: 900;
     }
 
     #resetGame:hover,
@@ -1461,12 +1471,13 @@
         <div class="presence-list" data-presence-list></div>
       </section>
 
+      <button class="reset-btn" type="button" id="resetGame">게임 초기화</button>
+
       <div class="score-head">
         <h2>학생별 코인</h2>
         <div class="score-actions">
           <button class="reset-btn" type="button" id="publishScores">코인 추가</button>
           <button class="reset-btn" type="button" id="resetScores">코인 초기화</button>
-          <button class="reset-btn" type="button" id="resetGame">게임 초기화</button>
         </div>
       </div>
 
