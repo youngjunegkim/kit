@@ -5,6 +5,8 @@ const {
   getAllGrantedCredits,
   getAllQuestionCounts,
   getCredits,
+  getGameResults,
+  getGameSession,
   getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
@@ -13,9 +15,12 @@ const {
   normalizeTeam,
   requestClassId,
   resetCredits,
+  saveCurrentGameResult,
   setGrantedCredits,
   setCredits,
+  startNewGame,
   teams,
+  updateGameTeamCount,
   withClassScope
 } = require("./_credits");
 const {
@@ -120,6 +125,21 @@ async function handleCredits(request, response) {
         return;
       }
 
+      if (queryParam(request, "gameSessions") === "1") {
+        const authError = teacherAuthError(request);
+        if (authError) {
+          sendJson(response, authError.status, { ...authError, fallback: true });
+          return;
+        }
+        sendJson(response, 200, {
+          ok: true,
+          session: await getGameSession(),
+          results: await getGameResults(),
+          persistent: hasPersistentStore()
+        });
+        return;
+      }
+
       const team = actorTeam(request);
       if (team) {
         sendJson(response, 200, {
@@ -129,6 +149,7 @@ async function handleCredits(request, response) {
           count: await getQuestionCount(team),
           logs: await getQuestionLogs(team),
           goldenNotices: await consumeGoldenNotices(team),
+          session: await getGameSession(),
           persistent: hasPersistentStore()
         });
         return;
@@ -204,6 +225,52 @@ async function handleCredits(request, response) {
     const authError = teacherAuthError(request, body);
     if (authError) {
       sendJson(response, authError.status, { ...authError, fallback: true });
+      return;
+    }
+
+    if (action === "gamesessionteamcount") {
+      const teamCount = Math.round(Number(body.teamCount));
+      if (!Number.isFinite(teamCount) || teamCount < 1 || teamCount > teams.length) {
+        sendJson(response, 400, { error: `팀 수는 1~${teams.length}팀으로 설정하세요.`, code: "INVALID_TEAM_COUNT" });
+        return;
+      }
+      sendJson(response, 200, {
+        ok: true,
+        session: await updateGameTeamCount(teamCount),
+        results: await getGameResults(),
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    if (action === "gamesessionsave") {
+      const saved = await saveCurrentGameResult();
+      sendJson(response, 200, {
+        ok: true,
+        session: await getGameSession(),
+        result: saved.result,
+        results: saved.history,
+        persistent: hasPersistentStore()
+      });
+      return;
+    }
+
+    if (action === "gamesessionnew") {
+      const teamCount = Math.round(Number(body.teamCount));
+      if (!Number.isFinite(teamCount) || teamCount < 1 || teamCount > teams.length) {
+        sendJson(response, 400, { error: `팀 수는 1~${teams.length}팀으로 설정하세요.`, code: "INVALID_TEAM_COUNT" });
+        return;
+      }
+      const next = await startNewGame(teamCount);
+      sendJson(response, 200, {
+        ok: true,
+        ...next,
+        credits: await getAllCredits(),
+        granted: await getAllGrantedCredits(),
+        counts: await getAllQuestionCounts(),
+        logs: [],
+        persistent: hasPersistentStore()
+      });
       return;
     }
 

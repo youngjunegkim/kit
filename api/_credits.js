@@ -20,6 +20,8 @@ const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new
 const memorySimilarityFreeStore = globalThis.__kitSimilarityFreeStore || new Map();
 const memoryGoldenNoticeStore = globalThis.__kitGoldenNoticeStore || new Map();
 const memoryStudentAccountStore = globalThis.__kitStudentAccountStore || new Map();
+const memoryGameSessionStore = globalThis.__kitGameSessionStore || new Map();
+const memoryGameResultStore = globalThis.__kitGameResultStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -39,11 +41,14 @@ globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
 globalThis.__kitSimilarityFreeStore = memorySimilarityFreeStore;
 globalThis.__kitGoldenNoticeStore = memoryGoldenNoticeStore;
 globalThis.__kitStudentAccountStore = memoryStudentAccountStore;
+globalThis.__kitGameSessionStore = memoryGameSessionStore;
+globalThis.__kitGameResultStore = memoryGameResultStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
 const maxEthicsSourceImageLength = 300000;
 const maxSimilaritySentenceLength = 500;
+const maxGameResults = 20;
 const presenceTtlMs = Number(process.env.KIT_PRESENCE_TTL_MS || 300000);
 const evidenceGrantTtlMs = Number(process.env.KIT_EVIDENCE_GRANT_TTL_MS || 600000);
 const defaultClassId = "class-a";
@@ -189,6 +194,14 @@ function studentAccountKey() {
   return `kit:${storeNamespace()}:student-accounts`;
 }
 
+function gameSessionKey() {
+  return `kit:${storeNamespace()}:game-session`;
+}
+
+function gameResultsKey() {
+  return `kit:${storeNamespace()}:game-results`;
+}
+
 function hasPersistentStore() {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 }
@@ -242,6 +255,125 @@ async function setStudentAccountConfig(config) {
 
   await redisCommand(["SET", studentAccountKey(), serialized]);
   return cleanConfig;
+}
+
+function cleanTeamCount(value) {
+  const count = Math.round(Number(value) || teams.length);
+  return Math.min(teams.length, Math.max(1, count));
+}
+
+function defaultGameSession() {
+  return {
+    id: "session-1",
+    number: 1,
+    teamCount: teams.length,
+    startedAt: "",
+    updatedAt: ""
+  };
+}
+
+function cleanGameSession(session = {}) {
+  const fallback = defaultGameSession();
+  const number = Math.max(1, Math.round(Number(session.number) || fallback.number));
+  return {
+    id: String(session.id || `session-${number}`).trim().slice(0, 80),
+    number,
+    teamCount: cleanTeamCount(session.teamCount),
+    startedAt: String(session.startedAt || "").trim().slice(0, 40),
+    updatedAt: String(session.updatedAt || "").trim().slice(0, 40)
+  };
+}
+
+async function getGameSession() {
+  let raw;
+  if (!hasPersistentStore()) {
+    raw = memoryGameSessionStore.get(gameSessionKey()) || "";
+  } else {
+    raw = await redisCommand(["GET", gameSessionKey()]);
+  }
+  if (!raw) return defaultGameSession();
+  try {
+    return cleanGameSession(typeof raw === "string" ? JSON.parse(raw) : raw);
+  } catch {
+    return defaultGameSession();
+  }
+}
+
+async function setGameSession(session) {
+  const clean = cleanGameSession(session);
+  const serialized = JSON.stringify(clean);
+  if (!hasPersistentStore()) {
+    memoryGameSessionStore.set(gameSessionKey(), serialized);
+    return clean;
+  }
+  await redisCommand(["SET", gameSessionKey(), serialized]);
+  return clean;
+}
+
+function cleanGameResultTeam(entry = {}) {
+  const team = normalizeTeam(entry.team);
+  if (!team) return null;
+  return {
+    team,
+    credits: cleanCredits(entry.credits),
+    granted: cleanCredits(entry.granted),
+    questions: cleanCredits(entry.questions),
+    evidenceCards: cleanCredits(entry.evidenceCards),
+    ethicsSolved: cleanCredits(entry.ethicsSolved),
+    finalNote: String(entry.finalNote || "").replace(/\s+/g, " ").trim().slice(0, maxSimilaritySentenceLength)
+  };
+}
+
+function cleanGameResult(result = {}) {
+  const sessionNumber = Math.max(1, Math.round(Number(result.sessionNumber) || 1));
+  const teamCount = cleanTeamCount(result.teamCount);
+  const teamResults = (Array.isArray(result.teams) ? result.teams : [])
+    .map(cleanGameResultTeam)
+    .filter(Boolean)
+    .slice(0, teamCount);
+  const totals = teamResults.reduce((summary, team) => ({
+    credits: summary.credits + team.credits,
+    granted: summary.granted + team.granted,
+    questions: summary.questions + team.questions,
+    evidenceCards: summary.evidenceCards + team.evidenceCards,
+    ethicsSolved: summary.ethicsSolved + team.ethicsSolved
+  }), { credits: 0, granted: 0, questions: 0, evidenceCards: 0, ethicsSolved: 0 });
+  return {
+    id: String(result.id || `session-${sessionNumber}`).trim().slice(0, 80),
+    sessionNumber,
+    teamCount,
+    startedAt: String(result.startedAt || "").trim().slice(0, 40),
+    savedAt: String(result.savedAt || new Date().toISOString()).trim().slice(0, 40),
+    totals,
+    teams: teamResults
+  };
+}
+
+async function getGameResults() {
+  let raw;
+  if (!hasPersistentStore()) {
+    raw = memoryGameResultStore.get(gameResultsKey()) || "";
+  } else {
+    raw = await redisCommand(["GET", gameResultsKey()]);
+  }
+  if (!raw) return [];
+  try {
+    const records = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return (Array.isArray(records) ? records : []).map(cleanGameResult).slice(0, maxGameResults);
+  } catch {
+    return [];
+  }
+}
+
+async function setGameResults(results) {
+  const clean = (Array.isArray(results) ? results : []).map(cleanGameResult).slice(0, maxGameResults);
+  const serialized = JSON.stringify(clean);
+  if (!hasPersistentStore()) {
+    memoryGameResultStore.set(gameResultsKey(), serialized);
+    return clean;
+  }
+  await redisCommand(["SET", gameResultsKey(), serialized]);
+  return clean;
 }
 
 async function getCredits(team) {
@@ -1230,6 +1362,127 @@ async function clearSimilaritySentences() {
   return removed;
 }
 
+async function clearAllEthicsQuizProgress() {
+  if (!hasPersistentStore()) {
+    const namespace = storeNamespace();
+    teams.forEach((team) => memoryEthicsQuizRedeemStore.delete(ethicsQuizRedeemKeyFor(team)));
+    for (let index = memoryEthicsQuizLogStore.length - 1; index >= 0; index -= 1) {
+      if (memoryEthicsQuizLogStore[index]?.namespace === namespace) {
+        memoryEthicsQuizLogStore.splice(index, 1);
+      }
+    }
+    return;
+  }
+
+  await Promise.all([
+    redisCommand(["DEL", ethicsQuizLogKey()]),
+    ...teams.map((team) => redisCommand(["DEL", ethicsQuizRedeemKeyFor(team)]))
+  ]);
+}
+
+async function clearGoldenNotices() {
+  if (!hasPersistentStore()) {
+    teams.forEach((team) => memoryGoldenNoticeStore.delete(goldenNoticeKeyFor(team)));
+    return;
+  }
+  await Promise.all(teams.map((team) => redisCommand(["DEL", goldenNoticeKeyFor(team)])));
+}
+
+async function buildCurrentGameResult() {
+  const session = await getGameSession();
+  const now = new Date().toISOString();
+  const activeTeams = teams.slice(0, session.teamCount);
+  const [evidenceLogs, sentences] = await Promise.all([
+    getEvidenceRedemptions("", maxReturnedEvidenceLogs),
+    getSimilaritySentences(maxReturnedEvidenceLogs)
+  ]);
+  const evidenceRooms = new Set(["방송실", "미술실", "교무실", "과학실", "체육관"]);
+  const teamResults = await Promise.all(activeTeams.map(async (team) => {
+    const [credits, granted, questions, ethicsSolved] = await Promise.all([
+      getCredits(team),
+      getGrantedCredits(team),
+      getQuestionCount(team),
+      getEthicsQuizSolvedQuestions(team)
+    ]);
+    const evidenceCards = new Set(
+      evidenceLogs
+        .filter((entry) => entry.team === team && evidenceRooms.has(entry.room))
+        .map((entry) => entry.code)
+        .filter(Boolean)
+    ).size;
+    const finalNote = sentences.find((entry) => entry.team === team)?.sentence || "";
+    return { team, credits, granted, questions, evidenceCards, ethicsSolved: ethicsSolved.length, finalNote };
+  }));
+
+  return cleanGameResult({
+    id: session.id,
+    sessionNumber: session.number,
+    teamCount: session.teamCount,
+    startedAt: session.startedAt || now,
+    savedAt: now,
+    teams: teamResults
+  });
+}
+
+async function saveCurrentGameResult() {
+  const result = await buildCurrentGameResult();
+  const current = await getGameSession();
+  if (!current.startedAt) {
+    await setGameSession({ ...current, startedAt: result.startedAt, updatedAt: result.savedAt });
+  }
+  const history = await getGameResults();
+  const next = [result, ...history.filter((entry) => entry.id !== result.id)];
+  return { result, history: await setGameResults(next) };
+}
+
+async function updateGameTeamCount(teamCount) {
+  const current = await getGameSession();
+  const now = new Date().toISOString();
+  return setGameSession({
+    ...current,
+    teamCount: cleanTeamCount(teamCount),
+    updatedAt: now
+  });
+}
+
+async function clearCurrentGameProgress() {
+  await Promise.all([
+    resetCredits(),
+    clearQuestionLogs(),
+    clearEvidenceRedemptions(),
+    clearEvidenceApprovals(),
+    clearAllEthicsQuizProgress(),
+    clearSimilaritySentences(),
+    clearGoldenNotices(),
+    ...teams.map((team) => clearEvidenceGrant(team))
+  ]);
+}
+
+async function startNewGame(teamCount) {
+  const current = await getGameSession();
+  const preview = await buildCurrentGameResult();
+  const existingHistory = await getGameResults();
+  const hasProgress = preview.teams.some((team) => (
+    team.credits || team.granted || team.questions || team.evidenceCards || team.ethicsSolved || team.finalNote
+  ));
+  const hasSavedCurrent = existingHistory.some((result) => result.id === current.id);
+  const shouldArchive = hasProgress || hasSavedCurrent;
+  const saved = shouldArchive
+    ? await saveCurrentGameResult()
+    : { result: null, history: existingHistory };
+  await clearCurrentGameProgress();
+  const now = new Date().toISOString();
+  const nextNumber = shouldArchive ? current.number + 1 : current.number;
+  const session = await setGameSession({
+    id: `session-${nextNumber}-${Date.now().toString(36)}`,
+    number: nextNumber,
+    teamCount: cleanTeamCount(teamCount || current.teamCount),
+    startedAt: now,
+    updatedAt: now
+  });
+  return { session, savedResult: saved.result, history: saved.history };
+}
+
 async function resetCredits() {
   await Promise.all(teams.map(async (team) => {
     await setCredits(team, 0);
@@ -1571,6 +1824,8 @@ module.exports = {
   getEvidenceShopPurchases,
   getEthicsQuizRedemptions,
   getEthicsQuizSolvedQuestions,
+  getGameResults,
+  getGameSession,
   getGrantedCredits,
   getQuestionCount,
   getQuestionLogs,
@@ -1597,12 +1852,15 @@ module.exports = {
   purchaseEvidenceCards,
   reduceCredits,
   resetCredits,
+  saveCurrentGameResult,
   setEvidenceGrant,
   setCustomEthicsQuestions,
   setGrantedCredits,
   setStudentAccountConfig,
   setCredits,
+  startNewGame,
   touchPresence,
+  updateGameTeamCount,
   withClassScope,
   teams
 };

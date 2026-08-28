@@ -413,6 +413,39 @@
     return `kit-ethics-quiz-timer:${state.classId}:${state.team || state.user || "guest"}`;
   }
 
+  function gameSessionMarkerKey() {
+    return `kit-game-session:${state.classId}:${state.team || state.user || "guest"}`;
+  }
+
+  function syncLocalGameSession(session = {}) {
+    const sessionId = String(session.id || "").trim();
+    if (!sessionId) return false;
+    const previousSessionId = localStorage.getItem(gameSessionMarkerKey()) || "";
+    const shouldReset = (previousSessionId && previousSessionId !== sessionId) ||
+      (!previousSessionId && Number(session.number) > 1);
+    localStorage.setItem(gameSessionMarkerKey(), sessionId);
+    if (!shouldReset) return false;
+
+    localStorage.removeItem(evidenceStorageKey());
+    localStorage.removeItem(noteStorageKey());
+    localStorage.removeItem(ethicsStorageKey());
+    localStorage.removeItem(similarityDraftKey());
+    state.evidenceCards = [];
+    state.selectedEvidenceCode = "";
+    state.ethicsAnswers = {};
+    state.ethicsServerSolved = [];
+    sessionClaimedKeys.clear();
+    resetEthicsTimer();
+    if (caseNoteArea) caseNoteArea.value = "";
+    similarityBlanks.forEach((element) => restoreSimilarityBlankValue(element, ""));
+    renderEvidenceBoard();
+    renderEthicsSolvedSummary();
+    updateEthicsNumberInputRange();
+    autoGrowAllSimilarityBlanks();
+    updateSimilarityCounter();
+    return true;
+  }
+
   function loadEthicsUnlockState() {
     state.ethicsUnlocked = false;
     sessionStorage.removeItem(ethicsUnlockStorageKey());
@@ -2447,6 +2480,7 @@
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "sync failed");
+      syncLocalGameSession(data.session);
       applyCredits(data.credits);
       setLogCount(data.count || 0);
       state.logs = Array.isArray(data.logs) ? data.logs : [];
