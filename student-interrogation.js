@@ -38,14 +38,14 @@
     choiDaniel: "최다니엘"
   };
   const teamDisplayIds = {
-    "승우": "1",
-    "연수": "2",
-    "은혁": "3",
-    "영준": "4",
-    "혜빈": "5",
-    "윤지": "6",
-    "가빈": "7",
-    "채희": "8"
+    january: "1",
+    february: "2",
+    march: "3",
+    april: "4",
+    may: "5",
+    june: "6",
+    july: "7",
+    august: "8"
   };
   const safetyReplies = {
     sexualOrProfane: "그런 장난 섞인 말에는 대답 안 합니다. 사건이랑 상관없는 불쾌한 얘기는 하지 마세요.",

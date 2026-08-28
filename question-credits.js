@@ -10,14 +10,14 @@
   const role = sessionStorage.getItem("kit-auth-role") || "";
   const classId = "class-a";
   const teamDisplayIds = {
-    "승우": "1",
-    "연수": "2",
-    "은혁": "3",
-    "영준": "4",
-    "혜빈": "5",
-    "윤지": "6",
-    "가빈": "7",
-    "채희": "8"
+    january: "1",
+    february: "2",
+    march: "3",
+    april: "4",
+    may: "5",
+    june: "6",
+    july: "7",
+    august: "8"
   };
 
   function teamIdFor(value) {

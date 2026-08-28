@@ -1,6 +1,6 @@
 const { AsyncLocalStorage } = require("node:async_hooks");
 
-const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+const teams = ["january", "february", "march", "april", "may", "june", "july", "august"];
 const classScope = globalThis.__kitClassScope || new AsyncLocalStorage();
 const memoryStore = globalThis.__kitQuestionCreditStore || new Map();
 const memoryGrantStore = globalThis.__kitQuestionGrantStore || new Map();

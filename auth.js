@@ -1,25 +1,17 @@
 (function () {
   const studentAccounts = {
-    "승우": { password: "tmddn1", role: "student", label: "1", team: "승우" },
-    "연수": { password: "dustn1", role: "student", label: "2", team: "연수" },
-    "은혁": { password: "dmsgur1", role: "student", label: "3", team: "은혁" },
-    "영준": { password: "dudwns1", role: "student", label: "4", team: "영준" },
-    "혜빈": { password: "gpqls1", role: "student", label: "5", team: "혜빈" },
-    "윤지": { password: "dbswl1", role: "student", label: "6", team: "윤지" },
-    "가빈": { password: "rkqls1", role: "student", label: "7", team: "가빈" },
-    "채희": { password: "cogml1", role: "student", label: "8", team: "채희" }
+    january: { password: "kit1", role: "student", label: "1", team: "january" },
+    february: { password: "kit2", role: "student", label: "2", team: "february" },
+    march: { password: "kit3", role: "student", label: "3", team: "march" },
+    april: { password: "kit4", role: "student", label: "4", team: "april" },
+    may: { password: "kit5", role: "student", label: "5", team: "may" },
+    june: { password: "kit6", role: "student", label: "6", team: "june" },
+    july: { password: "kit7", role: "student", label: "7", team: "july" },
+    august: { password: "kit8", role: "student", label: "8", team: "august" }
   };
   const accounts = {
     master: { password: "master1", role: "teacher", label: "선생님" },
-    ...studentAccounts,
-    "1": { ...studentAccounts["승우"] },
-    "2": { ...studentAccounts["연수"] },
-    "3": { ...studentAccounts["은혁"] },
-    "4": { ...studentAccounts["영준"] },
-    "5": { ...studentAccounts["혜빈"] },
-    "6": { ...studentAccounts["윤지"] },
-    "7": { ...studentAccounts["가빈"] },
-    "8": { ...studentAccounts["채희"] }
+    ...studentAccounts
   };
 
   const role = sessionStorage.getItem("kit-auth-role") || "";
@@ -297,7 +289,14 @@
     sessionStorage.setItem(classLabelKey, classLabelFor());
     localStorage.setItem(lastClassKey, classId);
 
-    if (role === "student" && !team) {
+    const studentAccount = accounts[user];
+    const invalidStudentSession = role === "student" && (
+      !team ||
+      !studentAccount ||
+      studentAccount.role !== "student" ||
+      studentAccount.team !== team
+    );
+    if (invalidStudentSession) {
       sessionStorage.removeItem("kit-auth-user");
       sessionStorage.removeItem("kit-auth-role");
       sessionStorage.removeItem("kit-auth-label");

@@ -1,7 +1,7 @@
 (function () {
   const classId = "class-a";
   const draftKey = `kit-student-question-credit-additions:${classId}`;
-  const teams = ["승우", "연수", "은혁", "영준", "혜빈", "윤지", "가빈", "채희"];
+  const teams = ["january", "february", "march", "april", "may", "june", "july", "august"];
   const teamDisplayIds = Object.fromEntries(teams.map((team, index) => [team, String(index + 1)]));
   const emptyByTeam = Object.fromEntries(teams.map((team) => [team, 0]));
   const rooms = [
