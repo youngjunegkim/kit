@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI 수사단 로그인</title>
-  <script src="auth.js?v=month-accounts-1" defer></script>
+  <script src="auth.js?v=student-account-admin-1" defer></script>
   <style>
     * {
       box-sizing: border-box;
@@ -460,6 +460,181 @@
       color: #243146;
     }
 
+    .account-admin-open-btn {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 12px;
+      border-radius: 6px;
+      background: #e9eef5;
+      border: 1px solid #d6dfea;
+      color: #344154;
+      font-size: 0.88rem;
+      font-weight: 950;
+    }
+
+    .account-admin-open-btn:hover,
+    .account-admin-open-btn:focus-visible {
+      background: #dfe6ef;
+      outline: none;
+    }
+
+    body.is-account-admin-open {
+      overflow: hidden;
+    }
+
+    .account-admin-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 8, 17, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .account-admin-overlay[hidden] {
+      display: none;
+    }
+
+    .account-admin-dialog {
+      width: min(800px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      border-radius: 8px;
+      background: #f9f6f0;
+      border: 1px solid #e4d4b8;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
+    }
+
+    .account-admin-header {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 22px;
+      background: #241711;
+      color: #fff;
+    }
+
+    .account-admin-header h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.2;
+    }
+
+    .account-admin-close-btn {
+      min-width: 56px;
+      min-height: 40px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      font-weight: 950;
+    }
+
+    .account-admin-body {
+      padding: 22px;
+    }
+
+    .account-admin-intro {
+      margin: 0 0 16px;
+      color: #5d6572;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      font-weight: 800;
+    }
+
+    .account-admin-unlock {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .account-admin-unlock[hidden] {
+      display: none;
+    }
+
+    .account-admin-unlock .field {
+      margin-top: 0;
+    }
+
+    .account-admin-primary-btn {
+      min-height: 44px;
+      border-radius: 6px;
+      background: #c91f22;
+      color: #fff;
+      padding: 0 20px;
+      font-weight: 950;
+    }
+
+    .account-admin-primary-btn:hover,
+    .account-admin-primary-btn:focus-visible {
+      background: #a7191c;
+      outline: none;
+    }
+
+    .account-admin-primary-btn:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+
+    .account-admin-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .account-admin-row {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+      align-items: end;
+      padding: 12px;
+      border: 1px solid #dbe2eb;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .account-admin-row > strong {
+      align-self: center;
+      color: #243146;
+      font-size: 1rem;
+    }
+
+    .account-admin-row label {
+      display: grid;
+      gap: 5px;
+      color: #5b6878;
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .account-admin-row input {
+      min-height: 40px;
+      padding: 8px 10px;
+    }
+
+    .account-admin-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .account-admin-message {
+      min-height: 22px;
+      margin-top: 14px;
+      color: #c92521;
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .account-admin-message.is-ok {
+      color: #14724c;
+    }
+
     body.is-board-open {
       overflow: hidden;
     }
@@ -704,6 +879,31 @@
         grid-template-columns: 1fr;
       }
 
+      .account-admin-overlay {
+        padding: 10px;
+      }
+
+      .account-admin-dialog {
+        max-height: calc(100vh - 20px);
+      }
+
+      .account-admin-header,
+      .account-admin-body {
+        padding: 16px;
+      }
+
+      .account-admin-unlock {
+        grid-template-columns: 1fr;
+      }
+
+      .account-admin-row {
+        grid-template-columns: 52px minmax(0, 1fr);
+      }
+
+      .account-admin-row label:last-child {
+        grid-column: 2;
+      }
+
       .board-viewer {
         padding: 12px;
       }
@@ -833,10 +1033,37 @@
 
       <div class="account-note" aria-label="계정별 이동 화면">
         <div><strong>선생님</strong><span>master</span></div>
-        <div><strong>학생</strong><span>january ~ august</span></div>
+        <div><strong>학생</strong><span>관리 화면에서 설정</span></div>
       </div>
+      <button class="account-admin-open-btn" type="button" data-account-admin-open>학생 계정 관리</button>
     </section>
   </main>
+
+  <section class="account-admin-overlay" data-account-admin hidden aria-label="학생 계정 관리">
+    <div class="account-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="accountAdminTitle">
+      <header class="account-admin-header">
+        <h2 id="accountAdminTitle">학생 계정 관리</h2>
+        <button class="account-admin-close-btn" type="button" data-account-admin-close>닫기</button>
+      </header>
+      <div class="account-admin-body">
+        <p class="account-admin-intro">관리자 인증 후 팀별 로그인 아이디와 비밀번호를 변경할 수 있습니다. 비밀번호를 유지할 팀은 새 비밀번호 칸을 비워 두세요.</p>
+        <form class="account-admin-unlock" data-account-admin-unlock>
+          <label class="field">
+            관리자 비밀번호
+            <input name="teacherCode" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="account-admin-primary-btn" type="submit">계정 불러오기</button>
+        </form>
+        <section data-account-admin-editor hidden aria-label="팀별 학생 계정">
+          <div class="account-admin-list" data-account-admin-list></div>
+          <div class="account-admin-actions">
+            <button class="account-admin-primary-btn" type="button" data-account-admin-save>변경 저장</button>
+          </div>
+        </section>
+        <div class="account-admin-message" data-account-admin-message aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
 
   <section class="board-viewer" data-board-viewer hidden aria-label="보드게임판 보기">
     <div class="board-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="boardViewerTitle">

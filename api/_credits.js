@@ -19,6 +19,7 @@ const memorySimilaritySentenceStore = globalThis.__kitSimilaritySentenceStore ||
 const memorySimilaritySubmitStore = globalThis.__kitSimilaritySubmitStore || new Map();
 const memorySimilarityFreeStore = globalThis.__kitSimilarityFreeStore || new Map();
 const memoryGoldenNoticeStore = globalThis.__kitGoldenNoticeStore || new Map();
+const memoryStudentAccountStore = globalThis.__kitStudentAccountStore || new Map();
 globalThis.__kitClassScope = classScope;
 globalThis.__kitQuestionCreditStore = memoryStore;
 globalThis.__kitQuestionGrantStore = memoryGrantStore;
@@ -37,6 +38,7 @@ globalThis.__kitSimilaritySentenceStore = memorySimilaritySentenceStore;
 globalThis.__kitSimilaritySubmitStore = memorySimilaritySubmitStore;
 globalThis.__kitSimilarityFreeStore = memorySimilarityFreeStore;
 globalThis.__kitGoldenNoticeStore = memoryGoldenNoticeStore;
+globalThis.__kitStudentAccountStore = memoryStudentAccountStore;
 const maxStoredLogs = 200;
 const maxReturnedLogs = 60;
 const maxReturnedEvidenceLogs = 100;
@@ -183,6 +185,10 @@ function goldenNoticeKeyFor(team) {
   return `kit:${storeNamespace()}:golden-notices:${team}`;
 }
 
+function studentAccountKey() {
+  return `kit:${storeNamespace()}:student-accounts`;
+}
+
 function hasPersistentStore() {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 }
@@ -207,6 +213,35 @@ async function redisCommand(command) {
     throw new Error(data.error || `Redis command failed with ${response.status}`);
   }
   return data.result;
+}
+
+async function getStudentAccountConfig() {
+  let raw;
+  if (!hasPersistentStore()) {
+    raw = memoryStudentAccountStore.get(studentAccountKey()) || "";
+  } else {
+    raw = await redisCommand(["GET", studentAccountKey()]);
+  }
+
+  if (!raw) return [];
+  try {
+    const records = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(records) ? records : [];
+  } catch {
+    return [];
+  }
+}
+
+async function setStudentAccountConfig(records) {
+  const cleanRecords = Array.isArray(records) ? records : [];
+  const serialized = JSON.stringify(cleanRecords);
+  if (!hasPersistentStore()) {
+    memoryStudentAccountStore.set(studentAccountKey(), serialized);
+    return cleanRecords;
+  }
+
+  await redisCommand(["SET", studentAccountKey(), serialized]);
+  return cleanRecords;
 }
 
 async function getCredits(team) {
@@ -1542,6 +1577,7 @@ module.exports = {
   getSimilaritySentences,
   getSimilarityFreeResubmits,
   getSimilaritySubmitCount,
+  getStudentAccountConfig,
   getPresence,
   grantCredits,
   grantSimilarityFreeResubmit,
@@ -1564,6 +1600,7 @@ module.exports = {
   setEvidenceGrant,
   setCustomEthicsQuestions,
   setGrantedCredits,
+  setStudentAccountConfig,
   setCredits,
   touchPresence,
   withClassScope,
