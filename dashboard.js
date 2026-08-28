@@ -21,9 +21,6 @@
   let evidenceLogs = [];
   let evidenceRoomCounts = new Map();
   let evidenceGrants = {};
-  let activeTeamCount = teams.length;
-  let gameSession = null;
-  let gameResults = [];
 
   function cleanScore(value) {
     const number = Number(value);
@@ -42,24 +39,6 @@
   function teamLabelFor(team) {
     const id = teamIdFor(team);
     return id ? `${id}팀` : "학생";
-  }
-
-  function activeTeams() {
-    return teams.slice(0, activeTeamCount);
-  }
-
-  function applyActiveTeamCount(value) {
-    activeTeamCount = Math.min(teams.length, Math.max(1, Math.round(Number(value) || teams.length)));
-    const active = new Set(activeTeams());
-    document.querySelectorAll("[data-score-input]").forEach((input) => {
-      const enabled = active.has(input.dataset.scoreInput);
-      const row = input.closest(".team-row");
-      if (row) row.hidden = !enabled;
-      input.disabled = !enabled;
-      if (!enabled) pendingAdds[input.dataset.scoreInput] = 0;
-    });
-    saveDraftAdds(pendingAdds);
-    populateGrantSelects();
   }
 
   function applyTeamDisplayLabels() {
@@ -142,144 +121,6 @@
     return { response, data };
   }
 
-  function formatSessionDate(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "시작 전";
-    return date.toLocaleString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  }
-
-  function setGameSessionStatus(text, type = "") {
-    const node = document.getElementById("gameSessionStatus");
-    if (!node) return;
-    node.textContent = text;
-    node.classList.toggle("is-ok", type === "ok");
-    node.classList.toggle("is-bad", type === "bad");
-  }
-
-  function renderGameResults() {
-    const list = document.getElementById("gameSessionResults");
-    if (!list) return;
-    list.replaceChildren();
-    if (!gameResults.length) {
-      const empty = document.createElement("p");
-      empty.className = "game-result-empty";
-      empty.textContent = "저장된 결과가 없습니다.";
-      list.append(empty);
-      return;
-    }
-
-    gameResults.forEach((result) => {
-      const details = document.createElement("details");
-      details.className = "game-result-entry";
-      const summary = document.createElement("summary");
-      const title = document.createElement("span");
-      title.textContent = `${result.sessionNumber || 1}회차 · ${result.teamCount || result.teams?.length || 1}팀`;
-      const date = document.createElement("span");
-      date.textContent = formatSessionDate(result.savedAt);
-      summary.append(title, date);
-
-      const totals = result.totals || {};
-      const total = document.createElement("p");
-      total.className = "game-result-summary";
-      total.textContent = `질문 ${cleanScore(totals.questions)}회 · 증거 ${cleanScore(totals.evidenceCards)}장 · 윤리퀴즈 ${cleanScore(totals.ethicsSolved)}개`;
-
-      const teamList = document.createElement("div");
-      teamList.className = "game-result-teams";
-      (Array.isArray(result.teams) ? result.teams : []).forEach((team) => {
-        const row = document.createElement("span");
-        row.textContent = `${teamLabelFor(team.team)} · 코인 ${cleanScore(team.credits)}개 · 질문 ${cleanScore(team.questions)}회 · 증거 ${cleanScore(team.evidenceCards)}장 · 퀴즈 ${cleanScore(team.ethicsSolved)}개${team.finalNote ? " · 사건노트 제출" : ""}`;
-        teamList.append(row);
-      });
-      details.append(summary, total, teamList);
-      list.append(details);
-    });
-  }
-
-  function applyGameSessionData(data = {}) {
-    if (data.session && typeof data.session === "object") gameSession = data.session;
-    if (Array.isArray(data.results)) gameResults = data.results;
-    if (!gameSession) return;
-    applyActiveTeamCount(gameSession.teamCount);
-    const current = document.getElementById("gameSessionCurrent");
-    const started = document.getElementById("gameSessionStarted");
-    const select = document.getElementById("gameTeamCount");
-    if (current) current.textContent = `${gameSession.number || 1}회차 · ${activeTeamCount}팀`;
-    if (started) started.textContent = formatSessionDate(gameSession.startedAt);
-    if (select) select.value = String(activeTeamCount);
-    renderScores();
-    renderQuestionStats();
-    renderEvidenceLogs();
-    renderGrants();
-    renderEvidenceRoomCounts();
-    renderGameResults();
-  }
-
-  async function fetchGameSessions() {
-    const { response, data } = await requestCredits("/api/credits?gameSessions=1");
-    if (!response.ok || !data.session) {
-      throw new Error(data.error || "게임 회차 정보를 불러오지 못했습니다.");
-    }
-    applyGameSessionData(data);
-    setGameSessionStatus(data.persistent ? "회차 정보를 불러왔습니다." : "공유 저장소가 연결되지 않았습니다.", data.persistent ? "ok" : "bad");
-    return data;
-  }
-
-  async function postGameSession(action, extra = {}) {
-    const { response, data } = await requestCredits("/api/credits", {
-      method: "POST",
-      body: JSON.stringify({ action, ...extra })
-    });
-    if (!response.ok || !data.ok) {
-      throw new Error(data.error || "게임 회차를 처리하지 못했습니다.");
-    }
-    return data;
-  }
-
-  async function applyGameTeamCount() {
-    const teamCount = cleanScore(document.getElementById("gameTeamCount")?.value);
-    const data = await postGameSession("gameSessionTeamCount", { teamCount });
-    applyGameSessionData(data);
-    setGameSessionStatus(`${teamCount}팀으로 적용했습니다.`, "ok");
-  }
-
-  async function saveGameSessionResult() {
-    const data = await postGameSession("gameSessionSave");
-    applyGameSessionData(data);
-    setGameSessionStatus(`${data.result?.sessionNumber || gameSession?.number || 1}회차 결과를 저장했습니다.`, "ok");
-  }
-
-  async function startNewGameSession() {
-    const teamCount = cleanScore(document.getElementById("gameTeamCount")?.value);
-    const currentNumber = gameSession?.number || 1;
-    const prompt = gameSession?.startedAt
-      ? `현재 ${currentNumber}회차 결과를 저장하고 ${teamCount}팀으로 새 게임을 시작할까요? 코인, 증거카드, 승인, 윤리퀴즈 진행과 사건노트가 초기화됩니다.`
-      : `${teamCount}팀으로 ${currentNumber}회차 게임을 시작할까요? 기존 진행 데이터가 있다면 결과로 저장한 뒤 초기화됩니다.`;
-    const confirmed = window.confirm(prompt);
-    if (!confirmed) return;
-    const data = await postGameSession("gameSessionNew", { teamCount });
-    applyGameSessionData({ session: data.session, results: data.history });
-    remainingCredits = { ...emptyByTeam };
-    grantedCredits = { ...emptyByTeam };
-    questionCounts = { ...emptyByTeam };
-    questionLogs = [];
-    evidenceLogs = [];
-    evidenceGrants = {};
-    pendingAdds = { ...emptyByTeam };
-    saveDraftAdds(pendingAdds);
-    renderScores();
-    renderQuestionStats();
-    renderEvidenceLogs();
-    renderGrants();
-    renderEvidenceRoomCounts();
-    setGameSessionStatus(`${data.session?.number || 1}회차 새 게임을 시작했습니다.`, "ok");
-    setSyncStatus("새 게임 진행 데이터가 초기화되었습니다.", "ok");
-  }
-
   function applyCreditData(data = {}) {
     remainingCredits = cleanTeamMap(data.credits || {});
     questionCounts = cleanTeamMap(data.counts || {});
@@ -318,7 +159,7 @@
     const usage = document.getElementById("questionUsage");
     if (usage) {
       usage.textContent = "";
-      activeTeams().forEach((team) => {
+      teams.forEach((team) => {
         const row = document.createElement("div");
         row.className = "usage-row";
 
@@ -340,8 +181,7 @@
     if (!logList) return;
     logList.textContent = "";
 
-    const activeQuestionLogs = questionLogs.filter((entry) => activeTeams().includes(entry.team));
-    if (!activeQuestionLogs.length) {
+    if (!questionLogs.length) {
       const empty = document.createElement("p");
       empty.className = "log-empty";
       empty.textContent = "아직 질문 로그가 없습니다.";
@@ -349,7 +189,7 @@
       return;
     }
 
-    activeQuestionLogs.slice(0, 16).forEach((entry) => {
+    questionLogs.slice(0, 16).forEach((entry) => {
       const item = document.createElement("article");
       item.className = "log-entry";
 
@@ -370,8 +210,7 @@
     if (!list) return;
     list.textContent = "";
 
-    const activeLogs = evidenceLogs.filter((entry) => activeTeams().includes(entry.team));
-    if (!activeLogs.length) {
+    if (!evidenceLogs.length) {
       const empty = document.createElement("p");
       empty.className = "evidence-redeem-empty";
       empty.textContent = "아직 입력된 증거코드가 없습니다.";
@@ -379,7 +218,7 @@
       return;
     }
 
-    activeLogs.slice(0, 20).forEach((entry) => {
+    evidenceLogs.slice(0, 20).forEach((entry) => {
       const item = document.createElement("article");
       item.className = "evidence-redeem-entry";
 
@@ -427,7 +266,6 @@
 
   async function publishScores() {
     const amounts = cleanTeamMap(pendingAdds);
-    teams.slice(activeTeamCount).forEach((team) => { amounts[team] = 0; });
     const total = totalAdditions(amounts);
     if (!total) {
       setSyncStatus("추가할 코인 수를 입력하세요.");
@@ -529,16 +367,13 @@
 
   function populateGrantSelects() {
     const teamSelect = document.getElementById("grantTeamSelect");
-    if (teamSelect) {
-      const selected = teamSelect.value;
-      teamSelect.replaceChildren();
-      activeTeams().forEach((team) => {
+    if (teamSelect && !teamSelect.options.length) {
+      teams.forEach((team) => {
         const option = document.createElement("option");
         option.value = team;
         option.textContent = teamLabelFor(team);
         teamSelect.append(option);
       });
-      if (activeTeams().includes(selected)) teamSelect.value = selected;
     }
 
     const roomSelect = document.getElementById("grantRoomSelect");
@@ -605,7 +440,7 @@
     if (!list) return;
     list.textContent = "";
 
-    const active = activeTeams()
+    const active = teams
       .map((team) => ({ team, grant: evidenceGrants[team] }))
       .filter((entry) => entry.grant && entry.grant.roomId);
 
@@ -646,7 +481,7 @@
     evidenceLogs.forEach((entry) => {
       const team = String(entry.team || "").trim();
       const room = String(entry.room || "").trim();
-      if (!activeTeams().includes(team) || roomOrder[room] === undefined) return;
+      if (!teams.includes(team) || roomOrder[room] === undefined) return;
       if (String(entry.code || "").startsWith("REVISIT") || entry.evidence === "재방문 보너스") return;
       const key = evidenceRoomCountKey(team, room);
       const current = evidenceRoomCounts.get(key) || { team, room, count: 0 };
@@ -751,10 +586,7 @@
     "refreshEvidenceLogs",
     "clearEvidenceLogs",
     "grantSubmit",
-    "refreshGrants",
-    "applyGameTeamCount",
-    "saveGameResult",
-    "startNewGame"
+    "refreshGrants"
   ].map((id) => document.getElementById(id)).filter(Boolean);
 
   function setRequesting(value) {
@@ -808,30 +640,6 @@
     runExclusive(event.currentTarget, () =>
       publishScores().catch((error) => {
         setSyncStatus(error.message || "코인 추가 실패", "bad");
-      })
-    );
-  });
-
-  document.getElementById("applyGameTeamCount")?.addEventListener("click", (event) => {
-    runExclusive(event.currentTarget, () =>
-      applyGameTeamCount().catch((error) => {
-        setGameSessionStatus(error.message || "팀 수 적용에 실패했습니다.", "bad");
-      })
-    );
-  });
-
-  document.getElementById("saveGameResult")?.addEventListener("click", (event) => {
-    runExclusive(event.currentTarget, () =>
-      saveGameSessionResult().catch((error) => {
-        setGameSessionStatus(error.message || "결과 저장에 실패했습니다.", "bad");
-      })
-    );
-  });
-
-  document.getElementById("startNewGame")?.addEventListener("click", (event) => {
-    runExclusive(event.currentTarget, () =>
-      startNewGameSession().catch((error) => {
-        setGameSessionStatus(error.message || "새 게임 시작에 실패했습니다.", "bad");
       })
     );
   });
@@ -911,10 +719,6 @@
   renderEvidenceLogs();
   renderGrants();
   renderEvidenceRoomCounts();
-  renderGameResults();
-  fetchGameSessions().catch((error) => {
-    setGameSessionStatus(error.message || "게임 회차 정보를 불러오지 못했습니다.", "bad");
-  });
   startScoreSync();
 
   const stopwatchDisplay = document.getElementById("stopwatchDisplay");

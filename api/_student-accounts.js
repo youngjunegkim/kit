@@ -1,7 +1,6 @@
 const { createHash, timingSafeEqual } = require("node:crypto");
 const {
   getStudentAccountConfig,
-  getGameSession,
   hasPersistentStore,
   setStudentAccountConfig,
   teams
@@ -138,15 +137,6 @@ async function loginAccount(body) {
       ok: false,
       error: "아이디 또는 비밀번호가 올바르지 않습니다.",
       code: "INVALID_CREDENTIALS"
-    });
-  }
-
-  const session = await getGameSession();
-  if (index >= session.teamCount) {
-    return result(403, {
-      ok: false,
-      error: `현재 게임은 ${session.teamCount}팀까지만 참여할 수 있습니다.`,
-      code: "INACTIVE_TEAM"
     });
   }
 

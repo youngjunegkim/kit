@@ -547,7 +547,6 @@
   const classId = quizClassId();
   const team = sessionStorage.getItem("kit-auth-team") || sessionStorage.getItem("kit-auth-user") || mode;
   const storageKey = `kit-ethics-quiz:${classId}:${team}`;
-  const sessionMarkerKey = `kit-ethics-quiz-session:${classId}:${team}`;
 
   const nodes = {
     nav: document.querySelector("[data-quiz-nav]"),
@@ -580,33 +579,6 @@
 
   function saveAnswers() {
     localStorage.setItem(storageKey, JSON.stringify(state.answers));
-  }
-
-  async function syncAnswersWithGameSession() {
-    if (mode !== "student" || !team) return;
-    try {
-      const response = await fetch(`/api/credits?team=${encodeURIComponent(team)}&classId=${encodeURIComponent(classId)}`, {
-        cache: "no-store",
-        headers: {
-          "x-kit-role": "student",
-          "x-kit-team": encodeURIComponent(team),
-          "x-kit-class": classId
-        }
-      });
-      const data = await response.json().catch(() => ({}));
-      const sessionId = String(data.session?.id || "").trim();
-      if (!response.ok || !sessionId) return;
-      const previousSessionId = localStorage.getItem(sessionMarkerKey) || "";
-      const shouldReset = (previousSessionId && previousSessionId !== sessionId) ||
-        (!previousSessionId && Number(data.session?.number) > 1);
-      localStorage.setItem(sessionMarkerKey, sessionId);
-      if (!shouldReset) return;
-      state.answers = {};
-      saveAnswers();
-      render();
-    } catch {
-      // Keep the local answers when the shared game state cannot be reached.
-    }
   }
 
   function answerFor(question) {
@@ -978,5 +950,4 @@
 
   setupQuestionBuilder();
   render();
-  syncAnswersWithGameSession();
 })();
