@@ -2452,6 +2452,7 @@
       state.logs = Array.isArray(data.logs) ? data.logs : [];
       renderStudentLogs();
       consumeGoldenNoticesFromResponse(data);
+      await syncEvidenceCardsWithServer();
     } catch {
       setCreditText("받기 실패");
     } finally {

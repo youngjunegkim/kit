@@ -1,5 +1,9 @@
 const {
+  clearEvidenceApprovals,
+  clearEvidenceGrant,
+  clearEvidenceRedemptions,
   clearQuestionLogs,
+  clearSimilaritySentences,
   consumeGoldenNotices,
   getAllCredits,
   getAllGrantedCredits,
@@ -213,6 +217,45 @@ async function handleCredits(request, response) {
         granted: await getAllGrantedCredits(),
         counts: await getAllQuestionCounts(),
         logs: await getQuestionLogs(),
+        persistent: hasPersistentStore(),
+        teacherCodeConfigured: isTeacherCodeConfigured()
+      });
+      return;
+    }
+
+    if (action === "gamereset") {
+      if (String(body.password || "") !== "kit") {
+        sendJson(response, 403, {
+          error: "관리자 비밀번호가 맞지 않습니다.",
+          code: "INVALID_GAME_RESET_PASSWORD"
+        });
+        return;
+      }
+
+      const [credits, questionResult, evidenceLogs, approvals, similaritySentences, clearedGrants] = await Promise.all([
+        resetCredits(),
+        clearQuestionLogs(),
+        clearEvidenceRedemptions(),
+        clearEvidenceApprovals(),
+        clearSimilaritySentences(),
+        Promise.all(teams.map((team) => clearEvidenceGrant(team)))
+      ]);
+      await Promise.all(teams.map((team) => consumeGoldenNotices(team)));
+
+      sendJson(response, 200, {
+        ok: true,
+        credits,
+        granted: await getAllGrantedCredits(),
+        counts: questionResult.counts,
+        logs: questionResult.logs,
+        evidenceLogs: [],
+        evidenceGrants: {},
+        removed: {
+          evidence: evidenceLogs.length,
+          approvals: approvals.length,
+          similaritySentences: similaritySentences.length,
+          grants: clearedGrants.filter(Boolean).length
+        },
         persistent: hasPersistentStore(),
         teacherCodeConfigured: isTeacherCodeConfigured()
       });

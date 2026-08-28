@@ -314,6 +314,36 @@
     setSyncStatus(data.persistent ? "부여한 코인과 남은 코인이 초기화됨" : "임시 초기화됨: Vercel에 Upstash 환경변수가 필요합니다.", data.persistent ? "ok" : "bad");
   }
 
+  async function resetWholeGame(password) {
+    setSyncStatus("게임 진행 데이터를 초기화하는 중입니다...");
+    const { response, data } = await requestCredits("/api/credits", {
+      method: "POST",
+      body: JSON.stringify({ action: "gameReset", password })
+    });
+    if (!response.ok) {
+      throw new Error(data.error || "게임 초기화 실패");
+    }
+
+    applyCreditData(data);
+    questionLogs = [];
+    evidenceLogs = [];
+    evidenceGrants = {};
+    evidenceRoomCounts = new Map();
+    pendingAdds = { ...emptyByTeam };
+    saveDraftAdds(pendingAdds);
+    renderScores();
+    renderQuestionStats();
+    renderEvidenceLogs();
+    renderGrants();
+    renderEvidenceRoomCounts();
+    setSyncStatus(
+      data.persistent
+        ? "게임 진행 데이터를 모두 초기화했습니다. 학생은 코인 받기를 눌러 초기화된 상태를 반영할 수 있습니다."
+        : "현재 브라우저의 게임 진행 데이터를 초기화했습니다. 공유 저장소 연결 상태를 확인하세요.",
+      data.persistent ? "ok" : "bad"
+    );
+  }
+
   async function clearServerLogs() {
     const { response, data } = await requestCredits("/api/credits", {
       method: "POST",
@@ -581,6 +611,7 @@
   const actionButtons = [
     "publishScores",
     "resetScores",
+    "resetGame",
     "refreshQuestionStats",
     "clearQuestionLogs",
     "refreshEvidenceLogs",
@@ -610,6 +641,35 @@
     }
   }
 
+  const gameResetModal = document.getElementById("gameResetModal");
+  const gameResetForm = document.getElementById("gameResetForm");
+  const gameResetPassword = document.getElementById("gameResetPassword");
+  const gameResetError = document.getElementById("gameResetError");
+  const gameResetConfirm = document.getElementById("gameResetConfirm");
+
+  function setGameResetError(message = "") {
+    if (!gameResetError) return;
+    gameResetError.textContent = message;
+    gameResetError.hidden = !message;
+  }
+
+  function openGameResetModal() {
+    if (!gameResetModal || requesting) return;
+    setGameResetError();
+    if (gameResetPassword) gameResetPassword.value = "";
+    gameResetModal.hidden = false;
+    document.body.classList.add("game-reset-open");
+    gameResetPassword?.focus({ preventScroll: true });
+  }
+
+  function closeGameResetModal() {
+    if (!gameResetModal || requesting) return;
+    gameResetModal.hidden = true;
+    document.body.classList.remove("game-reset-open");
+    setGameResetError();
+    document.getElementById("resetGame")?.focus({ preventScroll: true });
+  }
+
   document.querySelectorAll("[data-score-input]").forEach((input) => {
     input.addEventListener("input", () => {
       const team = input.dataset.scoreInput;
@@ -634,6 +694,40 @@
         setSyncStatus(error.message || "코인 초기화 실패", "bad");
       })
     );
+  });
+
+  document.getElementById("resetGame")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    openGameResetModal();
+  });
+
+  gameResetForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const password = String(gameResetPassword?.value || "");
+    if (password !== "kit") {
+      setGameResetError("관리자 비밀번호가 맞지 않습니다.");
+      gameResetPassword?.select();
+      return;
+    }
+
+    runExclusive(gameResetConfirm, async () => {
+      try {
+        await resetWholeGame(password);
+        gameResetModal.hidden = true;
+        document.body.classList.remove("game-reset-open");
+      } catch (error) {
+        setGameResetError(error.message || "게임 초기화 실패");
+        setSyncStatus(error.message || "게임 초기화 실패", "bad");
+      }
+    });
+  });
+
+  gameResetModal?.querySelectorAll("[data-close-game-reset]").forEach((button) => {
+    button.addEventListener("click", closeGameResetModal);
+  });
+
+  gameResetModal?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeGameResetModal();
   });
 
   document.getElementById("publishScores")?.addEventListener("click", (event) => {

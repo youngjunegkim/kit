@@ -618,6 +618,117 @@
       background: #c92521;
     }
 
+    #resetGame {
+      background: #8d1f1f;
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(141, 31, 31, 0.2);
+    }
+
+    #resetGame:hover,
+    #resetGame:focus-visible {
+      background: #711717;
+    }
+
+    body.game-reset-open {
+      overflow: hidden;
+    }
+
+    .game-reset-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(8, 14, 24, 0.72);
+    }
+
+    .game-reset-modal[hidden] {
+      display: none;
+    }
+
+    .game-reset-dialog {
+      width: min(430px, 100%);
+      border: 1px solid #d8dde6;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+      padding: 24px;
+    }
+
+    .game-reset-dialog h2 {
+      margin: 0 0 10px;
+      color: #17202d;
+      font-size: 1.35rem;
+    }
+
+    .game-reset-dialog p {
+      margin: 0 0 16px;
+      color: #5e6978;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      font-weight: 750;
+    }
+
+    .game-reset-dialog label {
+      display: block;
+      margin-bottom: 7px;
+      color: #263244;
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .game-reset-dialog input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid #b9c2ce;
+      border-radius: 6px;
+      padding: 9px 12px;
+      color: #17202d;
+      background: #fff;
+      font: inherit;
+      font-weight: 800;
+    }
+
+    .game-reset-dialog input:focus {
+      border-color: #8d1f1f;
+      outline: 3px solid rgba(141, 31, 31, 0.15);
+    }
+
+    .game-reset-error {
+      min-height: 20px;
+      margin: 8px 0 0 !important;
+      color: #b42318 !important;
+      font-size: 0.84rem !important;
+    }
+
+    .game-reset-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .game-reset-actions button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 6px;
+      padding: 9px 16px;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .game-reset-cancel {
+      color: #3c4859;
+      background: #e8edf3;
+    }
+
+    .game-reset-confirm {
+      color: #fff;
+      background: #8d1f1f;
+    }
+
     .reset-btn:hover,
     .reset-btn:focus-visible {
       background: #dfe5ed;
@@ -1355,6 +1466,7 @@
         <div class="score-actions">
           <button class="reset-btn" type="button" id="publishScores">코인 추가</button>
           <button class="reset-btn" type="button" id="resetScores">코인 초기화</button>
+          <button class="reset-btn" type="button" id="resetGame">게임 초기화</button>
         </div>
       </div>
 
@@ -1591,10 +1703,24 @@
     <img class="card-lightbox__image" data-card-lightbox-image alt="">
   </div>
 
+  <div class="game-reset-modal" id="gameResetModal" hidden>
+    <form class="game-reset-dialog" id="gameResetForm" role="dialog" aria-modal="true" aria-labelledby="gameResetTitle">
+      <h2 id="gameResetTitle">게임 초기화</h2>
+      <p>증거코드와 증거카드, 코인, 질문 로그, 유사도 측정 결과와 학생 제출 문장을 모두 초기화합니다. 이 작업은 되돌릴 수 없습니다.</p>
+      <label for="gameResetPassword">관리자 비밀번호</label>
+      <input id="gameResetPassword" type="password" autocomplete="off" required>
+      <p class="game-reset-error" id="gameResetError" role="alert" hidden></p>
+      <div class="game-reset-actions">
+        <button class="game-reset-cancel" type="button" data-close-game-reset>취소</button>
+        <button class="game-reset-confirm" type="submit" id="gameResetConfirm">초기화</button>
+      </div>
+    </form>
+  </div>
+
   <script src="clock.js"></script>
   <script src="presence.js?v=manual-presence-3"></script>
   <script src="teacher-sounds.js"></script>
-  <script src="dashboard.js?v=month-accounts-1"></script>
+  <script src="dashboard.js?v=game-reset-1"></script>
   <script>
     (() => {
       const lightbox = document.querySelector("[data-card-lightbox]");
