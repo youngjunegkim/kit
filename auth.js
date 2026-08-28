@@ -241,10 +241,10 @@
 
       setLoginChecking(true);
       try {
-        const response = await fetch("api/student-accounts", {
+        const response = await fetch("api/credits", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "login", id, password })
+          body: JSON.stringify({ action: "studentaccountlogin", id, password })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.account) {
@@ -333,7 +333,7 @@
     }
 
     async function loadAccounts() {
-      const response = await fetch("api/student-accounts?admin=1", {
+      const response = await fetch("api/credits?studentAccounts=1", {
         headers: {
           "x-kit-role": "teacher",
           "x-teacher-code": teacherCode
@@ -390,14 +390,14 @@
       }));
       setAdminBusy(saveButton, true, "저장 중", "변경 저장");
       try {
-        const response = await fetch("api/student-accounts", {
+        const response = await fetch("api/credits", {
           method: "POST",
           headers: {
             "content-type": "application/json",
             "x-kit-role": "teacher",
             "x-teacher-code": teacherCode
           },
-          body: JSON.stringify({ action: "update", accounts })
+          body: JSON.stringify({ action: "studentaccountupdate", accounts })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.ok) {

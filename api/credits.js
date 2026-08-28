@@ -18,6 +18,11 @@ const {
   teams,
   withClassScope
 } = require("./_credits");
+const {
+  getStudentAccountsForAdmin,
+  loginStudentAccount,
+  updateStudentAccounts
+} = require("./_student-accounts");
 
 function sendJson(response, statusCode, body) {
   response.statusCode = statusCode;
@@ -109,6 +114,12 @@ async function handleCredits(request, response) {
     }
 
     if (request.method === "GET") {
+      if (queryParam(request, "studentAccounts") === "1") {
+        const result = await getStudentAccountsForAdmin(request);
+        sendJson(response, result.status, result.body);
+        return;
+      }
+
       const team = actorTeam(request);
       if (team) {
         sendJson(response, 200, {
@@ -148,6 +159,18 @@ async function handleCredits(request, response) {
 
     const body = bodyFor(request);
     const action = String(body.action || "set").toLowerCase();
+
+    if (action === "studentaccountlogin") {
+      const result = await loginStudentAccount(body);
+      sendJson(response, result.status, result.body);
+      return;
+    }
+
+    if (action === "studentaccountupdate") {
+      const result = await updateStudentAccounts(request, body);
+      sendJson(response, result.status, result.body);
+      return;
+    }
 
     if (action === "resetteam") {
       const team = normalizeTeam(body.team || actorTeam(request, body));
